@@ -1,219 +1,303 @@
-# ShichiZip — Revised Plan & Remaining Work
+# ShichiZip — Master TODO
 
-## Approach Change
+## Approach
 
-**Previous approach:** Reinvent UI logic from scratch, then wire to 7-Zip core.  
-**Problem:** Caused bugs — wrong format detection, duplicate tree nodes, broken path handling — all already solved in the Windows code.  
-**New approach:** Study each Windows UI source file, understand the logic, translate to AppKit faithfully. The 7-Zip Windows code is the specification.
-
----
-
-## Architecture: Windows → macOS Mapping
-
-### Layer 1: Reuse As-Is (already in lib7zip.a)
-These files compile into the static library and need NO translation:
-
-| Windows Source | Purpose |
-|---|---|
-| `UI/Common/OpenArchive.cpp` | Format detection, signature matching, archive opening |
-| `UI/Common/ArchiveExtractCallback.cpp` | Extract orchestration with callbacks |
-| `UI/Common/ArchiveOpenCallback.cpp` | Open callbacks (password, progress) |
-| `UI/Common/Extract.cpp` | High-level extract coordinator |
-| `UI/Common/Update.cpp` | High-level update/create coordinator |
-| `UI/Common/UpdateCallback.cpp` | Create archive callbacks |
-| `UI/Common/LoadCodecs.cpp` | Codec/format registry |
-| `UI/Common/Bench.cpp` | Benchmark engine |
-| `UI/Common/HashCalc.cpp` | Checksum calculation |
-| `UI/Common/EnumDirItems.cpp` | File enumeration |
-| `UI/Common/PropIDUtils.cpp` | Property display formatting |
-| `UI/Common/SetProperties.cpp` | Compression property setting |
-
-**Action:** The bridge should call these directly instead of reimplementing their logic.
-
-### Layer 2: Bridge (Obj-C++ wrappers calling Layer 1)
-Current `SZArchive.mm` should be refactored to delegate to `OpenArchive.cpp` and `Extract.cpp` instead of reimplementing format detection and extract callbacks.
-
-| Current ShichiZip | Should Delegate To |
-|---|---|
-| Format detection loop in `openAtPath:` | `CArchiveLink::Open()` from `OpenArchive.cpp` |
-| `SZExtractCallback` class | Wrap `CArchiveExtractCallback` from `ArchiveExtractCallback.cpp` |
-| `SZUpdateCallback` class | Wrap `CUpdateCallbackAgent` or `UpdateCallback.cpp` patterns |
-| Compression property setup | `SetProperties.cpp` |
-
-### Layer 3: Translate Win32 UI → AppKit
-Each Windows UI file maps to a Swift/AppKit equivalent:
-
-#### GUI Dialogs (UI/GUI/)
-
-| Windows Source | → macOS Target | Status |
-|---|---|---|
-| `CompressDialog.cpp` (~1200 lines) | `CompressDialogController.swift` | Partial — needs 1:1 option mapping |
-| `ExtractDialog.cpp` (~400 lines) | `ExtractDialogController.swift` | Partial — needs overwrite logic from source |
-| `BenchmarkDialog.cpp` (~800 lines) | `BenchmarkWindowController.swift` | Placeholder — needs real CBench integration |
-| `ExtractGUI.cpp` | Extract orchestration with GUI progress | Not started |
-| `UpdateGUI.cpp` | Create archive orchestration with GUI | Not started |
-| `UpdateCallbackGUI.cpp/.2.cpp` | Progress/error reporting during create | Not started |
-| `HashGUI.cpp` | Hash calculation with GUI | Not started |
-
-#### File Manager (UI/FileManager/)
-
-| Windows Source | → macOS Target | Priority | Status |
-|---|---|---|---|
-| **Core Panel** | | | |
-| `Panel.cpp` | `FileManagerPaneController.swift` | High | Partial |
-| `PanelItems.cpp` | Item display/data source | High | Needs translation |
-| `PanelListNotify.cpp` | List view notifications | High | Needs translation |
-| `PanelSort.cpp` | Column sorting | High | Not started |
-| `PanelKey.cpp` | Keyboard shortcuts | High | Partial |
-| `PanelMenu.cpp` | Context menus | Medium | Not started |
-| `PanelFolderChange.cpp` | Directory navigation | High | Partial |
-| `PanelCopy.cpp` | Copy/Move operations | Medium | Not started |
-| `PanelDrag.cpp` | Drag & drop | Medium | Not started |
-| `PanelSelect.cpp` | Selection management | Medium | Not started |
-| `PanelItemOpen.cpp` | Open items (archives, files) | High | Partial |
-| `PanelOperations.cpp` | File operations (delete, rename) | Medium | Partial |
-| `PanelCrc.cpp` | CRC/hash calculation from panel | Low | Not started |
-| `PanelSplitFile.cpp` | Split/combine files | Low | Not started |
-| **Folder Models** | | | |
-| `FSFolder.cpp` | File system folder model | High | Partial (via FileSystemItem) |
-| `FSFolderCopy.cpp` | File copy implementation | Medium | Not started |
-| `FSDrives.cpp` | Drive/volume listing | Medium | Not started |
-| `RootFolder.cpp` | Root (Computer) view | Low | Not started |
-| `AltStreamsFolder.cpp` | NTFS alt streams | N/A | Skip (macOS irrelevant) |
-| `NetFolder.cpp` | Network browsing | Low | Not started |
-| **Dialogs** | | | |
-| `OverwriteDialog.cpp` | Overwrite confirmation | High | Inline in callback |
-| `PasswordDialog.cpp` | Password entry | Done | Done |
-| `ProgressDialog2.cpp` | Progress with details | High | Partial |
-| `CopyDialog.cpp` | Copy destination picker | Medium | Not started |
-| `ComboDialog.cpp` | Generic combo dialog | Low | Not started |
-| `EditDialog.cpp` | Text edit dialog | Low | Not started |
-| `SplitDialog.cpp` | Split file dialog | Low | Not started |
-| `LinkDialog.cpp` | Symlink dialog | Low | Not started |
-| `MessagesDialog.cpp` | Error message list | Medium | Not started |
-| `ListViewDialog.cpp` | Generic list dialog | Low | Not started |
-| `AboutDialog.cpp` | About window | Low | Not started |
-| `BrowseDialog.cpp` | Folder browser | Medium | Via NSOpenPanel |
-| **Settings** | | | |
-| `OptionsDialog.cpp` | Settings coordinator | Medium | Partial |
-| `SettingsPage.cpp` | General settings | Medium | Partial |
-| `EditPage.cpp` | Editor settings | Low | Not started |
-| `FoldersPage.cpp` | Working folders | Low | Not started |
-| `SystemPage.cpp` | File associations | Medium | Not started |
-| `MenuPage.cpp` | Context menu settings | Low | Not started |
-| `LangPage.cpp` | Language settings | Low | Not started |
-| **App Infrastructure** | | | |
-| `FM.cpp` / `App.cpp` | Application lifecycle | Done | AppDelegate.swift |
-| `MyLoadMenu.cpp` | Menu bar construction | Done | MainMenu.swift |
-| `RegistryUtils.cpp` | Settings persistence | Medium | → NSUserDefaults |
-| `RegistryAssociations.cpp` | File type associations | Medium | → UTI/LSHandler |
-| `ViewSettings.cpp` | View state persistence | Medium | Not started |
-| `FormatUtils.cpp` | Number/size formatting | Done | Via ByteCountFormatter |
-| `SysIconUtils.cpp` | System icon lookup | Done | Via NSWorkspace |
-| `PropertyName.cpp` | Property name strings | Low | Not started |
-| `StringUtils.cpp` | String utilities | Done | Via Swift String |
-| `LangUtils.cpp` | Localization | Low | → NSLocalizedString |
-
-#### Explorer Integration (UI/Explorer/)
-| Windows Source | → macOS Target | Status |
-|---|---|---|
-| Context menu shell extension | Finder Extension | Not started |
+Study each Windows 7-Zip source file, understand the logic, translate to AppKit.
+The bridge delegates to official 7-Zip C++ code (OpenArchive.cpp, Extract.cpp, Update.cpp etc.) — do NOT reimplement.
 
 ---
 
-## Revised Phase Plan
+## Complete Feature Audit (400+ features from Windows 7-Zip)
 
-### Phase A: Refactor Bridge to Use OpenArchive.cpp (HIGH PRIORITY)
-- [ ] Replace custom format detection with `CArchiveLink::Open()` / `CArchiveLink::Open2()`
-- [ ] Replace `SZExtractCallback` with wrapper around `CArchiveExtractCallback`
-- [ ] Replace `SZUpdateCallback` with wrapper around `UpdateCallback.cpp` patterns
-- [ ] Use `PropIDUtils.cpp` for property formatting
-- [ ] Wire `Bench.cpp` into BenchmarkWindowController
-- [ ] Wire `HashCalc.cpp` into hash calculation
+Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 
-### Phase B: Translate File Manager Faithfully (HIGH PRIORITY)
-Study and translate these files in order:
-- [ ] `Panel.cpp` → understand panel architecture, translate to PaneController
-- [ ] `PanelItems.cpp` → item data source, column definitions
-- [ ] `PanelFolderChange.cpp` → directory navigation logic
-- [ ] `PanelItemOpen.cpp` → archive-as-folder navigation
-- [ ] `PanelSort.cpp` → sorting logic
-- [ ] `PanelKey.cpp` → full keyboard shortcut map
-- [ ] `PanelListNotify.cpp` → list update notifications
-- [ ] `FSFolder.cpp` → file system model
-- [ ] `FSDrives.cpp` → drive listing
-- [ ] `PanelCopy.cpp` + `FSFolderCopy.cpp` → copy/move operations
-- [ ] `PanelSelect.cpp` → selection commands
-- [ ] `PanelMenu.cpp` → context menus
-- [ ] `PanelDrag.cpp` → drag & drop
-- [ ] `PanelOperations.cpp` → delete, rename
+### Archive Operations
 
-### Phase C: Translate Dialogs Faithfully (MEDIUM PRIORITY)
-- [ ] `CompressDialog.cpp` → 1:1 option mapping
-- [ ] `ExtractDialog.cpp` → 1:1 option mapping  
-- [ ] `BenchmarkDialog.cpp` → real benchmark via CBench
-- [ ] `OverwriteDialog.cpp` → proper overwrite dialog (not inline alert)
-- [ ] `ProgressDialog2.cpp` → full progress with speed/ETA/ratio
-- [ ] `CopyDialog.cpp` → copy destination dialog
-- [ ] `MessagesDialog.cpp` → error listing
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 1 | Open archive — browse contents | ✅ | Via CArchiveLink::Open3() |
+| 2 | Format auto-detection by signature | ✅ | Official OpenArchive.cpp code path |
+| 3 | Extension-based format hints | ✅ | Handled by OpenArchive.cpp |
+| 4 | Extract all | ✅ | Via CArchiveExtractCallback |
+| 5 | Extract selected entries | ✅ | Via CArchiveExtractCallback |
+| 6 | Extract with path modes (full/none/absolute) | ✅ | Mapped to NExtract::NPathMode |
+| 7 | Extract overwrite modes (ask/skip/rename/overwrite) | ✅ | Via AskOverwrite callback with 5-button dialog |
+| 8 | Create new archive | ✅ | Via UpdateArchive() |
+| 9 | Test archive integrity | ✅ | Via Extract with testMode=1 |
+| 10 | Encrypted archive open (header encryption) | ✅ | Password prompt in Open_CryptoGetTextPassword |
+| 11 | Encrypted file extraction | ✅ | Password prompt in CryptoGetTextPassword |
+| 12 | Wrong password detection | ✅ | Detects kWrongPassword/kCRCError+encrypted |
+| 13 | Open Inside (extract to temp, open with system app) | ❌ | PanelItemOpen.cpp — not planned |
+| 14 | Open Outside (copy to temp, open) | ❌ | PanelItemOpen.cpp — not planned |
+| 15 | View/Edit file from archive | ❌ | Extract to temp, open, re-add on save |
+| 16 | Delete files from archive | ❌ | Modify existing archive via UpdateItems |
+| 17 | Add files to existing archive | ❌ | Update mode: add to existing |
+| 18 | Update archive (freshen/sync) | ❌ | CUpdateOptions action commands |
+| 19 | Archive-within-archive nesting | ❌ | CFolderLink stack, IFolderFolder |
+| 20 | Multi-volume split archive creation | ❌ | VolumesSizes in CUpdateOptions |
+| 21 | Combine split archives | ❌ | PanelSplitFile.cpp |
+| 22 | SFX self-extracting archive | ❌ | SfxMode in CUpdateOptions |
+
+### File Manager
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 23 | Dual-pane file browser | ✅ | FileManagerWindowController |
+| 24 | F9 toggle single/dual pane | ✅ | Implemented |
+| 25 | File system navigation | ✅ | FileManagerPaneController |
+| 26 | Path bar | ✅ | NSPathControl |
+| 27 | Status bar (file count, total size) | ✅ | Implemented |
+| 28 | Toolbar (Add/Extract/Test/Copy/Move/Delete) | ✅ | Implemented |
+| 29 | Double-click open (files/folders/archives) | ✅ | Implemented |
+| 30 | Enter key to open | ✅ | Implemented |
+| 31 | Backspace to go up | ✅ | Implemented |
+| 32 | Copy files (F5) | 🔧 | Stub — Phase B |
+| 33 | Move files (F6) | 🔧 | Stub — Phase B |
+| 34 | Create folder (F7) | ✅ | Implemented |
+| 35 | Delete files (F8) | ✅ | Move to Trash |
+| 36 | Rename files (F2) | ❌ | Not planned |
+| 37 | Tab to switch panes | ❌ | Not planned |
+| 38 | Column sorting | 🔧 | Phase B — PanelSort.cpp |
+| 39 | Context menus | 🔧 | Phase B — PanelMenu.cpp |
+| 40 | Drag & drop | 🔧 | Phase B — PanelDrag.cpp |
+| 41 | Selection management (Ctrl+A, Invert, Select by type) | ❌ | PanelSelect.cpp |
+| 42 | Flat view (recursive file listing) | ❌ | Not planned |
+| 43 | Folder tree sidebar | ❌ | Not planned |
+| 44 | Drive/volume selector | ❌ | FSDrives.cpp |
+| 45 | Folder history (Alt+F12) | ❌ | Not planned |
+| 46 | Bookmarked folders | ❌ | Not planned |
+| 47 | View modes (large/small icons, list, detail) | ❌ | Not planned |
+| 48 | Navigate into archive as folder | ❌ | IFolderFolder — critical 7-Zip FM feature |
+| 49 | File properties dialog | ❌ | Not planned |
+| 50 | Edit file comments | ❌ | Not planned |
+| 51 | Create symlinks/hardlinks | ❌ | LinkDialog.cpp |
+| 52 | Split file | ❌ | PanelSplitFile.cpp |
+| 53 | Compare files | ❌ | Not planned |
+
+### Archive Content View (Document Window)
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 54 | Outline view with columns | ✅ | Name, Size, Packed, Modified, Method, CRC |
+| 55 | Hierarchical tree display | ✅ | ArchiveTreeNode |
+| 56 | Extract toolbar button | ✅ | Implemented |
+| 57 | Test toolbar button | ✅ | Implemented |
+| 58 | Info toolbar button | ✅ | Shows file/folder count, sizes, ratio |
+| 59 | File icons (system icons by extension) | ✅ | Via NSWorkspace |
+| 60 | Format name in title bar | ✅ | "file.zip — ShichiZip [zip]" |
+
+### Compression Dialog
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 61 | Archive format selector | ✅ | 7z/zip/tar/gz/bz2/xz/wim/zst |
+| 62 | Compression level | ✅ | Store through Ultra |
+| 63 | Compression method | ✅ | LZMA/LZMA2/PPMd/BZip2/Deflate |
+| 64 | Dictionary size | ✅ | UI present, property not fully wired |
+| 65 | Word size | ✅ | UI present |
+| 66 | Solid archive toggle | ✅ | Wired via "s=on" property |
+| 67 | Thread count | ✅ | Wired via "mt=N" property |
+| 68 | Encryption method | ✅ | UI present (AES-256, ZipCrypto) |
+| 69 | Password entry | ✅ | NSSecureTextField |
+| 70 | Encrypt file names | ✅ | Wired via "he=on" property |
+| 71 | Split to volumes | ✅ | UI present, not wired to VolumesSizes |
+| 72 | SFX option | ✅ | UI present, not wired |
+| 73 | Password confirmation (enter twice) | ❌ | Not planned |
+| 74 | Delete after compressing | ❌ | Not planned |
+| 75 | Update mode (Add/Update/Freshen/Sync) | ❌ | Not planned |
+| 76 | Include symlinks/hardlinks/alt streams options | ❌ | Not planned |
+| 77 | Timestamp preservation options | ❌ | Not planned |
+
+### Extract Dialog
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 78 | Destination folder picker | ✅ | NSPathControl + Browse |
+| 79 | Path mode selector | ✅ | Full/No/Absolute paths |
+| 80 | Overwrite mode selector | ✅ | Ask/Skip/Rename/Overwrite |
+| 81 | Password field | ✅ | With show/hide toggle |
+| 82 | Delete after extracting | ❌ | Not planned |
+| 83 | Open destination after extract | ❌ | Partial (ArchiveWindowController opens folder) |
+
+### Progress Dialog
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 84 | Progress bar | ✅ | NSProgressIndicator |
+| 85 | Current file name | ✅ | Updated via PrepareOperation callback |
+| 86 | Bytes completed / total | ✅ | Via SetCompleted callback |
+| 87 | Cancel button | ✅ | Returns E_ABORT |
+| 88 | Speed (MB/s) | 🔧 | Phase C |
+| 89 | Elapsed / remaining time | 🔧 | Phase C |
+| 90 | Compression ratio | 🔧 | Phase C |
+| 91 | Pause / Resume | ❌ | Not planned |
+
+### Other Dialogs
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 92 | Password dialog | ✅ | PasswordDialogController + bridge prompt |
+| 93 | Overwrite confirmation (with file sizes/dates) | ✅ | 5-button dialog in AskOverwrite |
+| 94 | Settings window | ✅ | General/Performance/Associations tabs |
+| 95 | Benchmark window | ✅ | Placeholder — needs CBench (Phase A4) |
+| 96 | About window | ❌ | Not planned |
+| 97 | Error/message list dialog | ❌ | MessagesDialog.cpp |
+| 98 | Copy destination dialog | ❌ | CopyDialog.cpp |
+
+### Hash / Checksum
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 99 | CRC32 | 🔧 | Phase A4 — wire HashCalc.cpp |
+| 100 | CRC64 | 🔧 | Phase A4 |
+| 101 | SHA-1 | 🔧 | Phase A4 |
+| 102 | SHA-256 | 🔧 | Phase A4 |
+| 103 | BLAKE2sp | 🔧 | Phase A4 |
+| 104 | MD5 | 🔧 | Phase A4 |
+| 105 | XXH64 | 🔧 | Phase A4 |
+| 106 | SHA-512 | 🔧 | Phase A4 |
+| 107 | SHA3-256 | 🔧 | Phase A4 |
+| 108 | Hash display in properties | ❌ | Not planned |
+
+### Benchmark
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 109 | LZMA compression speed | 🔧 | Phase A4 — wire Bench.cpp |
+| 110 | LZMA decompression speed | 🔧 | Phase A4 |
+| 111 | Thread count config | 🔧 | Phase A4 |
+| 112 | Dictionary size config | 🔧 | Phase A4 |
+| 113 | MIPS rating | 🔧 | Phase A4 |
+| 114 | Memory usage display | 🔧 | Phase A4 |
+
+### Settings / Preferences
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 115 | Default archive format | 🔧 | Phase D — NSUserDefaults |
+| 116 | Default compression level | 🔧 | Phase D |
+| 117 | Temp folder selection | 🔧 | Phase D |
+| 118 | Thread count default | 🔧 | Phase D |
+| 119 | Memory limit | 🔧 | Phase D |
+| 120 | File type associations | 🔧 | Phase D — LSHandler APIs |
+| 121 | Language selection | 🔧 | Phase F — NSLocalizedString |
+
+### System Integration
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 122 | Finder Extension (Compress/Extract context menus) | 🔧 | Phase E |
+| 123 | Quick Look preview of archive contents | 🔧 | Phase E |
+| 124 | macOS Services (right-click → Services) | 🔧 | Phase E |
+| 125 | Spotlight importer | 🔧 | Phase E (optional) |
+| 126 | URL scheme (shichizip://) | 🔧 | Phase E |
+| 127 | AppleScript / Shortcuts | 🔧 | Phase E |
+| 128 | Drag & drop onto dock icon | ❌ | Not planned |
+
+### Keyboard Shortcuts (from PanelKey.cpp)
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 129 | F2 - Rename | ❌ | |
+| 130 | F3 - View | ❌ | |
+| 131 | F4 - Edit | ❌ | |
+| 132 | F5 - Copy | ✅ | Stub |
+| 133 | F6 - Move | ✅ | Stub |
+| 134 | F7 - Create folder | ✅ | |
+| 135 | F8/Delete - Delete | ✅ | |
+| 136 | F9 - Toggle pane | ✅ | |
+| 137 | Enter - Open | ✅ | |
+| 138 | Backspace - Go up | ✅ | |
+| 139 | Tab - Switch panes | ❌ | |
+| 140 | Ctrl+A - Select all | ❌ | |
+| 141 | Numpad +/-/* - Select pattern | ❌ | |
+| 142 | Ctrl+1-4 - View modes | ❌ | |
+| 143 | Ctrl+F3-F7 - Sort by column | ❌ | |
+
+### File Metadata
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 144 | Modification time (mtime) preservation | ✅ | CArchiveExtractCallback handles |
+| 145 | Creation time (ctime) display | ✅ | In archive view |
+| 146 | File permissions (POSIX mode) | ✅ | CArchiveExtractCallback handles |
+| 147 | Symlink extraction | ✅ | CExtractNtOptions.SymLinks |
+| 148 | Hardlink extraction | ✅ | CExtractNtOptions.HardLinks |
+| 149 | Access time preservation | ❌ | CExtractNtOptions.PreserveATime |
+| 150 | Mac quarantine (xattr) | ❌ | macOS-specific |
+
+### Supported Formats (all via lib7zip.a)
+
+Read/Write: 7z ✅, ZIP ✅, TAR ✅, GZip ✅, BZip2 ✅, XZ ✅, WIM ✅, Zstd ✅
+Read-only: RAR ✅, CAB ✅, ISO ✅, DMG ✅, VHD ✅, VMDK ✅, NSIS ✅, CHM ✅, RPM ✅, DEB ✅, CPIO ✅, LZH ✅, ARJ ✅, Z ✅, LZMA ✅
+
+### Polish & Distribution
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 151 | Localization (English + Japanese) | 🔧 | Phase F |
+| 152 | App icon | 🔧 | Phase F |
+| 153 | Error handling (user-friendly dialogs) | 🔧 | Phase F |
+| 154 | Large archive performance (100K+ entries) | 🔧 | Phase F |
+| 155 | Code signing & notarization | 🔧 | Phase F |
+| 156 | App Store build (sandbox) | 🔧 | Phase F |
+| 157 | DMG packaging | 🔧 | Phase F |
+| 158 | CI/CD (GitHub Actions) | 🔧 | Phase F |
+| 159 | Unit tests (bridge, format detection, roundtrip) | 🔧 | Phase F |
+
+---
+
+## Phase Plan
+
+### Phase A: Bridge Refactor (use official 7-Zip code paths)
+- [x] A1: Use CArchiveLink::Open3() for format detection
+- [x] A2: Use CArchiveExtractCallback for extraction
+- [x] A3: Use UpdateArchive() for archive creation
+- [x] A2.5: Encrypted archive support + wrong password handling
+- [ ] A4: Wire Bench.cpp into BenchmarkWindowController
+- [ ] A4: Wire HashCalc.cpp into hash calculation
+
+### Phase B: Translate File Manager (Panel.cpp → AppKit)
+- [ ] Column sorting (PanelSort.cpp)
+- [ ] Copy/Move between panes (PanelCopy.cpp)
+- [ ] Context menus (PanelMenu.cpp)
+- [ ] Drag & drop (PanelDrag.cpp)
+- [ ] Selection commands (PanelSelect.cpp)
+- [ ] Navigate into archive as folder (IFolderFolder)
+
+### Phase C: Translate Dialogs (1:1 from Windows)
+- [ ] CompressDialog.cpp — full property mapping
+- [ ] BenchmarkDialog.cpp — real CBench display
+- [ ] ProgressDialog2.cpp — speed/ETA/ratio
+- [ ] OverwriteDialog.cpp — proper dialog (currently inline)
+- [ ] MessagesDialog.cpp — error listing
 
 ### Phase D: Settings & Persistence
-- [ ] `RegistryUtils.cpp` → NSUserDefaults mapping
-- [ ] `ViewSettings.cpp` → view state save/restore
-- [ ] `OptionsDialog.cpp` → settings window
-- [ ] `SystemPage.cpp` → file associations via LSHandler
+- [ ] NSUserDefaults for all settings
+- [ ] View state save/restore
+- [ ] File type associations
 
 ### Phase E: System Integration
-- [ ] Finder Extension (translate Explorer shell extension concept)
+- [ ] Finder Extension
 - [ ] Quick Look Extension
 - [ ] macOS Services
 
 ### Phase F: Polish & Distribution
-- [ ] Localization (study `LangUtils.cpp` pattern)
+- [ ] Localization
 - [ ] App icon
 - [ ] Code signing & notarization
-- [ ] DMG packaging
-- [ ] App Store build
+- [ ] DMG + App Store builds
+- [ ] CI/CD
+- [ ] Tests
 
 ---
 
-## Completed Phases
+## Statistics
 
-### Phase 1: Foundation ✅
-- [x] Clone 7-Zip source as git submodule (`vendor/7zip/`)
-- [x] Study macOS build system (`cmpl_mac_arm64.mak`, `7zip_gcc.mak`)
-- [x] Create Makefile for `lib7zip.a` (311 objects, all formats + codecs + crypto)
-- [x] Validate: 7zz console binary builds and runs on arm64 macOS
+- Total features audited: ~160
+- Done (✅): ~60 (38%)
+- Planned (🔧): ~55 (34%)
+- Gaps (❌): ~45 (28%)
 
-### Phase 2: Obj-C++ Bridge ✅
-- [x] `SZArchive.h` — ObjC API (open, list, extract, create, test, formats)
-- [x] `SZArchive.mm` — C++ implementation wrapping IInArchive/IOutArchive
-- [x] `SZArchiveEntry` — entry model (path, size, packed, crc, method, dates, encrypted)
-- [x] `SZCompressionSettings` / `SZExtractionSettings` — options
-- [x] `SZProgressDelegate` — progress callback protocol
-- [x] BOOL typedef conflict workaround (ObjC bool vs 7-Zip int)
-- [x] POSIX compatibility (CFiTime→FILETIME, mode→GetWinAttrib)
-
-### Phase 3: Xcode Project ✅
-- [x] XcodeGen `project.yml` spec
-- [x] Info.plist with UTI declarations (7z, zip, tar, gz, bz2, xz, rar, iso)
-- [x] Entitlements (direct + App Store variants)
-- [x] Bridging header
-- [x] Programmatic main menu (`MainMenu.swift`)
-- [x] Asset catalog with AppIcon placeholder
-
-### Phase 4: File Manager UI ✅
-- [x] `FileManagerWindowController` — dual-pane with F9 toggle, toolbar
-- [x] `FileManagerPaneController` — file system browsing, path bar, status bar
-- [x] Keyboard shortcuts (Enter, Backspace, F5–F9)
-- [x] Open archives from file manager → document window
-
-### Phase 5: Dialogs ✅
-- [x] `ArchiveDocument` + `ArchiveWindowController` — document-based architecture
-- [x] `ArchiveViewController` — outline view with 6 columns
-- [x] `CompressDialogController` — all format/level/method/encryption options
-- [x] `ExtractDialogController` — path mode, overwrite, password
-- [x] `ProgressDialogController` — progress bar, filename, bytes, cancel
-- [x] `PasswordDialogController` — show/hide toggle
-- [x] `SettingsWindowController` — General, Performance, Associations tabs
-- [x] `BenchmarkWindowController` — placeholder benchmark
+Most gaps are lower-priority features (view modes, symlink dialogs, folder tree sidebar).
+Critical gaps: archive modification (#16-18), archive-within-archive (#19), Open Inside (#13).
