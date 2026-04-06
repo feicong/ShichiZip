@@ -312,16 +312,24 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                         // rename() is atomic and preserves all metadata on same volume
                         try FileManager.default.moveItem(at: url, to: dest)
                     } else {
-                        // Use copyfile with CLONE flag — APFS copy-on-write preserves timestamps
+                        // copyfile with CLONE for APFS, falls back to full copy preserving all metadata
                         let result = copyfile(
                             url.path.cString(using: .utf8),
                             dest.path.cString(using: .utf8),
                             nil,
-                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE)
+                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE)
                         )
                         if result != 0 {
-                            // Fallback to FileManager
-                            try FileManager.default.copyItem(at: url, to: dest)
+                            // CLONE_FORCE failed (not APFS) — retry without clone (same as cp)
+                            let r2 = copyfile(
+                                url.path.cString(using: .utf8),
+                                dest.path.cString(using: .utf8),
+                                nil,
+                                copyfile_flags_t(COPYFILE_ALL)
+                            )
+                            if r2 != 0 {
+                                throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                            }
                         }
                     }
                 } catch {

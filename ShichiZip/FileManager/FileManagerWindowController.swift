@@ -319,10 +319,19 @@ class FileManagerWindowController: NSWindowController {
                             sourceURL.path.cString(using: .utf8),
                             destFile.path.cString(using: .utf8),
                             nil,
-                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE)
+                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE)
                         )
                         if r != 0 {
-                            try fm.copyItem(at: sourceURL, to: destFile)
+                            // Not APFS — full copy preserving all metadata (same as cp)
+                            let r2 = copyfile(
+                                sourceURL.path.cString(using: .utf8),
+                                destFile.path.cString(using: .utf8),
+                                nil,
+                                copyfile_flags_t(COPYFILE_ALL)
+                            )
+                            if r2 != 0 {
+                                throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                            }
                         }
                     }
                 } catch {
