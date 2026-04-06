@@ -11,8 +11,10 @@ class CompressDialogController: NSViewController {
     private var threadsField: NSTextField!
     private var encryptionPopup: NSPopUpButton!
     private var passwordField: NSSecureTextField!
+    private var passwordConfirmField: NSSecureTextField!
     private var encryptNamesCheckbox: NSButton!
     private var splitField: NSTextField!
+    private var parametersField: NSTextField!
     private var archiveNameField: NSTextField!
     private var destinationField: NSPathControl!
 
@@ -121,6 +123,13 @@ class CompressDialogController: NSViewController {
         passwordField.isEnabled = false
         grid.addRow(with: [passLabel, passwordField])
 
+        // Password confirmation (CompressDialog.cpp: IDE_COMPRESS_PASSWORD2)
+        let passConfirmLabel = NSTextField(labelWithString: "Retype password:")
+        passwordConfirmField = NSSecureTextField()
+        passwordConfirmField.placeholderString = "Retype password"
+        passwordConfirmField.isEnabled = false
+        grid.addRow(with: [passConfirmLabel, passwordConfirmField])
+
         // Encrypt file names
         encryptNamesCheckbox = NSButton(checkboxWithTitle: "Encrypt file names", target: nil, action: nil)
         encryptNamesCheckbox.isEnabled = false
@@ -131,6 +140,12 @@ class CompressDialogController: NSViewController {
         splitField = NSTextField()
         splitField.placeholderString = "0 (no split)"
         grid.addRow(with: [splitLabel, splitField])
+
+        // Parameters free-text (CompressDialog.cpp: IDE_COMPRESS_PARAMETERS)
+        let paramsLabel = NSTextField(labelWithString: "Parameters:")
+        parametersField = NSTextField()
+        parametersField.placeholderString = "e.g. d=28 fb=273"
+        grid.addRow(with: [paramsLabel, parametersField])
 
         container.addSubview(grid)
 
@@ -187,6 +202,7 @@ class CompressDialogController: NSViewController {
     @objc private func encryptionChanged(_ sender: Any?) {
         let hasEncryption = encryptionPopup.indexOfSelectedItem != 0
         passwordField.isEnabled = hasEncryption
+        passwordConfirmField.isEnabled = hasEncryption
         encryptNamesCheckbox.isEnabled = hasEncryption && formatPopup.indexOfSelectedItem == 0
     }
 
@@ -231,6 +247,18 @@ class CompressDialogController: NSViewController {
     }
 
     @objc private func doCompress(_ sender: Any?) {
+        // Password mismatch check (CompressDialog.cpp: IDS_PASSWORD_NOT_MATCH)
+        if encryptionPopup.indexOfSelectedItem != 0 {
+            if passwordField.stringValue != passwordConfirmField.stringValue {
+                let alert = NSAlert()
+                alert.messageText = "Password Error"
+                alert.informativeText = "Passwords do not match."
+                alert.alertStyle = .warning
+                alert.runModal()
+                return
+            }
+        }
+
         let settings = buildSettings()
         let archiveName = archiveNameField.stringValue
         let destURL = destinationField.url ?? URL(fileURLWithPath: NSHomeDirectory() + "/Desktop")
