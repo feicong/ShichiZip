@@ -10,6 +10,10 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     private var cancelButton: NSButton!
 
     private var cancelled = false
+    private var startTime: Date?
+    private var speedLabel: NSTextField!
+    private var elapsedLabel: NSTextField!
+
     var operationTitle: String = "Working..." {
         didSet {
             DispatchQueue.main.async { [weak self] in
@@ -20,7 +24,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 140),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 175),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -60,6 +64,19 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         bytesLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(bytesLabel)
 
+        speedLabel = NSTextField(labelWithString: "")
+        speedLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        speedLabel.textColor = .secondaryLabelColor
+        speedLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(speedLabel)
+
+        elapsedLabel = NSTextField(labelWithString: "")
+        elapsedLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        elapsedLabel.textColor = .secondaryLabelColor
+        elapsedLabel.alignment = .right
+        elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(elapsedLabel)
+
         cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked(_:)))
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.keyEquivalent = "\u{1b}" // Escape
@@ -81,6 +98,12 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             bytesLabel.topAnchor.constraint(equalTo: progressBar.bottomAnchor, constant: 4),
             bytesLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
+            speedLabel.topAnchor.constraint(equalTo: bytesLabel.bottomAnchor, constant: 2),
+            speedLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+
+            elapsedLabel.topAnchor.constraint(equalTo: progressBar.bottomAnchor, constant: 4),
+            elapsedLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -100),
+
             cancelButton.topAnchor.constraint(equalTo: progressBar.bottomAnchor, constant: 4),
             cancelButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             cancelButton.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -12),
@@ -93,7 +116,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         cancelButton.title = "Cancelling..."
     }
 
-    // MARK: - SZProgressDelegate
+    // MARK: - SZProgressDelegate (matches ProgressDialog2.cpp)
 
     @objc func progressDidUpdate(_ fraction: Double) {
         progressBar.doubleValue = fraction
@@ -104,10 +127,38 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     }
 
     @objc func progressDidUpdateBytesCompleted(_ completed: UInt64, total: UInt64) {
+        if startTime == nil { startTime = Date() }
+
         let completedStr = ByteCountFormatter.string(fromByteCount: Int64(completed), countStyle: .file)
         let totalStr = ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
         let percent = total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
         bytesLabel.stringValue = "\(completedStr) / \(totalStr) (\(percent)%)"
+
+        // Speed and ETA calculation (like ProgressDialog2.cpp)
+        if let start = startTime {
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed > 0.5 {
+                let speed = Double(completed) / elapsed
+                let speedStr = ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file)
+                speedLabel.stringValue = "Speed: \(speedStr)/s"
+
+                let elapsedStr = formatDuration(elapsed)
+                if total > 0 && completed > 0 {
+                    let remaining = elapsed * Double(total - completed) / Double(completed)
+                    let remainStr = formatDuration(remaining)
+                    elapsedLabel.stringValue = "Elapsed: \(elapsedStr)  Remaining: \(remainStr)"
+                } else {
+                    elapsedLabel.stringValue = "Elapsed: \(elapsedStr)"
+                }
+            }
+        }
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds)
+        if s < 60 { return "\(s)s" }
+        if s < 3600 { return "\(s / 60)m \(s % 60)s" }
+        return "\(s / 3600)h \((s % 3600) / 60)m"
     }
 
     @objc func progressShouldCancel() -> Bool {
