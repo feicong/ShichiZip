@@ -302,7 +302,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty else { return false }
 
         let destDir = currentDirectory
-        let fm = FileManager.default
         let isMove = info.draggingSourceOperationMask.contains(.move)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -310,9 +309,20 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 let dest = destDir.appendingPathComponent(url.lastPathComponent)
                 do {
                     if isMove {
-                        try fm.moveItem(at: url, to: dest)
+                        // rename() is atomic and preserves all metadata on same volume
+                        try FileManager.default.moveItem(at: url, to: dest)
                     } else {
-                        try fm.copyItem(at: url, to: dest)
+                        // Use copyfile with CLONE flag — APFS copy-on-write preserves timestamps
+                        let result = copyfile(
+                            url.path.cString(using: .utf8),
+                            dest.path.cString(using: .utf8),
+                            nil,
+                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE)
+                        )
+                        if result != 0 {
+                            // Fallback to FileManager
+                            try FileManager.default.copyItem(at: url, to: dest)
+                        }
                     }
                 } catch {
                     NSLog("[ShichiZip] Drop error: %@", error.localizedDescription)

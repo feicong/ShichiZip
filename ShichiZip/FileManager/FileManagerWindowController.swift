@@ -314,7 +314,16 @@ class FileManagerWindowController: NSWindowController {
                     if move {
                         try fm.moveItem(at: sourceURL, to: destFile)
                     } else {
-                        try fm.copyItem(at: sourceURL, to: destFile)
+                        // APFS clone preserves timestamps, permissions, xattrs
+                        let r = copyfile(
+                            sourceURL.path.cString(using: .utf8),
+                            destFile.path.cString(using: .utf8),
+                            nil,
+                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE)
+                        )
+                        if r != 0 {
+                            try fm.copyItem(at: sourceURL, to: destFile)
+                        }
                     }
                 } catch {
                     errors.append(error)
