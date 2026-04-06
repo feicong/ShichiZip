@@ -249,35 +249,79 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     @objc private func doubleClickRow(_ sender: Any?) {
         if isInsideArchive {
-            let row = tableView.clickedRow
+            let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
             guard row >= 0, row < archiveDisplayItems.count else { return }
             let item = archiveDisplayItems[row]
             if item.isDirectory {
                 // Navigate deeper into archive subdirectory
                 navigateArchiveSubdir(item.path)
+            } else {
+                // Open Inside: extract to temp, open with system app (PanelItemOpen.cpp)
+                openItemInArchive(item)
             }
             return
         }
 
-        let row = tableView.clickedRow
+        let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
         guard row >= 0, row < items.count else { return }
 
         let item = items[row]
         if item.isDirectory {
             loadDirectory(item.url)
         } else if item.isArchive {
-            // Navigate INTO the archive (like Windows 7-Zip File Manager)
             openArchiveInline(item.url)
         } else {
             NSWorkspace.shared.open(item.url)
         }
     }
 
+    /// Open Inside (PanelItemOpen.cpp): extract to temp, try as archive, then open with system app
+    private func openItemInArchive(_ item: ArchiveItem) {
+        guard let level = archiveStack.last, item.index >= 0 else { return }
+
+        // 1. Try to open as nested archive first
+        let ext = (item.name as NSString).pathExtension.lowercased()
+        if FileSystemItem.archiveExtensions.contains(ext) {
+            // Extract to temp and open as nested archive
+            let tempDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("7zO\(UUID().uuidString)")
+            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+            let settings = SZExtractionSettings()
+            settings.overwriteMode = .overwrite
+            let indices = [NSNumber(value: item.index)]
+            try? level.archive.extractEntries(indices, toPath: tempDir.path, settings: settings, progress: nil)
+
+            let extractedFile = tempDir.appendingPathComponent(item.path)
+            if FileManager.default.fileExists(atPath: extractedFile.path) {
+                openArchiveInline(extractedFile)
+                return
+            }
+        }
+
+        // 2. Extract to temp and open with system default app
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("7zO\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let settings = SZExtractionSettings()
+        settings.overwriteMode = .overwrite
+        let indices = [NSNumber(value: item.index)]
+        try? level.archive.extractEntries(indices, toPath: tempDir.path, settings: settings, progress: nil)
+
+        let extractedFile = tempDir.appendingPathComponent(item.path)
+        if FileManager.default.fileExists(atPath: extractedFile.path) {
+            NSWorkspace.shared.open(extractedFile)
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 36 { // Enter
+        if event.keyCode == 36 { // Enter - Open
             doubleClickRow(nil)
-        } else if event.keyCode == 51 { // Backspace - go up
+        } else if event.keyCode == 51 { // Backspace - Go up
             goUp()
+        } else if event.keyCode == 120 { // F2 - Rename (PanelKey.cpp)
+            renameSelected(nil)
         } else {
             super.keyDown(with: event)
         }
