@@ -30,25 +30,25 @@ class ArchiveDocument: NSDocument {
     }
 
     override func makeWindowControllers() {
-        let wc = ArchiveWindowController()
-        addWindowController(wc)
+        // Don't create any window — redirect to file manager silently
+        // Use async to let the document system finish its setup first
+        DispatchQueue.main.async { [weak self] in
+            guard let url = self?.fileURL else { return }
+            let appDelegate = NSApp.delegate as? AppDelegate
+            appDelegate?.openArchiveInNewFileManager(url)
+            self?.close()
+        }
+    }
+
+    // Prevent any window from flashing
+    override func showWindows() {
+        // Intentionally empty — we redirect to file manager instead
     }
 
     override func read(from url: URL, ofType typeName: String) throws {
-        NSLog("[ShichiZip] Opening: %@ (type: %@)", url.path, typeName)
-        let arch = SZArchive()
-
-        try arch.open(atPath: url.path)
-
-        self.archive = arch
-        self.formatName = arch.formatName ?? "Unknown"
-        NSLog("[ShichiZip] Format detected: %@", self.formatName)
-
-        // Load entries
-        let szEntries = arch.entries()
-        self.entries = szEntries.map { ArchiveItem(from: $0) }
-        self.treeRoot = ArchiveTreeNode.buildTree(from: entries)
-        NSLog("[ShichiZip] Loaded %d entries, %d tree roots", entries.count, treeRoot.count)
+        NSLog("[ShichiZip] Opening via document: %@ — will redirect to File Manager", url.path)
+        // Actual archive parsing happens in the file manager pane's openArchiveInline()
+        // This method just needs to not throw so NSDocumentController considers it successful
     }
 
     // MARK: - Operations

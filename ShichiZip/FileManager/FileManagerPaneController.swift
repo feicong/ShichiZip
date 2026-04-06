@@ -1,11 +1,11 @@
 import Cocoa
 
 /// Single pane of the file manager — displays file system contents
-class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSTextFieldDelegate {
 
     weak var delegate: FileManagerPaneDelegate?
 
-    private var pathBar: NSPathControl!
+    private var pathField: NSTextField!
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
     private var statusLabel: NSTextField!
@@ -14,17 +14,39 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     var currentDirectoryURL: URL { currentDirectory }
     private var items: [FileSystemItem] = []
 
+    // Archive navigation state (matches CFolderLink stack in Panel.cpp)
+    private struct ArchiveLevel {
+        let filesystemDirectory: URL   // directory we were in before opening the archive
+        let archivePath: String        // path to the .zip/.7z file
+        let archive: SZArchive         // open archive handle
+        let allEntries: [ArchiveItem]  // all entries in the archive
+        let currentSubdir: String      // current path within the archive ("" = root)
+    }
+    private var archiveStack: [ArchiveLevel] = []
+    private var isInsideArchive: Bool { !archiveStack.isEmpty }
+    private var archiveDisplayItems: [ArchiveItem] = [] // currently visible items in archive
+
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 600))
 
-        // Path bar
-        pathBar = NSPathControl()
-        pathBar.translatesAutoresizingMaskIntoConstraints = false
-        pathBar.pathStyle = .standard
-        pathBar.url = currentDirectory
-        pathBar.target = self
-        pathBar.action = #selector(pathBarClicked(_:))
-        container.addSubview(pathBar)
+        // Up button (navigate to parent / exit archive)
+        let upButton = NSButton(image: NSImage(systemSymbolName: "chevron.up", accessibilityDescription: "Up")!, target: self, action: #selector(goUpClicked(_:)))
+        upButton.translatesAutoresizingMaskIntoConstraints = false
+        upButton.bezelStyle = .accessoryBarAction
+        upButton.isBordered = false
+        container.addSubview(upButton)
+
+        // Path text field (matches Windows 7-Zip address bar)
+        pathField = NSTextField()
+        pathField.translatesAutoresizingMaskIntoConstraints = false
+        pathField.font = .systemFont(ofSize: 12)
+        pathField.usesSingleLineMode = true
+        pathField.lineBreakMode = .byTruncatingHead
+        pathField.stringValue = currentDirectory.path
+        pathField.target = self
+        pathField.action = #selector(pathFieldSubmitted(_:))
+        pathField.delegate = self
+        container.addSubview(pathField)
 
         // Table view for file listing
         tableView = NSTableView()
@@ -92,12 +114,17 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         container.addSubview(statusLabel)
 
         NSLayoutConstraint.activate([
-            pathBar.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            pathBar.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
-            pathBar.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            pathBar.heightAnchor.constraint(equalToConstant: 24),
+            upButton.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            upButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            upButton.widthAnchor.constraint(equalToConstant: 24),
+            upButton.heightAnchor.constraint(equalToConstant: 24),
 
-            scrollView.topAnchor.constraint(equalTo: pathBar.bottomAnchor, constant: 4),
+            pathField.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            pathField.leadingAnchor.constraint(equalTo: upButton.trailingAnchor, constant: 2),
+            pathField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+            pathField.heightAnchor.constraint(equalToConstant: 24),
+
+            scrollView.topAnchor.constraint(equalTo: pathField.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -2),
@@ -116,7 +143,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     func loadDirectory(_ url: URL) {
         currentDirectory = url
-        pathBar.url = url
+        updatePathField()
 
         let fm = FileManager.default
         do {
@@ -169,12 +196,69 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     // MARK: - Actions
 
-    @objc private func pathBarClicked(_ sender: NSPathControl) {
-        guard let url = sender.clickedPathItem?.url else { return }
-        loadDirectory(url)
+    @objc private func pathFieldSubmitted(_ sender: NSTextField) {
+        let path = sender.stringValue
+        if path.isEmpty { return }
+
+        // Expand ~ to home directory
+        let expanded = NSString(string: path).expandingTildeInPath
+        let url = URL(fileURLWithPath: expanded)
+
+        // Check if it's an archive file
+        if FileSystemItem.archiveExtensions.contains(url.pathExtension.lowercased()) &&
+           FileManager.default.fileExists(atPath: url.path) {
+            // Exit any current archive first
+            while !archiveStack.isEmpty {
+                archiveStack.last?.archive.close()
+                archiveStack.removeLast()
+            }
+            openArchiveInline(url)
+            return
+        }
+
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+            // Exit any current archive first
+            while !archiveStack.isEmpty {
+                archiveStack.last?.archive.close()
+                archiveStack.removeLast()
+            }
+            loadDirectory(url)
+        } else {
+            // Path doesn't exist — revert to current
+            updatePathField()
+        }
+        // Resign focus back to table
+        view.window?.makeFirstResponder(tableView)
+    }
+
+    @objc private func goUpClicked(_ sender: Any?) {
+        goUp()
+    }
+
+    private func updatePathField() {
+        if isInsideArchive {
+            let level = archiveStack.last!
+            let archiveName = (level.archivePath as NSString).lastPathComponent
+            let prefix = (level.filesystemDirectory.path as NSString).appendingPathComponent(archiveName)
+            pathField.stringValue = level.currentSubdir.isEmpty ? prefix : prefix + "/" + level.currentSubdir
+        } else {
+            pathField.stringValue = currentDirectory.path
+        }
     }
 
     @objc private func doubleClickRow(_ sender: Any?) {
+        if isInsideArchive {
+            let row = tableView.clickedRow
+            guard row >= 0, row < archiveDisplayItems.count else { return }
+            let item = archiveDisplayItems[row]
+            if item.isDirectory {
+                // Navigate deeper into archive subdirectory
+                navigateArchiveSubdir(item.path)
+            }
+            return
+        }
+
         let row = tableView.clickedRow
         guard row >= 0, row < items.count else { return }
 
@@ -182,35 +266,94 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if item.isDirectory {
             loadDirectory(item.url)
         } else if item.isArchive {
-            delegate?.paneDidOpenArchive(item.url.path)
+            // Navigate INTO the archive (like Windows 7-Zip File Manager)
+            openArchiveInline(item.url)
         } else {
             NSWorkspace.shared.open(item.url)
         }
     }
 
-    // Handle keyboard navigation
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 36 { // Enter
             doubleClickRow(nil)
         } else if event.keyCode == 51 { // Backspace - go up
-            let parent = currentDirectory.deletingLastPathComponent()
-            loadDirectory(parent)
+            goUp()
         } else {
             super.keyDown(with: event)
+        }
+    }
+
+    private func goUp() {
+        if isInsideArchive {
+            let level = archiveStack.last!
+            if !level.currentSubdir.isEmpty {
+                // Go up within archive
+                let parent: String
+                if let lastSlash = level.currentSubdir.lastIndex(of: "/") {
+                    parent = String(level.currentSubdir[level.currentSubdir.startIndex..<lastSlash])
+                } else {
+                    parent = ""
+                }
+                navigateArchiveSubdir(parent)
+            } else {
+                // Exit archive — pop stack, restore filesystem
+                let fsDir = level.filesystemDirectory
+                level.archive.close()
+                archiveStack.removeLast()
+                if archiveStack.isEmpty {
+                    loadDirectory(fsDir)
+                } else {
+                    // Still inside an outer archive
+                    let outer = archiveStack.last!
+                    navigateArchiveSubdir(outer.currentSubdir)
+                }
+            }
+        } else {
+            let parent = currentDirectory.deletingLastPathComponent()
+            loadDirectory(parent)
         }
     }
 
     // MARK: - NSTableViewDataSource
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return items.count
+        return isInsideArchive ? archiveDisplayItems.count : items.count
     }
 
     // MARK: - NSTableViewDelegate
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard row < items.count, let columnID = tableColumn?.identifier.rawValue else { return nil }
-        let item = items[row]
+        guard let columnID = tableColumn?.identifier.rawValue else { return nil }
+
+        // Determine the data source based on mode
+        let itemName: String
+        let itemSize: String
+        let itemModified: String
+        let itemCreated: String
+        let itemIsDir: Bool
+        let itemIconPath: String
+
+        if isInsideArchive {
+            guard row < archiveDisplayItems.count else { return nil }
+            let ai = archiveDisplayItems[row]
+            itemName = ai.name
+            itemSize = ai.isDirectory ? "--" : ByteCountFormatter.string(fromByteCount: Int64(ai.size), countStyle: .file)
+            let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
+            itemModified = ai.modifiedDate.map { df.string(from: $0) } ?? ""
+            itemCreated = ai.createdDate.map { df.string(from: $0) } ?? ""
+            itemIsDir = ai.isDirectory
+            itemIconPath = ai.isDirectory ? "" : ai.name
+        } else {
+            guard row < items.count else { return nil }
+            let item = items[row]
+            itemName = item.name
+            itemSize = item.formattedSize
+            let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
+            itemModified = item.modifiedDate.map { df.string(from: $0) } ?? ""
+            itemCreated = item.createdDate.map { df.string(from: $0) } ?? ""
+            itemIsDir = item.isDirectory
+            itemIconPath = item.url.path
+        }
 
         let cellID = NSUserInterfaceItemIdentifier(columnID)
         let cell: NSTableCellView
@@ -257,19 +400,33 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         switch columnID {
         case "name":
-            cell.textField?.stringValue = item.name
-            cell.imageView?.image = NSWorkspace.shared.icon(forFile: item.url.path)
+            cell.textField?.stringValue = itemName
+            if isInsideArchive {
+                // Archive mode: use SF Symbol for folders, extension-based for files
+                if itemIsDir {
+                    cell.imageView?.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "Folder")
+                    cell.imageView?.contentTintColor = .systemBlue
+                } else {
+                    let ext = (itemName as NSString).pathExtension
+                    cell.imageView?.image = NSWorkspace.shared.icon(for: .init(filenameExtension: ext) ?? .data)
+                    cell.imageView?.contentTintColor = nil
+                }
+            } else {
+                // Filesystem mode: use system icon for everything (consistent with Finder)
+                cell.imageView?.image = NSWorkspace.shared.icon(forFile: itemIconPath)
+                cell.imageView?.contentTintColor = nil
+            }
             cell.imageView?.image?.size = NSSize(width: 16, height: 16)
 
         case "size":
-            cell.textField?.stringValue = item.formattedSize
+            cell.textField?.stringValue = itemSize
             cell.textField?.alignment = .right
 
         case "modified":
-            cell.textField?.stringValue = item.modifiedDate.map { dateFormatter.string(from: $0) } ?? ""
+            cell.textField?.stringValue = itemModified
 
         case "created":
-            cell.textField?.stringValue = item.createdDate.map { dateFormatter.string(from: $0) } ?? ""
+            cell.textField?.stringValue = itemCreated
 
         default:
             break
@@ -285,6 +442,29 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     // MARK: - Drag source (provide file URLs to drag out)
 
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
+        if isInsideArchive {
+            // Extract to temp folder on demand, then provide temp URL (PanelDrag.cpp pattern)
+            guard row < archiveDisplayItems.count else { return nil }
+            let ai = archiveDisplayItems[row]
+            if ai.isDirectory || ai.index < 0 { return nil } // can't drag synthetic dirs
+
+            guard let level = archiveStack.last else { return nil }
+            let tempDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("ShichiZip-drag-\(UUID().uuidString)")
+            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+            let settings = SZExtractionSettings()
+            settings.overwriteMode = .overwrite
+            let indices = [NSNumber(value: ai.index)]
+            try? level.archive.extractEntries(indices, toPath: tempDir.path, settings: settings, progress: nil)
+
+            let extractedFile = tempDir.appendingPathComponent(ai.path)
+            if FileManager.default.fileExists(atPath: extractedFile.path) {
+                return extractedFile as NSURL
+            }
+            return nil
+        }
+
         guard row < items.count else { return nil }
         return items[row].url as NSURL
     }
@@ -376,6 +556,115 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             }
             return ascending ? result == .orderedAscending : result == .orderedDescending
         }
+    }
+}
+
+// MARK: - Archive Inline Navigation (matches Panel.cpp _parentFolders stack)
+
+extension FileManagerPaneController {
+
+    func openArchiveInline(_ url: URL) {
+        let archive = SZArchive()
+        do {
+            try archive.open(atPath: url.path)
+        } catch {
+            // Can't open as archive — fall back to opening in document window
+            delegate?.paneDidOpenArchive(url.path)
+            return
+        }
+
+        let entries = archive.entries().map { ArchiveItem(from: $0) }
+        let level = ArchiveLevel(
+            filesystemDirectory: currentDirectory,
+            archivePath: url.path,
+            archive: archive,
+            allEntries: entries,
+            currentSubdir: ""
+        )
+        archiveStack.append(level)
+        navigateArchiveSubdir("")
+    }
+
+    func navigateArchiveSubdir(_ subdir: String) {
+        guard var level = archiveStack.last else { return }
+
+        // Update current subdir in the stack
+        archiveStack[archiveStack.count - 1] = ArchiveLevel(
+            filesystemDirectory: level.filesystemDirectory,
+            archivePath: level.archivePath,
+            archive: level.archive,
+            allEntries: level.allEntries,
+            currentSubdir: subdir
+        )
+        level = archiveStack.last!
+
+        // Filter entries for the current subdirectory level
+        let prefix = subdir.isEmpty ? "" : subdir + "/"
+        var seenDirs = Set<String>()
+        var displayItems: [ArchiveItem] = []
+
+        for entry in level.allEntries {
+            let path = entry.path.hasSuffix("/") ? String(entry.path.dropLast()) : entry.path
+
+            // Must start with prefix
+            if !prefix.isEmpty && !path.hasPrefix(prefix) { continue }
+            // Skip the subdir entry itself
+            if path == subdir { continue }
+
+            let relativePath = prefix.isEmpty ? path : String(path.dropFirst(prefix.count))
+            // Skip deeper entries (only show direct children)
+            if relativePath.contains("/") {
+                // This is a deeper entry — record the immediate subdirectory
+                let dirName = String(relativePath.split(separator: "/").first ?? "")
+                if !dirName.isEmpty && !seenDirs.contains(dirName) {
+                    seenDirs.insert(dirName)
+                    // Create a synthetic directory item
+                    var dirItem = entry
+                    let syntheticPath = prefix + dirName
+                    // Find if there's an actual directory entry
+                    if let realDir = level.allEntries.first(where: {
+                        let p = $0.path.hasSuffix("/") ? String($0.path.dropLast()) : $0.path
+                        return p == syntheticPath && $0.isDirectory
+                    }) {
+                        displayItems.append(realDir)
+                    } else {
+                        // Create a virtual directory entry
+                        displayItems.append(ArchiveItem(
+                            index: -1, path: syntheticPath, name: dirName,
+                            size: 0, packedSize: 0, modifiedDate: entry.modifiedDate,
+                            createdDate: nil, crc: 0, isDirectory: true,
+                            isEncrypted: false, method: "", attributes: 0, comment: ""
+                        ))
+                    }
+                }
+            } else if !relativePath.isEmpty {
+                // Direct child file or folder
+                if !entry.isDirectory || !seenDirs.contains(entry.name) {
+                    displayItems.append(entry)
+                    if entry.isDirectory { seenDirs.insert(entry.name) }
+                }
+            }
+        }
+
+        // Sort: folders first, then by name
+        displayItems.sort { a, b in
+            if a.isDirectory != b.isDirectory { return a.isDirectory }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+
+        archiveDisplayItems = displayItems
+
+        // Update path field to show full path including archive
+        updatePathField()
+
+        // Update status bar
+        let fileCount = displayItems.filter { !$0.isDirectory }.count
+        let dirCount = displayItems.filter { $0.isDirectory }.count
+        let totalSize = displayItems.filter { !$0.isDirectory }.reduce(UInt64(0)) { $0 + $1.size }
+        let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file)
+        statusLabel.stringValue = "\(fileCount) files, \(dirCount) folders — \(sizeStr)"
+
+        tableView.reloadData()
     }
 }
 

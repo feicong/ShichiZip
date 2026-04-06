@@ -66,6 +66,17 @@ struct ArchiveItem {
         self.attributes = entry.attributes
         self.comment = entry.comment ?? ""
     }
+
+    init(index: Int, path: String, name: String, size: UInt64, packedSize: UInt64,
+         modifiedDate: Date?, createdDate: Date?, crc: UInt32, isDirectory: Bool,
+         isEncrypted: Bool, method: String, attributes: UInt32, comment: String) {
+        self.index = index; self.path = path; self.name = name
+        self.size = size; self.packedSize = packedSize
+        self.modifiedDate = modifiedDate; self.createdDate = createdDate
+        self.crc = crc; self.isDirectory = isDirectory
+        self.isEncrypted = isEncrypted; self.method = method
+        self.attributes = attributes; self.comment = comment
+    }
 }
 
 /// Tree node for displaying archive contents hierarchically

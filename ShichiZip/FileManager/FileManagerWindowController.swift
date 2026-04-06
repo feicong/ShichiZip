@@ -95,6 +95,16 @@ class FileManagerWindowController: NSWindowController {
 
     // MARK: - Actions
 
+    /// Navigate the active pane to show an archive's contents
+    func navigateToArchive(_ url: URL) {
+        // First navigate to the archive's parent directory
+        let parentDir = url.deletingLastPathComponent()
+        leftPane.loadDirectory(parentDir)
+        // Then open the archive inline
+        leftPane.openArchiveInline(url)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
     @objc func toggleDualPane(_ sender: Any?) {
         isDualPane.toggle()
         if isDualPane {
@@ -298,7 +308,8 @@ class FileManagerWindowController: NSWindowController {
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let fm = FileManager.default
-            var errors: [Error] = []
+            var skipAll = false
+            var overwriteAll = false
 
             for (i, sourcePath) in sourcePaths.enumerated() {
                 let sourceURL = URL(fileURLWithPath: sourcePath)
@@ -310,11 +321,61 @@ class FileManagerWindowController: NSWindowController {
                     progressController.progressDidUpdateFileName(sourceURL.lastPathComponent)
                 }
 
+                // Overwrite check (matches COverwriteDialog in 7-Zip)
+                if fm.fileExists(atPath: destFile.path) {
+                    if skipAll { continue }
+                    if !overwriteAll {
+                        var shouldSkip = false
+                        var cancelled = false
+                        DispatchQueue.main.sync {
+                            let alert = NSAlert()
+                            alert.messageText = "File already exists"
+                            let srcAttrs = try? fm.attributesOfItem(atPath: sourcePath)
+                            let dstAttrs = try? fm.attributesOfItem(atPath: destFile.path)
+                            let srcSize = (srcAttrs?[.size] as? UInt64) ?? 0
+                            let dstSize = (dstAttrs?[.size] as? UInt64) ?? 0
+                            let srcDate = (srcAttrs?[.modificationDate] as? Date)
+                            let dstDate = (dstAttrs?[.modificationDate] as? Date)
+                            let df = DateFormatter()
+                            df.dateStyle = .medium; df.timeStyle = .medium
+
+                            alert.informativeText = """
+                            Destination: \(destFile.lastPathComponent)
+                            Size: \(ByteCountFormatter.string(fromByteCount: Int64(dstSize), countStyle: .file))  Modified: \(dstDate.map { df.string(from: $0) } ?? "—")
+
+                            Source: \(sourceURL.lastPathComponent)
+                            Size: \(ByteCountFormatter.string(fromByteCount: Int64(srcSize), countStyle: .file))  Modified: \(srcDate.map { df.string(from: $0) } ?? "—")
+                            """
+                            alert.alertStyle = .warning
+                            alert.addButton(withTitle: "Replace")
+                            alert.addButton(withTitle: "Replace All")
+                            alert.addButton(withTitle: "Skip")
+                            alert.addButton(withTitle: "Skip All")
+                            alert.addButton(withTitle: "Cancel")
+                            let resp = alert.runModal()
+                            // NSAlertFirstButtonReturn = 1000, second = 1001, etc.
+                            switch resp.rawValue {
+                            case 1000: break // Replace this one
+                            case 1001: overwriteAll = true
+                            case 1002: shouldSkip = true
+                            case 1003: skipAll = true; shouldSkip = true
+                            default: cancelled = true
+                            }
+                        }
+                        if cancelled {
+                            DispatchQueue.main.async { self?.window?.endSheet(progressController.window!) }
+                            return
+                        }
+                        if shouldSkip { continue }
+                    }
+                    // Remove existing before copy/move
+                    try? fm.removeItem(at: destFile)
+                }
+
                 do {
                     if move {
                         try fm.moveItem(at: sourceURL, to: destFile)
                     } else {
-                        // APFS clone preserves timestamps, permissions, xattrs
                         let r = copyfile(
                             sourceURL.path.cString(using: .utf8),
                             destFile.path.cString(using: .utf8),
@@ -322,7 +383,6 @@ class FileManagerWindowController: NSWindowController {
                             copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE)
                         )
                         if r != 0 {
-                            // Not APFS — full copy preserving all metadata (same as cp)
                             let r2 = copyfile(
                                 sourceURL.path.cString(using: .utf8),
                                 destFile.path.cString(using: .utf8),
@@ -335,7 +395,14 @@ class FileManagerWindowController: NSWindowController {
                         }
                     }
                 } catch {
-                    errors.append(error)
+                    // Stop on first error (matches 7-Zip behavior)
+                    DispatchQueue.main.async {
+                        self?.window?.endSheet(progressController.window!)
+                        if let win = self?.window {
+                            NSAlert(error: error).beginSheetModal(for: win)
+                        }
+                    }
+                    return
                 }
             }
 
@@ -343,16 +410,6 @@ class FileManagerWindowController: NSWindowController {
                 self?.window?.endSheet(progressController.window!)
                 pane.refresh()
                 self?.inactivePane?.refresh()
-
-                if !errors.isEmpty {
-                    let alert = NSAlert()
-                    alert.messageText = "\(operation) completed with errors"
-                    alert.informativeText = errors.map { $0.localizedDescription }.joined(separator: "\n")
-                    alert.alertStyle = .warning
-                    if let win = self?.window {
-                        alert.beginSheetModal(for: win)
-                    }
-                }
             }
         }
     }
