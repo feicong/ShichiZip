@@ -1,6 +1,8 @@
 #import <Foundation/Foundation.h>
 
 @class SZArchiveEntry;
+@class SZBenchDisplayRow;
+@class SZBenchSnapshot;
 @protocol SZProgressDelegate;
 @protocol SZPasswordDelegate;
 
@@ -178,13 +180,41 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 + (nullable NSDictionary<NSString *, NSString *> *)calculateHashForPath:(NSString *)path
                                                                  error:(NSError **)error;
 
-/// Run LZMA benchmark — returns formatted result string
-/// @param numIterations Number of benchmark iterations (0 = default)
-/// @param printCallback Block called with text output lines
-+ (void)runBenchmarkWithIterations:(UInt32)numIterations
-                          callback:(void (^)(NSString *line))printCallback
-                        completion:(void (^)(BOOL success))completion;
+/// Get estimated benchmark memory usage in bytes
++ (uint64_t)benchMemoryUsageForThreads:(uint32_t)threads dictionary:(uint64_t)dictSize;
 
+/// Stop running benchmark
++ (void)stopBenchmark;
+
+/// Run the GUI benchmark flow (matches BenchmarkDialog.cpp)
++ (void)runBenchmarkWithDictionary:(uint64_t)dictSize
+                                                     threads:(uint32_t)threads
+                                                        passes:(uint32_t)passes
+                                                    progress:(void (^)(SZBenchSnapshot *snapshot))progress
+                                                completion:(void (^)(BOOL success, NSString * _Nullable errorMessage))completion;
+
+@end
+
+/// One benchmark row formatted for UI display.
+@interface SZBenchDisplayRow : NSObject
+@property (nonatomic, copy) NSString *sizeText;
+@property (nonatomic, copy) NSString *speedText;
+@property (nonatomic, copy) NSString *usageText;
+@property (nonatomic, copy) NSString *rpuText;
+@property (nonatomic, copy) NSString *ratingText;
+@end
+
+/// Full benchmark snapshot for the benchmark window.
+@interface SZBenchSnapshot : NSObject
+@property (nonatomic) uint32_t passesCompleted;
+@property (nonatomic) uint32_t passesTotal;
+@property (nonatomic, getter=isFinished) BOOL finished;
+@property (nonatomic, copy) NSString *logText;
+@property (nonatomic, nullable, strong) SZBenchDisplayRow *encodeCurrent;
+@property (nonatomic, nullable, strong) SZBenchDisplayRow *encodeResult;
+@property (nonatomic, nullable, strong) SZBenchDisplayRow *decodeCurrent;
+@property (nonatomic, nullable, strong) SZBenchDisplayRow *decodeResult;
+@property (nonatomic, nullable, strong) SZBenchDisplayRow *totalResult;
 @end
 
 NS_ASSUME_NONNULL_END
