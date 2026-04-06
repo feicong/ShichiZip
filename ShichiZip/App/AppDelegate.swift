@@ -33,6 +33,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    // Handle files dropped onto dock icon
+    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        for filename in filenames {
+            let url = URL(fileURLWithPath: filename)
+            if FileSystemItem.archiveExtensions.contains(url.pathExtension.lowercased()) {
+                openArchiveInNewFileManager(url)
+            }
+        }
+    }
+
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
