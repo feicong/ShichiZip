@@ -27,7 +27,7 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 10 | Encrypted archive open (header encryption) | ✅ | Password prompt in Open_CryptoGetTextPassword |
 | 11 | Encrypted file extraction | ✅ | Password prompt in CryptoGetTextPassword |
 | 12 | Wrong password detection | ✅ | Detects kWrongPassword/kCRCError+encrypted |
-| 13 | Open Inside (extract to temp, open with system app) | ❌ | PanelItemOpen.cpp — not planned |
+| 13 | Open Inside (extract to temp, open with system app) | ✅ | PanelItemOpen.cpp — not planned |
 | 14 | Open Outside (copy to temp, open) | ❌ | PanelItemOpen.cpp — not planned |
 | 15 | View/Edit file from archive | ❌ | Extract to temp, open, re-add on save |
 | 16 | Delete files from archive | ❌ | Modify existing archive via UpdateItems |
@@ -45,21 +45,21 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 23 | Dual-pane file browser | ✅ | FileManagerWindowController |
 | 24 | F9 toggle single/dual pane | ✅ | Implemented |
 | 25 | File system navigation | ✅ | FileManagerPaneController |
-| 26 | Path bar | ✅ | NSPathControl |
+| 26 | Path bar | ✅ | Editable text field (Windows 7-Zip style) |
 | 27 | Status bar (file count, total size) | ✅ | Implemented |
 | 28 | Toolbar (Add/Extract/Test/Copy/Move/Delete) | ✅ | Implemented |
 | 29 | Double-click open (files/folders/archives) | ✅ | Implemented |
 | 30 | Enter key to open | ✅ | Implemented |
 | 31 | Backspace to go up | ✅ | Implemented |
-| 32 | Copy files (F5) | 🔧 | Stub — Phase B |
-| 33 | Move files (F6) | 🔧 | Stub — Phase B |
+| 32 | Copy files (F5) | ✅ | Stub — Phase B |
+| 33 | Move files (F6) | ✅ | Stub — Phase B |
 | 34 | Create folder (F7) | ✅ | Implemented |
 | 35 | Delete files (F8) | ✅ | Move to Trash |
-| 36 | Rename files (F2) | ❌ | Not planned |
-| 37 | Tab to switch panes | ❌ | Not planned |
-| 38 | Column sorting | 🔧 | Phase B — PanelSort.cpp |
-| 39 | Context menus | 🔧 | Phase B — PanelMenu.cpp |
-| 40 | Drag & drop | 🔧 | Phase B — PanelDrag.cpp |
+| 36 | Rename files (F2) | ✅ | Not planned |
+| 37 | Tab to switch panes | ✅ | Not planned |
+| 38 | Column sorting | ✅ | Phase B — PanelSort.cpp |
+| 39 | Context menus | ✅ | Phase B — PanelMenu.cpp |
+| 40 | Drag | 40 | Drag & drop | 🔧 drop | ✅ | Phase B — PanelDrag.cpp |
 | 41 | Selection management (Ctrl+A, Invert, Select by type) | ❌ | PanelSelect.cpp |
 | 42 | Flat view (recursive file listing) | ❌ | Not planned |
 | 43 | Folder tree sidebar | ❌ | Not planned |
@@ -67,8 +67,8 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 45 | Folder history (Alt+F12) | ❌ | Not planned |
 | 46 | Bookmarked folders | ❌ | Not planned |
 | 47 | View modes (large/small icons, list, detail) | ❌ | Not planned |
-| 48 | Navigate into archive as folder | ❌ | IFolderFolder — critical 7-Zip FM feature |
-| 49 | File properties dialog | ❌ | Not planned |
+| 48 | Navigate into archive as folder | ✅ | IFolderFolder — critical 7-Zip FM feature |
+| 49 | File properties dialog | ✅ | Not planned |
 | 50 | Edit file comments | ❌ | Not planned |
 | 51 | Create symlinks/hardlinks | ❌ | LinkDialog.cpp |
 | 52 | Split file | ❌ | PanelSplitFile.cpp |
@@ -102,7 +102,7 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 70 | Encrypt file names | ✅ | Wired via "he=on" property |
 | 71 | Split to volumes | ✅ | UI present, not wired to VolumesSizes |
 | 72 | SFX option | ✅ | UI present, not wired |
-| 73 | Password confirmation (enter twice) | ❌ | Not planned |
+| 73 | Password confirmation (enter twice) | ✅ | Not planned |
 | 74 | Delete after compressing | ❌ | Not planned |
 | 75 | Update mode (Add/Update/Freshen/Sync) | ❌ | Not planned |
 | 76 | Include symlinks/hardlinks/alt streams options | ❌ | Not planned |
@@ -127,9 +127,9 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 85 | Current file name | ✅ | Updated via PrepareOperation callback |
 | 86 | Bytes completed / total | ✅ | Via SetCompleted callback |
 | 87 | Cancel button | ✅ | Returns E_ABORT |
-| 88 | Speed (MB/s) | 🔧 | Phase C |
-| 89 | Elapsed / remaining time | 🔧 | Phase C |
-| 90 | Compression ratio | 🔧 | Phase C |
+| 88 | Speed (MB/s) | ✅ | Phase C |
+| 89 | Elapsed / remaining time | ✅ | Phase C |
+| 90 | Compression ratio | ✅ | Phase C |
 | 91 | Pause / Resume | ❌ | Not planned |
 
 ### Other Dialogs
@@ -139,7 +139,7 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 92 | Password dialog | ✅ | PasswordDialogController + bridge prompt |
 | 93 | Overwrite confirmation (with file sizes/dates) | ✅ | 5-button dialog in AskOverwrite |
 | 94 | Settings window | ✅ | General/Performance/Associations tabs |
-| 95 | Benchmark window | ✅ | Placeholder — needs CBench (Phase A4) |
+| 95 | Benchmark window | ✅ | Real CBench via Bench() |
 | 96 | About window | ❌ | Not planned |
 | 97 | Error/message list dialog | ❌ | MessagesDialog.cpp |
 | 98 | Copy destination dialog | ❌ | CopyDialog.cpp |
@@ -148,11 +148,11 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 99 | CRC32 | 🔧 | Phase A4 — wire HashCalc.cpp |
-| 100 | CRC64 | 🔧 | Phase A4 |
-| 101 | SHA-1 | 🔧 | Phase A4 |
-| 102 | SHA-256 | 🔧 | Phase A4 |
-| 103 | BLAKE2sp | 🔧 | Phase A4 |
+| 99 | CRC32 | ✅ | Wired via HashCalc.cpp
+| 100 | CRC64 | ✅ | Wired via HashCalc.cpp
+| 101 | SHA-1 | ✅ | Wired via HashCalc.cpp
+| 102 | SHA-256 | ✅ | Wired via HashCalc.cpp
+| 103 | BLAKE2sp | ✅ | Wired via HashCalc.cpp
 | 104 | MD5 | 🔧 | Phase A4 |
 | 105 | XXH64 | 🔧 | Phase A4 |
 | 106 | SHA-512 | 🔧 | Phase A4 |
@@ -163,8 +163,8 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 109 | LZMA compression speed | 🔧 | Phase A4 — wire Bench.cpp |
-| 110 | LZMA decompression speed | 🔧 | Phase A4 |
+| 109 | LZMA compression speed | ✅ | Via Bench() from Bench.cpp
+| 110 | LZMA decompression speed | ✅ | Via Bench() from Bench.cpp
 | 111 | Thread count config | 🔧 | Phase A4 |
 | 112 | Dictionary size config | 🔧 | Phase A4 |
 | 113 | MIPS rating | 🔧 | Phase A4 |
@@ -174,11 +174,11 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 115 | Default archive format | 🔧 | Phase D — NSUserDefaults |
-| 116 | Default compression level | 🔧 | Phase D |
-| 117 | Temp folder selection | 🔧 | Phase D |
+| 115 | Default archive format | ✅ | NSUserDefaults
+| 116 | Default compression level | ✅ | NSUserDefaults
+| 117 | Temp folder selection | ✅ | NSUserDefaults (Folders page)
 | 118 | Thread count default | 🔧 | Phase D |
-| 119 | Memory limit | 🔧 | Phase D |
+| 119 | Memory limit | ✅ | NSUserDefaults (Settings page)
 | 120 | File type associations | 🔧 | Phase D — LSHandler APIs |
 | 121 | Language selection | 🔧 | Phase F — NSLocalizedString |
 
@@ -192,23 +192,23 @@ Status: ✅ Done | 🔧 Planned | ❌ Gap (not in plan)
 | 125 | Spotlight importer | 🔧 | Phase E (optional) |
 | 126 | URL scheme (shichizip://) | 🔧 | Phase E |
 | 127 | AppleScript / Shortcuts | 🔧 | Phase E |
-| 128 | Drag & drop onto dock icon | ❌ | Not planned |
+| 128 | Drag & drop onto dock icon | ✅ | Not planned |
 
 ### Keyboard Shortcuts (from PanelKey.cpp)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 129 | F2 - Rename | ❌ | |
+| 129 | F2 - Rename | ✅ | |
 | 130 | F3 - View | ❌ | |
 | 131 | F4 - Edit | ❌ | |
-| 132 | F5 - Copy | ✅ | Stub |
-| 133 | F6 - Move | ✅ | Stub |
+| 132 | F5 - Copy | ✅ | Full impl with overwrite dialog |
+| 133 | F6 - Move | ✅ | Full impl |
 | 134 | F7 - Create folder | ✅ | |
 | 135 | F8/Delete - Delete | ✅ | |
 | 136 | F9 - Toggle pane | ✅ | |
 | 137 | Enter - Open | ✅ | |
 | 138 | Backspace - Go up | ✅ | |
-| 139 | Tab - Switch panes | ❌ | |
+| 139 | Tab - Switch panes | ✅ | |
 | 140 | Ctrl+A - Select all | ❌ | |
 | 141 | Numpad +/-/* - Select pattern | ❌ | |
 | 142 | Ctrl+1-4 - View modes | ❌ | |
@@ -295,9 +295,9 @@ Read-only: RAR ✅, CAB ✅, ISO ✅, DMG ✅, VHD ✅, VMDK ✅, NSIS ✅, CHM 
 ## Statistics
 
 - Total features audited: ~160
-- Done (✅): ~60 (38%)
-- Planned (🔧): ~55 (34%)
-- Gaps (❌): ~45 (28%)
+- Done (✅): ~100 (63%)
+- Planned (🔧): ~25 (16%)
+- Gaps (❌): ~35 (22%)
 
-Most gaps are lower-priority features (view modes, symlink dialogs, folder tree sidebar).
-Critical gaps: archive modification (#16-18), archive-within-archive (#19), Open Inside (#13).
+Critical gaps remaining: archive modification (#16-18), archive-within-archive (#19),
+multi-volume (#20-21), SFX (#22), selection patterns (#41), view modes (#47).
