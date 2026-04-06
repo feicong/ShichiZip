@@ -31,6 +31,8 @@
 #include "CPP/7zip/ICoder.h"
 #include "CPP/7zip/UI/Common/LoadCodecs.h"
 #include "CPP/7zip/UI/Common/OpenArchive.h"
+#include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
+#include "CPP/7zip/UI/Common/Extract.h"
 #include "CPP/7zip/UI/Common/IFileExtractCallback.h"
 #include "CPP/7zip/PropID.h"
 #include "CPP/Windows/TimeUtils.h"
@@ -111,26 +113,36 @@ static NSDate *ItemDate(IInArchive *ar, UInt32 i, PROPID p) {
 }
 
 // ============================================================
-// Extract callback
+// IFolderArchiveExtractCallback — our UI callback, used by CArchiveExtractCallback
+// This matches the pattern from ExtractCallbackConsole.cpp
 // ============================================================
-class SZExtractCallback final : public IArchiveExtractCallback, public ICryptoGetTextPassword, public CMyUnknownImp {
+class SZFolderExtractCallback final :
+    public IFolderArchiveExtractCallback,
+    public IFolderArchiveExtractCallback2,
+    public ICryptoGetTextPassword,
+    public CMyUnknownImp
+{
 public:
-    UString Password; bool PasswordIsDefined;
-    UString DestPath; UInt64 TotalSize;
-    IInArchive *Archive; bool TestMode;
+    UString Password;
+    bool PasswordIsDefined;
+    UInt64 TotalSize;
     SZOverwriteMode OverwriteMode;
     __unsafe_unretained id<SZProgressDelegate> Delegate;
 
-    SZExtractCallback() : PasswordIsDefined(false), TotalSize(0), Archive(nullptr),
-        TestMode(false), OverwriteMode(SZOverwriteModeOverwrite), Delegate(nil) {}
+    SZFolderExtractCallback() : PasswordIsDefined(false), TotalSize(0),
+        OverwriteMode(SZOverwriteModeAsk), Delegate(nil) {}
 
-    Z7_COM_UNKNOWN_IMP_2(IArchiveExtractCallback, ICryptoGetTextPassword)
+    Z7_COM_UNKNOWN_IMP_3(IFolderArchiveExtractCallback, IFolderArchiveExtractCallback2, ICryptoGetTextPassword)
 
-    STDMETHOD(SetTotal)(UInt64 t) override { TotalSize = t; return S_OK; }
-    STDMETHOD(SetCompleted)(const UInt64 *cv) override {
-        if (cv && TotalSize > 0) {
-            double f = (double)*cv / (double)TotalSize;
-            UInt64 c = *cv, t = TotalSize;
+    // IProgress
+    STDMETHOD(SetTotal)(UInt64 total) override {
+        TotalSize = total;
+        return S_OK;
+    }
+    STDMETHOD(SetCompleted)(const UInt64 *completed) override {
+        if (completed && TotalSize > 0) {
+            double f = (double)*completed / (double)TotalSize;
+            UInt64 c = *completed, t = TotalSize;
             id<SZProgressDelegate> d = Delegate;
             if (d) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -142,93 +154,96 @@ public:
         }
         return S_OK;
     }
-    STDMETHOD(GetStream)(UInt32 idx, ISequentialOutStream **out, Int32 mode) override {
-        *out = nullptr;
-        if (mode != NArchive::NExtract::NAskMode::kExtract) return S_OK;
 
-        NSString *pathStr = ItemStr(Archive, idx, kpidPath) ?: @"unknown";
-        int isDir = ItemBool(Archive, idx, kpidIsDir);
-
-        id<SZProgressDelegate> d = Delegate;
-        if (d) { NSString *n = pathStr; dispatch_async(dispatch_get_main_queue(), ^{ [d progressDidUpdateFileName:n]; }); }
-        if (TestMode) return S_OK;
-
-        UString fullPath = DestPath;
-        if (!fullPath.IsEmpty() && fullPath.Back() != '/') fullPath.Add_PathSepar();
-        fullPath += ToU(pathStr);
-
-        if (isDir) { NWindows::NFile::NDir::CreateComplexDir(us2fs(fullPath)); return S_OK; }
-
-        int sp = (int)fullPath.ReverseFind_PathSepar();
-        if (sp >= 0) NWindows::NFile::NDir::CreateComplexDir(us2fs(fullPath.Left(sp)));
-
-        // Check if file exists and handle overwrite mode
-        FString fsPath = us2fs(fullPath);
-        NWindows::NFile::NFind::CFileInfo existingFi;
-        if (existingFi.Find(fsPath)) {
-            switch (OverwriteMode) {
-                case SZOverwriteModeSkip:
-                    return S_OK; // skip this file
-
-                case SZOverwriteModeRename: {
-                    // Auto-rename: append (1), (2), etc.
-                    UString basePath = fullPath;
-                    UString ext;
-                    int dotPos = (int)basePath.ReverseFind(L'.');
-                    int sepPos = (int)basePath.ReverseFind_PathSepar();
-                    if (dotPos > sepPos) {
-                        ext = basePath.Ptr(dotPos);
-                        basePath.DeleteFrom(dotPos);
+    // IFolderArchiveExtractCallback
+    STDMETHOD(AskOverwrite)(
+        const wchar_t *existName, const FILETIME *existTime, const UInt64 *existSize,
+        const wchar_t *newName, const FILETIME *newTime, const UInt64 *newSize,
+        Int32 *answer) override
+    {
+        // Map our SZOverwriteMode to 7-Zip's NOverwriteAnswer
+        switch (OverwriteMode) {
+            case SZOverwriteModeOverwrite:
+                *answer = NOverwriteAnswer::kYesToAll;
+                return S_OK;
+            case SZOverwriteModeSkip:
+                *answer = NOverwriteAnswer::kNoToAll;
+                return S_OK;
+            case SZOverwriteModeRename:
+                *answer = NOverwriteAnswer::kAutoRename;
+                return S_OK;
+            case SZOverwriteModeAsk:
+            default: {
+                // Ask user on main thread with file details
+                __block Int32 result = NOverwriteAnswer::kYes;
+                NSString *existStr = existName ? ToNS(UString(existName)) : @"";
+                NSString *newStr = newName ? ToNS(UString(newName)) : @"";
+                dispatch_sync(dispatch_get_main_queue(), ^{
+                    NSAlert *alert = [[NSAlert alloc] init];
+                    alert.messageText = @"File already exists";
+                    NSMutableString *info = [NSMutableString string];
+                    [info appendFormat:@"Would you like to replace the existing file:\n%@", existStr];
+                    if (existSize) {
+                        [info appendFormat:@"\nSize: %@",
+                            [NSByteCountFormatter stringFromByteCount:(long long)*existSize
+                                                           countStyle:NSByteCountFormatterCountStyleFile]];
                     }
-                    for (int n = 1; n < 10000; n++) {
-                        UString newPath = basePath;
-                        wchar_t buf[32];
-                        swprintf(buf, sizeof(buf)/sizeof(buf[0]), L" (%d)", n);
-                        newPath += buf;
-                        newPath += ext;
-                        FString newFs = us2fs(newPath);
-                        NWindows::NFile::NFind::CFileInfo chk;
-                        if (!chk.Find(newFs)) {
-                            fsPath = newFs;
-                            break;
-                        }
+                    [info appendFormat:@"\n\nwith this one from the archive:\n%@", newStr];
+                    if (newSize) {
+                        [info appendFormat:@"\nSize: %@",
+                            [NSByteCountFormatter stringFromByteCount:(long long)*newSize
+                                                           countStyle:NSByteCountFormatterCountStyleFile]];
                     }
-                    break;
-                }
-
-                case SZOverwriteModeAsk: {
-                    // Ask user on main thread
-                    __block BOOL shouldOverwrite = YES;
-                    NSString *fileName = pathStr;
-                    dispatch_sync(dispatch_get_main_queue(), ^{
-                        NSAlert *alert = [[NSAlert alloc] init];
-                        alert.messageText = @"File already exists";
-                        alert.informativeText = [NSString stringWithFormat:
-                            @"The file \"%@\" already exists in the destination. Do you want to replace it?", fileName];
-                        alert.alertStyle = NSAlertStyleWarning;
-                        [alert addButtonWithTitle:@"Replace"];
-                        [alert addButtonWithTitle:@"Skip"];
-                        NSModalResponse resp = [alert runModal];
-                        shouldOverwrite = (resp == NSAlertFirstButtonReturn);
-                    });
-                    if (!shouldOverwrite) return S_OK;
-                    break;
-                }
-
-                case SZOverwriteModeOverwrite:
-                default:
-                    break; // fall through to create
+                    alert.informativeText = info;
+                    alert.alertStyle = NSAlertStyleWarning;
+                    [alert addButtonWithTitle:@"Yes"];
+                    [alert addButtonWithTitle:@"Yes to All"];
+                    [alert addButtonWithTitle:@"No"];
+                    [alert addButtonWithTitle:@"No to All"];
+                    [alert addButtonWithTitle:@"Auto Rename"];
+                    NSModalResponse resp = [alert runModal];
+                    if (resp == NSAlertFirstButtonReturn) result = NOverwriteAnswer::kYes;
+                    else if (resp == NSAlertFirstButtonReturn + 1) result = NOverwriteAnswer::kYesToAll;
+                    else if (resp == NSAlertFirstButtonReturn + 2) result = NOverwriteAnswer::kNo;
+                    else if (resp == NSAlertFirstButtonReturn + 3) result = NOverwriteAnswer::kNoToAll;
+                    else if (resp == NSAlertFirstButtonReturn + 4) result = NOverwriteAnswer::kAutoRename;
+                });
+                *answer = result;
+                // If user chose "to all", update the mode for subsequent files
+                if (result == NOverwriteAnswer::kYesToAll) OverwriteMode = SZOverwriteModeOverwrite;
+                else if (result == NOverwriteAnswer::kNoToAll) OverwriteMode = SZOverwriteModeSkip;
+                return S_OK;
             }
         }
+    }
 
-        COutFileStream *spec = new COutFileStream;
-        CMyComPtr<ISequentialOutStream> loc(spec);
-        if (!spec->Create_ALWAYS(fsPath)) return E_FAIL;
-        *out = loc.Detach();
+    STDMETHOD(PrepareOperation)(const wchar_t *name, Int32 isFolder, Int32 askExtractMode, const UInt64 *position) override {
+        if (name) {
+            id<SZProgressDelegate> d = Delegate;
+            if (d) {
+                NSString *n = ToNS(UString(name));
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [d progressDidUpdateFileName:n];
+                });
+            }
+        }
         return S_OK;
     }
-    STDMETHOD(PrepareOperation)(Int32) override { return S_OK; }
-    STDMETHOD(SetOperationResult)(Int32) override { return S_OK; }
+
+    STDMETHOD(MessageError)(const wchar_t *message) override {
+        return S_OK;
+    }
+
+    STDMETHOD(SetOperationResult)(Int32 opRes, Int32 encrypted) override {
+        return S_OK;
+    }
+
+    // IFolderArchiveExtractCallback2
+    STDMETHOD(ReportExtractResult)(Int32 opRes, Int32 encrypted, const wchar_t *name) override {
+        return S_OK;
+    }
+
+    // ICryptoGetTextPassword
     STDMETHOD(CryptoGetTextPassword)(BSTR *pw) override {
         if (!PasswordIsDefined) return E_ABORT;
         return StringToBstr(Password, pw);
@@ -455,40 +470,121 @@ public:
 - (BOOL)extractToPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
     if (!_isOpen) { if (error) *error = SZMakeError(-4, @"No archive open"); return NO; }
     IInArchive *archive = _arcLink->GetArchive();
+    const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
-    SZExtractCallback *cb = new SZExtractCallback;
-    CMyComPtr<IArchiveExtractCallback> ec(cb);
-    cb->Archive = archive; cb->DestPath = ToU(dest); cb->Delegate = p;
-    cb->OverwriteMode = s.overwriteMode;
-    if (s.password) { cb->PasswordIsDefined = true; cb->Password = ToU(s.password); }
+
+    // Map SZOverwriteMode → NExtract::NOverwriteMode
+    NExtract::NOverwriteMode::EEnum owMode = NExtract::NOverwriteMode::kAsk;
+    switch (s.overwriteMode) {
+        case SZOverwriteModeOverwrite: owMode = NExtract::NOverwriteMode::kOverwrite; break;
+        case SZOverwriteModeSkip: owMode = NExtract::NOverwriteMode::kSkip; break;
+        case SZOverwriteModeRename: owMode = NExtract::NOverwriteMode::kRename; break;
+        case SZOverwriteModeAsk: default: owMode = NExtract::NOverwriteMode::kAsk; break;
+    }
+
+    // Map SZPathMode → NExtract::NPathMode
+    NExtract::NPathMode::EEnum pathMode = NExtract::NPathMode::kFullPaths;
+    switch (s.pathMode) {
+        case SZPathModeNoPaths: pathMode = NExtract::NPathMode::kNoPaths; break;
+        case SZPathModeAbsolutePaths: pathMode = NExtract::NPathMode::kAbsPaths; break;
+        case SZPathModeFullPaths: default: pathMode = NExtract::NPathMode::kFullPaths; break;
+    }
+
+    // Create our UI callback (IFolderArchiveExtractCallback)
+    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
+    faeSpec->Delegate = p;
+    faeSpec->OverwriteMode = s.overwriteMode;
+    if (s.password) { faeSpec->PasswordIsDefined = true; faeSpec->Password = ToU(s.password); }
+
+    // Create the official CArchiveExtractCallback (handles file creation, attrs, timestamps)
+    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CMyComPtr<IArchiveExtractCallback> ec(ecs);
+
+    CExtractNtOptions ntOptions;
+    UStringVector removePathParts;
+
+    ecs->InitForMulti(false, pathMode, owMode,
+        NExtract::NZoneIdMode::kNone, false);
+
+    ecs->Init(ntOptions, NULL, &arc, faeCallback,
+        false /* stdOutMode */, s == nil ? false : false /* testMode */,
+        us2fs(ToU(dest)), removePathParts, false,
+        arc.GetEstmatedPhySize());
+
     HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 0, ec);
-    if (r != S_OK) { if (error) *error = SZMakeError(r == E_ABORT ? -5 : -6, r == E_ABORT ? @"Cancelled" : @"Failed"); return NO; }
+    if (r != S_OK) { if (error) *error = SZMakeError(r == E_ABORT ? -5 : -6, r == E_ABORT ? @"Cancelled" : @"Extraction failed"); return NO; }
     return YES;
 }
 
 - (BOOL)extractEntries:(NSArray<NSNumber *> *)indices toPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
     if (!_isOpen) { if (error) *error = SZMakeError(-4, @"No archive open"); return NO; }
     IInArchive *archive = _arcLink->GetArchive();
+    const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
-    SZExtractCallback *cb = new SZExtractCallback;
-    CMyComPtr<IArchiveExtractCallback> ec(cb);
-    cb->Archive = archive; cb->DestPath = ToU(dest); cb->Delegate = p;
-    cb->OverwriteMode = s.overwriteMode;
-    if (s.password) { cb->PasswordIsDefined = true; cb->Password = ToU(s.password); }
+
+    NExtract::NOverwriteMode::EEnum owMode = NExtract::NOverwriteMode::kAsk;
+    switch (s.overwriteMode) {
+        case SZOverwriteModeOverwrite: owMode = NExtract::NOverwriteMode::kOverwrite; break;
+        case SZOverwriteModeSkip: owMode = NExtract::NOverwriteMode::kSkip; break;
+        case SZOverwriteModeRename: owMode = NExtract::NOverwriteMode::kRename; break;
+        default: break;
+    }
+    NExtract::NPathMode::EEnum pathMode = NExtract::NPathMode::kFullPaths;
+    switch (s.pathMode) {
+        case SZPathModeNoPaths: pathMode = NExtract::NPathMode::kNoPaths; break;
+        case SZPathModeAbsolutePaths: pathMode = NExtract::NPathMode::kAbsPaths; break;
+        default: break;
+    }
+
+    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
+    faeSpec->Delegate = p;
+    faeSpec->OverwriteMode = s.overwriteMode;
+    if (s.password) { faeSpec->PasswordIsDefined = true; faeSpec->Password = ToU(s.password); }
+
+    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CMyComPtr<IArchiveExtractCallback> ec(ecs);
+
+    CExtractNtOptions ntOptions;
+    UStringVector removePathParts;
+
+    ecs->InitForMulti(false, pathMode, owMode,
+        NExtract::NZoneIdMode::kNone, false);
+    ecs->Init(ntOptions, NULL, &arc, faeCallback,
+        false, false, us2fs(ToU(dest)), removePathParts, false,
+        arc.GetEstmatedPhySize());
+
     std::vector<UInt32> ia; ia.reserve(indices.count);
     for (NSNumber *n in indices) ia.push_back([n unsignedIntValue]);
     HRESULT r = archive->Extract(ia.data(), (UInt32)ia.size(), 0, ec);
-    if (r != S_OK) { if (error) *error = SZMakeError(r == E_ABORT ? -5 : -6, r == E_ABORT ? @"Cancelled" : @"Failed"); return NO; }
+    if (r != S_OK) { if (error) *error = SZMakeError(r == E_ABORT ? -5 : -6, r == E_ABORT ? @"Cancelled" : @"Extraction failed"); return NO; }
     return YES;
 }
 
 - (BOOL)testWithProgress:(id<SZProgressDelegate>)p error:(NSError **)error {
     if (!_isOpen) { if (error) *error = SZMakeError(-4, @"No archive open"); return NO; }
     IInArchive *archive = _arcLink->GetArchive();
-    SZExtractCallback *cb = new SZExtractCallback;
-    CMyComPtr<IArchiveExtractCallback> ec(cb);
-    cb->Archive = archive; cb->Delegate = p; cb->TestMode = true;
-    HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 1, ec);
+    const CArc &arc = _arcLink->Arcs.Back();
+
+    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
+    faeSpec->Delegate = p;
+
+    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CMyComPtr<IArchiveExtractCallback> ec(ecs);
+
+    CExtractNtOptions ntOptions;
+    UStringVector removePathParts;
+
+    ecs->InitForMulti(false, NExtract::NPathMode::kFullPaths,
+        NExtract::NOverwriteMode::kOverwrite,
+        NExtract::NZoneIdMode::kNone, false);
+    ecs->Init(ntOptions, NULL, &arc, faeCallback,
+        false, true /* testMode */, FString(), removePathParts, false,
+        arc.GetEstmatedPhySize());
+
+    HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 1 /* test */, ec);
     if (r != S_OK) { if (error) *error = SZMakeError(-7, @"Archive test failed"); return NO; }
     return YES;
 }
