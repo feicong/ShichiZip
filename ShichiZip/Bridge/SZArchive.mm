@@ -33,7 +33,12 @@
 #include "CPP/7zip/UI/Common/OpenArchive.h"
 #include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
 #include "CPP/7zip/UI/Common/Extract.h"
+#include "CPP/7zip/UI/Common/Update.h"
+#include "CPP/7zip/UI/Common/UpdateCallback.h"
+#include "CPP/7zip/UI/Common/EnumDirItems.h"
+#include "CPP/7zip/UI/Common/SetProperties.h"
 #include "CPP/7zip/UI/Common/IFileExtractCallback.h"
+#include "CPP/Common/Wildcard.h"
 #include "CPP/7zip/PropID.h"
 #include "CPP/Windows/TimeUtils.h"
 #include "C/7zCrc.h"
@@ -251,71 +256,91 @@ public:
 };
 
 // ============================================================
-// Update callback
+// IUpdateCallbackUI2 — our UI callback for archive creation
+// Matches pattern from UpdateCallbackConsole.cpp
 // ============================================================
-struct UpdItem { UString path, archPath; bool isDir; UInt64 size; FILETIME mt, ct; UInt32 winAttr; };
-
-class SZUpdateCallback final : public IArchiveUpdateCallback2, public ICryptoGetTextPassword2, public CMyUnknownImp {
+class SZUpdateCallbackUI :
+    public IUpdateCallbackUI2
+{
 public:
-    CObjectVector<UpdItem> Items;
-    UString Password; bool PasswordIsDefined, EncryptHeaders;
+    UString Password;
+    bool PasswordIsDefined;
     UInt64 TotalSize;
     __unsafe_unretained id<SZProgressDelegate> Delegate;
 
-    SZUpdateCallback() : PasswordIsDefined(false), EncryptHeaders(false), TotalSize(0), Delegate(nil) {}
+    SZUpdateCallbackUI() : PasswordIsDefined(false), TotalSize(0), Delegate(nil) {}
 
-    Z7_COM_UNKNOWN_IMP_2(IArchiveUpdateCallback2, ICryptoGetTextPassword2)
-
-    STDMETHOD(SetTotal)(UInt64 t) override { TotalSize = t; return S_OK; }
-    STDMETHOD(SetCompleted)(const UInt64 *cv) override {
-        if (cv && TotalSize > 0) {
-            double f = (double)*cv / (double)TotalSize;
-            UInt64 c = *cv, t = TotalSize;
+    // IUpdateCallbackUI
+    HRESULT WriteSfx(const wchar_t *, UInt64) override { return S_OK; }
+    HRESULT SetTotal(UInt64 total) override {
+        TotalSize = total;
+        return S_OK;
+    }
+    HRESULT SetCompleted(const UInt64 *completed) override {
+        if (completed && TotalSize > 0) {
+            double f = (double)*completed / (double)TotalSize;
+            UInt64 c = *completed, t = TotalSize;
             id<SZProgressDelegate> d = Delegate;
             if (d) {
-                dispatch_async(dispatch_get_main_queue(), ^{ [d progressDidUpdate:f]; [d progressDidUpdateBytesCompleted:c total:t]; });
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [d progressDidUpdate:f];
+                    [d progressDidUpdateBytesCompleted:c total:t];
+                });
                 if ([d progressShouldCancel]) return E_ABORT;
             }
         }
         return S_OK;
     }
-    STDMETHOD(GetUpdateItemInfo)(UInt32, Int32 *nd, Int32 *np, UInt32 *iia) override {
-        if (nd) *nd = 1; if (np) *np = 1; if (iia) *iia = (UInt32)(Int32)-1; return S_OK;
-    }
-    STDMETHOD(GetProperty)(UInt32 i, PROPID pid, PROPVARIANT *val) override {
-        NWindows::NCOM::CPropVariant p;
-        if (i >= (UInt32)Items.Size()) return E_INVALIDARG;
-        const auto &it = Items[i];
-        switch (pid) {
-            case kpidIsAnti: p = false; break;
-            case kpidPath: p = it.archPath; break;
-            case kpidIsDir: p = it.isDir; break;
-            case kpidSize: p = it.size; break;
-            case kpidMTime: p = it.mt; break;
-            case kpidCTime: p = it.ct; break;
-            case kpidAttrib: p = it.winAttr; break;
-        }
-        p.Detach(val); return S_OK;
-    }
-    STDMETHOD(GetStream)(UInt32 i, ISequentialInStream **in) override {
-        *in = nullptr;
-        if (i >= (UInt32)Items.Size()) return E_INVALIDARG;
-        const auto &it = Items[i];
-        if (it.isDir) return S_OK;
+    HRESULT SetRatioInfo(const UInt64 *, const UInt64 *) override { return S_OK; }
+    HRESULT CheckBreak() override {
         id<SZProgressDelegate> d = Delegate;
-        if (d) { NSString *n = ToNS(it.archPath); dispatch_async(dispatch_get_main_queue(), ^{ [d progressDidUpdateFileName:n]; }); }
-        CInFileStream *spec = new CInFileStream;
-        CMyComPtr<ISequentialInStream> loc(spec);
-        if (!spec->Open(us2fs(it.path))) return S_FALSE;
-        *in = loc.Detach(); return S_OK;
+        if (d && [d progressShouldCancel]) return E_ABORT;
+        return S_OK;
     }
-    STDMETHOD(SetOperationResult)(Int32) override { return S_OK; }
-    STDMETHOD(GetVolumeSize)(UInt32, UInt64*) override { return S_FALSE; }
-    STDMETHOD(GetVolumeStream)(UInt32, ISequentialOutStream**) override { return S_FALSE; }
-    STDMETHOD(CryptoGetTextPassword2)(Int32 *def, BSTR *pw) override {
-        *def = PasswordIsDefined ? 1 : 0;
-        return StringToBstr(Password, pw);
+    HRESULT SetNumItems(const CArcToDoStat &) override { return S_OK; }
+    HRESULT GetStream(const wchar_t *name, bool, bool, UInt32) override {
+        if (name) {
+            id<SZProgressDelegate> d = Delegate;
+            if (d) {
+                NSString *n = ToNS(UString(name));
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [d progressDidUpdateFileName:n];
+                });
+            }
+        }
+        return S_OK;
     }
+    HRESULT OpenFileError(const FString &, DWORD) override { return S_OK; }
+    HRESULT ReadingFileError(const FString &, DWORD) override { return S_OK; }
+    HRESULT SetOperationResult(Int32) override { return S_OK; }
+    HRESULT ReportExtractResult(Int32, Int32, const wchar_t *) override { return S_OK; }
+    HRESULT ReportUpdateOperation(UInt32, const wchar_t *, bool) override { return S_OK; }
+    HRESULT CryptoGetTextPassword2(Int32 *passwordIsDefined, BSTR *password) override {
+        *passwordIsDefined = PasswordIsDefined ? 1 : 0;
+        return StringToBstr(Password, password);
+    }
+    HRESULT CryptoGetTextPassword(BSTR *password) override {
+        if (!PasswordIsDefined) return E_ABORT;
+        return StringToBstr(Password, password);
+    }
+    HRESULT ShowDeleteFile(const wchar_t *, bool) override { return S_OK; }
+
+    // IUpdateCallbackUI2
+    HRESULT OpenResult(const CCodecs *, const CArchiveLink &, const wchar_t *, HRESULT) override { return S_OK; }
+    HRESULT StartScanning() override { return S_OK; }
+    HRESULT FinishScanning(const CDirItemsStat &) override { return S_OK; }
+    HRESULT StartOpenArchive(const wchar_t *) override { return S_OK; }
+    HRESULT StartArchive(const wchar_t *, bool) override { return S_OK; }
+    HRESULT FinishArchive(const CFinishArchiveStat &) override { return S_OK; }
+    HRESULT DeletingAfterArchiving(const FString &, bool) override { return S_OK; }
+    HRESULT FinishDeletingAfterArchiving() override { return S_OK; }
+    HRESULT MoveArc_Start(const wchar_t *, const wchar_t *, UInt64, Int32) override { return S_OK; }
+    HRESULT MoveArc_Progress(UInt64, UInt64) override { return S_OK; }
+    HRESULT MoveArc_Finish() override { return S_OK; }
+
+    // IDirItemsCallback
+    HRESULT ScanError(const FString &, DWORD) override { return S_OK; }
+    HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override { return S_OK; }
 };
 
 // ============================================================
@@ -592,64 +617,104 @@ public:
 + (BOOL)createAtPath:(NSString *)archivePath fromPaths:(NSArray<NSString *> *)src settings:(SZCompressionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
     CCodecs *codecs = GetCodecs();
     if (!codecs) { if (error) *error = SZMakeError(-1, @"Failed to init codecs"); return NO; }
+
+    // Map format enum to format name
     static const char *fmts[] = {"7z","zip","tar","gzip","bzip2","xz","wim","zstd"};
     int fi = (int)s.format; if (fi < 0 || fi >= 8) fi = 0;
-    int formatIndex = -1;
-    for (unsigned i = 0; i < codecs->Formats.Size(); i++)
-        if (codecs->Formats[i].Name.IsEqualTo_Ascii_NoCase(fmts[fi])) { formatIndex = (int)i; break; }
+
+    // Set up update options — matches how CompressDialog/UpdateGUI does it
+    CUpdateOptions options;
+    options.SetActionCommand_Add();
+
+    // Find format index
+    UString fmtName;
+    for (const char *c = fmts[fi]; *c; c++) fmtName += (wchar_t)(unsigned char)*c;
+    int formatIndex = codecs->FindFormatForArchiveType(fmtName);
+    if (formatIndex < 0) {
+        // Try by extension from the archive path
+        NSString *ext = [[archivePath pathExtension] lowercaseString];
+        formatIndex = codecs->FindFormatForExtension(ToU(ext));
+    }
     if (formatIndex < 0) { if (error) *error = SZMakeError(-8, @"Unsupported format"); return NO; }
 
-    CMyComPtr<IOutArchive> oa;
-    if (codecs->CreateOutArchive((unsigned)formatIndex, oa) != S_OK || !oa)
-        { if (error) *error = SZMakeError(-9, @"Cannot create handler"); return NO; }
+    options.MethodMode.Type.FormatIndex = formatIndex;
 
-    CMyComPtr<ISetProperties> sp; oa.QueryInterface(IID_ISetProperties, (void**)&sp);
-    if (sp) {
-        const wchar_t *names[] = {L"x"}; NWindows::NCOM::CPropVariant vals[1];
-        vals[0] = (UInt32)s.level; sp->SetProperties(names, vals, 1);
+    // Set compression properties (like SetOutProperties in UpdateGUI.cpp)
+    CProperty propLevel;
+    propLevel.Name = L"x";
+    wchar_t levelBuf[16];
+    swprintf(levelBuf, 16, L"%d", (int)s.level);
+    propLevel.Value = levelBuf;
+    options.MethodMode.Properties.Add(propLevel);
+
+    if (s.numThreads > 0) {
+        CProperty propMt;
+        propMt.Name = L"mt";
+        wchar_t mtBuf[16];
+        swprintf(mtBuf, 16, L"%u", (unsigned)s.numThreads);
+        propMt.Value = mtBuf;
+        options.MethodMode.Properties.Add(propMt);
     }
 
-    SZUpdateCallback *cb = new SZUpdateCallback;
-    CMyComPtr<IArchiveUpdateCallback2> uc(cb); cb->Delegate = p;
-    if (s.password && s.encryption != SZEncryptionMethodNone) {
-        cb->PasswordIsDefined = true; cb->Password = ToU(s.password); cb->EncryptHeaders = s.encryptFileNames;
+    if (s.format == SZArchiveFormat7z && s.solidMode) {
+        CProperty propSolid;
+        propSolid.Name = L"s";
+        propSolid.Value = L"on";
+        options.MethodMode.Properties.Add(propSolid);
     }
 
+    if (s.encryptFileNames && s.format == SZArchiveFormat7z) {
+        CProperty propHe;
+        propHe.Name = L"he";
+        propHe.Value = L"on";
+        options.MethodMode.Properties.Add(propHe);
+    }
+
+    // Password is handled via callback's CryptoGetTextPassword2()
+
+    // Set up wildcard censor — add each source path
+    NWildcard::CCensor censor;
     for (NSString *srcPath in src) {
-        NWindows::NFile::NFind::CFileInfo fi2; if (!fi2.Find(us2fs(ToU(srcPath)))) continue;
-        FILETIME fmt, fct;
-        FiTime_To_FILETIME(fi2.MTime, fmt);
-        FiTime_To_FILETIME(fi2.CTime, fct);
-        UInt32 wattr = fi2.GetWinAttrib();
-        if (fi2.IsDir()) {
-            UpdItem d; d.path = ToU(srcPath); d.archPath = ToU([srcPath lastPathComponent]);
-            d.isDir = true; d.size = 0; d.mt = fmt; d.ct = fct; d.winAttr = wattr;
-            cb->Items.Add(d);
-            NSFileManager *fm = [NSFileManager defaultManager];
-            NSDirectoryEnumerator *de = [fm enumeratorAtPath:srcPath]; NSString *rp;
-            while ((rp = [de nextObject])) {
-                NSString *fp = [srcPath stringByAppendingPathComponent:rp];
-                NWindows::NFile::NFind::CFileInfo sf; if (!sf.Find(us2fs(ToU(fp)))) continue;
-                FILETIME smt, sct;
-                FiTime_To_FILETIME(sf.MTime, smt);
-                FiTime_To_FILETIME(sf.CTime, sct);
-                UpdItem it; it.path = ToU(fp);
-                it.archPath = ToU([[srcPath lastPathComponent] stringByAppendingPathComponent:rp]);
-                it.isDir = sf.IsDir(); it.size = sf.IsDir() ? 0 : sf.Size;
-                it.mt = smt; it.ct = sct; it.winAttr = sf.GetWinAttrib(); cb->Items.Add(it);
-            }
-        } else {
-            UpdItem it; it.path = ToU(srcPath); it.archPath = ToU([srcPath lastPathComponent]);
-            it.isDir = false; it.size = fi2.Size; it.mt = fmt; it.ct = fct; it.winAttr = wattr;
-            cb->Items.Add(it);
-        }
+        NWildcard::CCensorPathProps props;
+        props.Recursive = true;
+        censor.AddItem(NWildcard::k_AbsPath, true /* include */, ToU(srcPath), props);
     }
 
-    COutFileStream *ofs = new COutFileStream;
-    CMyComPtr<ISequentialOutStream> os(ofs);
-    if (!ofs->Create_ALWAYS(us2fs(ToU(archivePath)))) { if (error) *error = SZMakeError(-10, @"Cannot create file"); return NO; }
-    HRESULT r = oa->UpdateItems(os, (UInt32)cb->Items.Size(), uc);
-    if (r != S_OK) { if (error) *error = SZMakeError(r == E_ABORT ? -5 : -11, r == E_ABORT ? @"Cancelled" : @"Failed"); return NO; }
+    // Set up callbacks
+    SZUpdateCallbackUI callbackUI;
+    callbackUI.Delegate = p;
+    if (s.password && s.encryption != SZEncryptionMethodNone) {
+        callbackUI.PasswordIsDefined = true;
+        callbackUI.Password = ToU(s.password);
+    }
+
+    SZOpenCallbackUI openCallbackUI;
+
+    CUpdateErrorInfo errorInfo;
+    CObjectVector<COpenType> types;
+
+    // THE CALL — same as 7-Zip Console/GUI
+    HRESULT r = UpdateArchive(
+        codecs,
+        types,
+        ToU(archivePath),
+        censor,
+        options,
+        errorInfo,
+        &openCallbackUI,
+        &callbackUI,
+        true /* needSetPath */
+    );
+
+    if (r != S_OK) {
+        NSString *desc;
+        if (r == E_ABORT) desc = @"Compression was cancelled";
+        else if (errorInfo.Message.Len() > 0)
+            desc = [NSString stringWithUTF8String:errorInfo.Message.Ptr()];
+        else desc = [NSString stringWithFormat:@"Compression failed (0x%08X)", (unsigned)r];
+        if (error) *error = SZMakeError(r, desc);
+        return NO;
+    }
     return YES;
 }
 
