@@ -84,69 +84,27 @@ class BenchmarkWindowController: NSWindowController {
         progressBar.startAnimation(nil)
         statusLabel.stringValue = "Running benchmark..."
 
-        resultTextView.string = "Running LZMA benchmark...\n\n"
+        let ncpu = ProcessInfo.processInfo.processorCount
+        let physMem = ProcessInfo.processInfo.physicalMemory
+        let memStr = ByteCountFormatter.string(fromByteCount: Int64(physMem), countStyle: .memory)
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let start = CFAbsoluteTimeGetCurrent()
+        resultTextView.string = """
+        ShichiZip LZMA Benchmark
+        ========================
+        CPU Cores: \(ncpu)  |  RAM: \(memStr)  |  \(Self.cpuArchitecture())
 
-            // Simple LZMA speed test using raw memory compression
-            let testSize = 10 * 1024 * 1024 // 10 MB
-            let data = Data(count: testSize)
+        Running...
 
-            // Measure compression speed
-            let compressStart = CFAbsoluteTimeGetCurrent()
+        """
 
-            // Use 7-Zip's benchmark via the bridge would be ideal,
-            // but for now we'll do a simple throughput test
-            var totalCompressed: UInt64 = 0
-            for _ in 0..<5 {
-                autoreleasepool {
-                    _ = data.withUnsafeBytes { ptr in
-                        // Simulate compression work
-                        var hash: UInt64 = 0
-                        let bytes = ptr.bindMemory(to: UInt64.self)
-                        for i in 0..<(testSize / 8) {
-                            hash ^= bytes[i]
-                        }
-                        totalCompressed += hash & 1
-                    }
-                }
-            }
-
-            let compressTime = CFAbsoluteTimeGetCurrent() - compressStart
-            let totalTime = CFAbsoluteTimeGetCurrent() - start
-
-            let throughput = Double(testSize * 5) / compressTime / 1024.0 / 1024.0
-            let ncpu = ProcessInfo.processInfo.processorCount
-            let physMem = ProcessInfo.processInfo.physicalMemory
-
-            DispatchQueue.main.async {
-                self?.progressBar.stopAnimation(nil)
-                self?.progressBar.isHidden = true
-                self?.startButton.isEnabled = true
-                self?.statusLabel.stringValue = "Benchmark complete"
-
-                let memStr = ByteCountFormatter.string(fromByteCount: Int64(physMem), countStyle: .memory)
-
-                self?.resultTextView.string = """
-                ShichiZip Benchmark Results
-                ===========================
-
-                System Info:
-                  CPU Cores: \(ncpu)
-                  RAM: \(memStr)
-                  Architecture: \(Self.cpuArchitecture())
-
-                LZMA Benchmark:
-                  Test data size: 10 MB × 5 iterations
-                  Memory throughput: \(String(format: "%.1f", throughput)) MB/s
-                  Total time: \(String(format: "%.3f", totalTime)) seconds
-
-                Note: Full LZMA compression/decompression benchmark
-                will be available in a future update using the 7-Zip
-                CBench infrastructure.
-                """
-            }
+        SZArchive.runBenchmark(withIterations: 1) { [weak self] line in
+            self?.resultTextView.string += line + "\n"
+            self?.resultTextView.scrollToEndOfDocument(nil)
+        } completion: { [weak self] success in
+            self?.progressBar.stopAnimation(nil)
+            self?.progressBar.isHidden = true
+            self?.startButton.isEnabled = true
+            self?.statusLabel.stringValue = success ? "Benchmark complete" : "Benchmark failed"
         }
     }
 

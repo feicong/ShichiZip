@@ -37,6 +37,8 @@
 #include "CPP/7zip/UI/Common/UpdateCallback.h"
 #include "CPP/7zip/UI/Common/EnumDirItems.h"
 #include "CPP/7zip/UI/Common/SetProperties.h"
+#include "CPP/7zip/UI/Common/Bench.h"
+#include "CPP/7zip/UI/Common/HashCalc.h"
 #include "CPP/7zip/UI/Common/IFileExtractCallback.h"
 #include "CPP/Common/Wildcard.h"
 #include "CPP/7zip/PropID.h"
@@ -828,7 +830,108 @@ public:
     return arr;
 }
 
-+ (NSDictionary<NSString*,NSString*> *)calculateHashForPath:(NSString *)path algorithm:(NSString *)alg error:(NSError **)error {
-    (void)path; (void)alg; if (error) *error = nil; return @{@"status": @"TODO"};
++ (NSDictionary<NSString*,NSString*> *)calculateHashForPath:(NSString *)path error:(NSError **)error {
+    CCodecs *codecs = GetCodecs();
+    if (!codecs) { if (error) *error = SZMakeError(-1, @"Failed to init codecs"); return nil; }
+
+    // Set up hash options with all algorithms
+    CHashOptions options;
+    options.Methods.Add(UString(L"CRC32"));
+    options.Methods.Add(UString(L"CRC64"));
+    options.Methods.Add(UString(L"SHA256"));
+    options.Methods.Add(UString(L"SHA1"));
+    options.Methods.Add(UString(L"BLAKE2sp"));
+
+    // Set up censor for the single path
+    NWildcard::CCensor censor;
+    NWildcard::CCensorPathProps props;
+    props.Recursive = false;
+    censor.AddItem(NWildcard::k_AbsPath, true, ToU(path), props);
+
+    // Hash callback that collects results
+    class HashCallback : public IHashCallbackUI {
+    public:
+        NSMutableDictionary *results;
+        HashCallback() { results = [NSMutableDictionary dictionary]; }
+
+        HRESULT StartScanning() override { return S_OK; }
+        HRESULT FinishScanning(const CDirItemsStat &) override { return S_OK; }
+        HRESULT SetNumFiles(UInt64) override { return S_OK; }
+        HRESULT SetTotal(UInt64) override { return S_OK; }
+        HRESULT SetCompleted(const UInt64 *) override { return S_OK; }
+        HRESULT CheckBreak() override { return S_OK; }
+        HRESULT BeforeFirstFile(const CHashBundle &) override { return S_OK; }
+        HRESULT GetStream(const wchar_t *, bool) override { return S_OK; }
+        HRESULT OpenFileError(const FString &, DWORD) override { return S_OK; }
+        HRESULT SetOperationResult(UInt64, const CHashBundle &hb, bool) override {
+            for (unsigned i = 0; i < hb.Hashers.Size(); i++) {
+                const CHasherState &h = hb.Hashers[i];
+                char hex[256];
+                HashHexToString(hex, h.Digests[0], h.DigestSize);
+                NSString *name = [NSString stringWithUTF8String:h.Name.Ptr()];
+                NSString *digest = [NSString stringWithUTF8String:hex];
+                results[name] = digest;
+            }
+            return S_OK;
+        }
+        HRESULT AfterLastFile(CHashBundle &) override { return S_OK; }
+        HRESULT ScanError(const FString &, DWORD) override { return S_OK; }
+        HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override { return S_OK; }
+    };
+
+    HashCallback callback;
+    AString errorInfo;
+    HRESULT r = HashCalc(EXTERNAL_CODECS_LOC_VARS censor, options, errorInfo, &callback);
+    if (r != S_OK) {
+        if (error) *error = SZMakeError(r, @"Hash calculation failed");
+        return nil;
+    }
+    return callback.results;
 }
+
++ (void)runBenchmarkWithIterations:(UInt32)numIterations
+                          callback:(void (^)(NSString *line))printCallback
+                        completion:(void (^)(BOOL success))completion {
+    CCodecs *codecs = GetCodecs();
+    if (!codecs) {
+        if (completion) completion(NO);
+        return;
+    }
+
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        // Print callback that forwards to the block
+        class SZBenchPrint : public IBenchPrintCallback {
+        public:
+            void (^printBlock)(NSString *);
+            NSMutableString *currentLine;
+
+            SZBenchPrint(void (^block)(NSString *)) : printBlock(block) {
+                currentLine = [NSMutableString string];
+            }
+            void Print(const char *s) override {
+                [currentLine appendString:[NSString stringWithUTF8String:s]];
+            }
+            void NewLine() override {
+                NSString *line = [currentLine copy];
+                if (printBlock) {
+                    dispatch_async(dispatch_get_main_queue(), ^{ printBlock(line); });
+                }
+                currentLine = [NSMutableString string];
+            }
+            HRESULT CheckBreak() override { return S_OK; }
+        };
+
+        SZBenchPrint printCB(printCallback);
+        CObjectVector<CProperty> props;
+
+        UInt32 iters = numIterations > 0 ? numIterations : 1;
+        HRESULT r = Bench(EXTERNAL_CODECS_LOC_VARS &printCB, NULL, props, iters, false, NULL);
+
+        BOOL success = (r == S_OK);
+        if (completion) {
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(success); });
+        }
+    });
+}
+
 @end

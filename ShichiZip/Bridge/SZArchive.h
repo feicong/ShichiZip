@@ -174,10 +174,16 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 /// Get list of supported format infos
 + (NSArray<SZFormatInfo *> *)supportedFormats;
 
-/// Calculate hash of files
+/// Calculate hash of files — returns dict of algorithmName → hexDigest
 + (nullable NSDictionary<NSString *, NSString *> *)calculateHashForPath:(NSString *)path
-                                                            algorithm:(NSString *)algorithm
-                                                                error:(NSError **)error;
+                                                                 error:(NSError **)error;
+
+/// Run LZMA benchmark — returns formatted result string
+/// @param numIterations Number of benchmark iterations (0 = default)
+/// @param printCallback Block called with text output lines
++ (void)runBenchmarkWithIterations:(UInt32)numIterations
+                          callback:(void (^)(NSString *line))printCallback
+                        completion:(void (^)(BOOL success))completion;
 
 @end
 
