@@ -1,4 +1,5 @@
 import Cocoa
+import CoreServices
 import UniformTypeIdentifiers
 
 private final class FileManagerTableView: NSTableView {
@@ -454,6 +455,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             if fileSystemItem.isDirectory {
                 loadDirectory(fileSystemItem.url)
             } else {
+                if shouldOpenExternallyBeforeArchiveAttempt(fileSystemItem.url) {
+                    if !openExternallyIfPossible(fileSystemItem.url) {
+                        showErrorAlert(unavailableExternalOpenError(for: fileSystemItem.name))
+                    }
+                    return
+                }
+
                 switch openArchiveInline(fileSystemItem.url,
                                          hostDirectory: currentDirectory,
                                          showError: false) {
@@ -703,7 +711,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     private func preferredExternalApplicationURL(for url: URL) -> URL? {
         let workspace = NSWorkspace.shared
-        let currentAppURL = Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL
+        let currentAppURL = currentApplicationURL()
 
         if let defaultAppURL = workspace.urlForApplication(toOpen: url)?
             .resolvingSymlinksInPath()
@@ -715,6 +723,63 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return workspace.urlsForApplications(toOpen: url)
             .map { $0.resolvingSymlinksInPath().standardizedFileURL }
             .first { $0 != currentAppURL }
+    }
+
+    private func preferredExternalApplicationURL(forArchiveItemPath path: String) -> URL? {
+        guard let contentType = contentType(forPath: path),
+              let unmanagedApplicationURL = LSCopyDefaultApplicationURLForContentType(contentType.identifier as CFString,
+                                                                                      LSRolesMask.all,
+                                                                                      nil)
+        else {
+            return nil
+        }
+
+        let applicationURL = unmanagedApplicationURL.takeRetainedValue() as URL
+        let normalizedURL = applicationURL.resolvingSymlinksInPath().standardizedFileURL
+        return normalizedURL != currentApplicationURL() ? normalizedURL : nil
+    }
+
+    private func shouldOpenExternallyBeforeArchiveAttempt(_ url: URL) -> Bool {
+        guard let applicationURL = preferredExternalApplicationURL(for: url),
+              let contentType = contentType(forPath: url.lastPathComponent)
+        else {
+            return false
+        }
+
+        return shouldPreferExternalOpen(for: contentType, applicationURL: applicationURL)
+    }
+
+    private func shouldOpenExternallyBeforeArchiveAttempt(archiveItemPath path: String) -> Bool {
+        guard let contentType = contentType(forPath: path),
+              let applicationURL = preferredExternalApplicationURL(forArchiveItemPath: path)
+        else {
+            return false
+        }
+
+        return shouldPreferExternalOpen(for: contentType, applicationURL: applicationURL)
+    }
+
+    private func shouldPreferExternalOpen(for contentType: UTType, applicationURL: URL) -> Bool {
+        guard applicationURL != currentApplicationURL() else {
+            return false
+        }
+
+        return !contentType.conforms(to: .archive)
+    }
+
+    private func contentType(forPath path: String) -> UTType? {
+        let pathExtension = (path as NSString).pathExtension
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !pathExtension.isEmpty else {
+            return nil
+        }
+
+        return UTType(filenameExtension: pathExtension)
+    }
+
+    private func currentApplicationURL() -> URL {
+        Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL
     }
 
     private func shouldFallbackUnsupportedArchiveExternally(for url: URL) -> Bool {
@@ -745,6 +810,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return false
         }
 
+        return openExternally(url,
+                              withApplicationAt: applicationURL,
+                              preservingTemporaryDirectory: temporaryDirectory)
+    }
+
+    @discardableResult
+    private func openExternally(_ url: URL,
+                                withApplicationAt applicationURL: URL,
+                                preservingTemporaryDirectory temporaryDirectory: URL? = nil) -> Bool {
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { [weak self] app, error in
             guard app == nil else { return }
@@ -832,6 +906,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         NSError(domain: SZArchiveErrorDomain,
                 code: -1,
                 userInfo: [NSLocalizedDescriptionKey: description])
+    }
+
+    private func unavailableExternalOpenError(for itemName: String) -> NSError {
+        paneOperationError("No application is available to open \"\(itemName)\".")
     }
 
     private func showErrorAlert(_ error: Error) {
@@ -940,6 +1018,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             closeAllArchives()
             loadDirectory(url)
         } else if FileManager.default.fileExists(atPath: url.path) {
+            if shouldOpenExternallyBeforeArchiveAttempt(url) {
+                updatePathField()
+                if !openExternallyIfPossible(url) {
+                    showErrorAlert(unavailableExternalOpenError(for: url.lastPathComponent))
+                }
+                view.window?.makeFirstResponder(tableView)
+                return
+            }
+
             if isInsideArchive && !canOpenArchive(at: url) {
                 updatePathField()
                 view.window?.makeFirstResponder(tableView)
@@ -1026,6 +1113,20 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 throw paneOperationError("The archive item could not be prepared for opening.")
             }
 
+            let preferredArchiveItemApplicationURL = preferredExternalApplicationURL(forArchiveItemPath: item.path)
+
+            if shouldOpenExternallyBeforeArchiveAttempt(archiveItemPath: item.path) {
+                if let preferredArchiveItemApplicationURL {
+                    _ = openExternally(extractedFile,
+                                       withApplicationAt: preferredArchiveItemApplicationURL,
+                                       preservingTemporaryDirectory: tempDir)
+                } else {
+                    cleanupTemporaryDirectory(tempDir)
+                    throw unavailableExternalOpenError(for: item.name)
+                }
+                return
+            }
+
             switch openArchiveInline(extractedFile,
                                      hostDirectory: archiveHostDirectory(),
                                      temporaryDirectory: tempDir,
@@ -1037,7 +1138,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             case let .unsupportedArchive(error):
                 let shouldFallbackExternally = shouldFallbackUnsupportedArchiveExternally(for: extractedFile)
                 if shouldFallbackExternally {
-                    if !openExternallyIfPossible(extractedFile, preservingTemporaryDirectory: tempDir) {
+                    if let preferredArchiveItemApplicationURL {
+                        _ = openExternally(extractedFile,
+                                           withApplicationAt: preferredArchiveItemApplicationURL,
+                                           preservingTemporaryDirectory: tempDir)
+                    } else if !openExternallyIfPossible(extractedFile, preservingTemporaryDirectory: tempDir) {
                         cleanupTemporaryDirectory(tempDir)
                         throw error
                     }
