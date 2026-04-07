@@ -10,9 +10,11 @@ enum SZSettingsKey: String {
     // Settings page
     case showDots = "ShowDots"
     case showRealFileIcons = "ShowRealFileIcons"
+    case showHiddenFiles = "ShowHiddenFiles"
     case fullRowSelect = "FullRow"
     case showGridLines = "ShowGrid"
     case singleClickOpen = "SingleClick"
+    case quitAfterLastWindowClosed = "QuitAfterLastWindowClosed"
     case alternativeSelection = "AlternativeSelection"
     case memLimitEnabled = "MemLimitEnabled"
     case memLimitGB = "MemLimitGB"
@@ -184,8 +186,10 @@ class SettingsWindowController: NSWindowController {
         let checkboxes: [(String, SZSettingsKey)] = [
             ("Show \"..\" item", .showDots),
             ("Show real file icons", .showRealFileIcons),
+            ("Show hidden files in File Manager", .showHiddenFiles),
             ("Show grid lines", .showGridLines),
             ("Single-click to open an item", .singleClickOpen),
+            ("Quit the app when the last window closes", .quitAfterLastWindowClosed),
         ]
 
         for (title, key) in checkboxes {

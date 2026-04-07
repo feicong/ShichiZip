@@ -264,7 +264,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         let contents = try fileManager.contentsOfDirectory(
             at: listingURL,
             includingPropertiesForKeys: Array(resourceKeys),
-            options: [.skipsHiddenFiles]
+            options: fileManagerDirectoryEnumerationOptions()
         )
 
         guard listingURL != url else {
@@ -275,6 +275,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             let isDirectory = (try? childURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
             return url.appendingPathComponent(childURL.lastPathComponent, isDirectory: isDirectory)
         }
+    }
+
+    private func fileManagerDirectoryEnumerationOptions() -> FileManager.DirectoryEnumerationOptions {
+        SZSettings.bool(.showHiddenFiles) ? [] : [.skipsHiddenFiles]
     }
 
     func refresh() {
@@ -397,6 +401,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         switch settingsKey {
         case .showDots, .showRealFileIcons, .showGridLines, .singleClickOpen:
             applyFileManagerSettings()
+        case .showHiddenFiles:
+            refresh()
+            return
         default:
             return
         }

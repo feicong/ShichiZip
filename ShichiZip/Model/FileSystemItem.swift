@@ -49,7 +49,7 @@ class FileSystemItem {
         guard let contents = try? fm.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey, .creationDateKey],
-            options: [.skipsHiddenFiles]
+            options: SZSettings.bool(.showHiddenFiles) ? [] : [.skipsHiddenFiles]
         ) else {
             children = []
             return
