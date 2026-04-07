@@ -35,12 +35,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Handle files dropped onto dock icon
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        for filename in filenames {
-            let url = URL(fileURLWithPath: filename)
-            if FileSystemItem.archiveExtensions.contains(url.pathExtension.lowercased()) {
-                openArchiveInNewFileManager(url)
-            }
-        }
+        let urls = filenames.map { URL(fileURLWithPath: $0) }
+        openArchiveURLs(urls, preferPrimaryWindow: false)
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -52,8 +48,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBAction func showFileManager(_ sender: Any?) {
         if fileManagerWindowController == nil {
             fileManagerWindowController = FileManagerWindowController()
+            fileManagerWindowController?.onWindowWillClose = { [weak self] controller in
+                if self?.fileManagerWindowController === controller {
+                    self?.fileManagerWindowController = nil
+                }
+            }
         }
         fileManagerWindowController?.showWindow(self)
+    }
+
+    @IBAction func openArchives(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Open"
+        panel.message = "Choose archive files to open in ShichiZip"
+
+        panel.begin { [weak self] response in
+            guard response == .OK else { return }
+            self?.openArchiveURLs(panel.urls, preferPrimaryWindow: true)
+        }
     }
 
     /// Open an archive file in the file manager (navigate into it inline)
@@ -65,9 +80,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Open an archive in a NEW file manager window (for "Open With" from Finder)
     func openArchiveInNewFileManager(_ url: URL) {
         let wc = FileManagerWindowController()
+        wc.onWindowWillClose = { [weak self] controller in
+            self?.additionalFileManagerWindows.removeAll { $0 === controller }
+        }
         additionalFileManagerWindows.append(wc)
         wc.showWindow(self)
         wc.navigateToArchive(url)
+    }
+
+    private func openArchiveURLs(_ urls: [URL], preferPrimaryWindow: Bool) {
+        guard !urls.isEmpty else { return }
+
+        if preferPrimaryWindow {
+            openArchiveInFileManager(urls[0])
+            for url in urls.dropFirst() {
+                openArchiveInNewFileManager(url)
+            }
+            return
+        }
+
+        for url in urls {
+            openArchiveInNewFileManager(url)
+        }
     }
 
     @IBAction func newArchive(_ sender: Any?) {

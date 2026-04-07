@@ -59,6 +59,7 @@ typedef NS_ENUM(NSInteger, SZOverwriteMode) {
 /// Path mode for extraction
 typedef NS_ENUM(NSInteger, SZPathMode) {
     SZPathModeFullPaths = 0,
+    SZPathModeCurrentPaths,
     SZPathModeNoPaths,
     SZPathModeAbsolutePaths
 };
@@ -84,6 +85,7 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 @property (nonatomic) SZPathMode pathMode;
 @property (nonatomic) SZOverwriteMode overwriteMode;
 @property (nonatomic, copy, nullable) NSString *password;
+@property (nonatomic, copy, nullable) NSString *pathPrefixToStrip;
 @end
 
 /// Progress callback delegate
@@ -179,6 +181,9 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 /// Calculate hash of files — returns dict of algorithmName → hexDigest
 + (nullable NSDictionary<NSString *, NSString *> *)calculateHashForPath:(NSString *)path
                                                                  error:(NSError **)error;
+
+/// Get the underlying 7-Zip core version string.
++ (NSString *)sevenZipVersionString;
 
 /// Get estimated benchmark memory usage in bytes
 + (uint64_t)benchMemoryUsageForThreads:(uint32_t)threads dictionary:(uint64_t)dictSize;

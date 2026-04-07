@@ -34,7 +34,7 @@ enum MainMenu {
         let fileMenuItem = NSMenuItem()
         mainMenu.addItem(fileMenuItem)
         let fileMenu = NSMenu(title: "File")
-        fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
+        fileMenu.addItem(withTitle: "Open…", action: #selector(AppDelegate.openArchives(_:)), keyEquivalent: "o")
         fileMenu.addItem(withTitle: "File Manager", action: #selector(AppDelegate.showFileManager(_:)), keyEquivalent: "f")
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "New Archive…", action: #selector(AppDelegate.newArchive(_:)), keyEquivalent: "n")

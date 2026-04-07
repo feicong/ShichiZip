@@ -1,4 +1,5 @@
 import Cocoa
+import Darwin
 
 class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
@@ -44,12 +45,13 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 680, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Benchmark"
+        window.minSize = NSSize(width: 720, height: 500)
         window.center()
         self.init(window: window)
         window.delegate = self
@@ -58,6 +60,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
+        window?.makeFirstResponder(nil)
         if !isRunningBenchmark {
             startBenchmark()
         }
@@ -79,6 +82,67 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         NSTextField(labelWithString: text)
     }
 
+    private func formLabel(_ text: String) -> NSTextField {
+        let field = NSTextField(labelWithString: text)
+        field.font = .systemFont(ofSize: 13, weight: .medium)
+        field.textColor = .secondaryLabelColor
+        field.alignment = .right
+        return field
+    }
+
+    private func secondaryLabel(_ text: String) -> NSTextField {
+        let field = NSTextField(labelWithString: text)
+        field.font = .systemFont(ofSize: 12, weight: .medium)
+        field.textColor = .secondaryLabelColor
+        return field
+    }
+
+    private func controlRow(title: String, control: NSView) -> NSStackView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 10
+
+        let titleLabel = formLabel(title)
+        titleLabel.widthAnchor.constraint(equalToConstant: 116).isActive = true
+        titleLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        row.addArrangedSubview(titleLabel)
+        row.addArrangedSubview(control)
+        return row
+    }
+
+    private func appVersionString() -> String? {
+        let shortVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let buildVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch (shortVersion, buildVersion) {
+        case let (.some(shortVersion), .some(buildVersion)) where !shortVersion.isEmpty && !buildVersion.isEmpty && shortVersion != buildVersion:
+            return "\(shortVersion) (\(buildVersion))"
+        case let (.some(shortVersion), _) where !shortVersion.isEmpty:
+            return shortVersion
+        case let (_, .some(buildVersion)) where !buildVersion.isEmpty:
+            return buildVersion
+        default:
+            return nil
+        }
+    }
+
+    private func benchmarkSystemSummary() -> String {
+        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? ProcessInfo.processInfo.processName
+        let versionedAppName = if let appVersion = appVersionString() {
+            "\(appName) \(appVersion)"
+        } else {
+            appName
+        }
+        let memoryText = ByteCountFormatter.string(fromByteCount: Int64(physicalMemoryBytes), countStyle: .memory)
+        return "\(versionedAppName) (7-Zip core \(SZArchive.sevenZipVersionString())) | \(Self.cpuModel()) | \(logicalCPUCount) threads | \(memoryText)"
+    }
+
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
@@ -98,71 +162,85 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         dictOptions.forEach { dictPopup.addItem(withTitle: $0.title) }
         dictPopup.target = self
         dictPopup.action = #selector(paramChanged(_:))
-
-        memLabel = NSTextField(labelWithString: "--- MB / \(physMB) MB")
-        memLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-
-        restartBtn = NSButton(title: "Restart", target: self, action: #selector(restartClicked(_:)))
-
-        let row1 = NSStackView()
-        row1.orientation = .horizontal
-        row1.spacing = 6
-        row1.distribution = .fill
-
-        let dictGroup = NSStackView()
-        dictGroup.orientation = .horizontal
-        dictGroup.spacing = 4
-        dictGroup.addArrangedSubview(label("Dictionary size:"))
-        dictGroup.addArrangedSubview(dictPopup)
-
-        let memGroup = NSStackView()
-        memGroup.orientation = .horizontal
-        memGroup.spacing = 4
-        memGroup.addArrangedSubview(label("Memory:"))
-        memGroup.addArrangedSubview(memLabel)
-
-        row1.addArrangedSubview(dictGroup)
-        row1.addArrangedSubview(memGroup)
-        row1.addArrangedSubview(restartBtn)
-        stack.addArrangedSubview(row1)
-        row1.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        dictPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
 
         threadsPopup = NSPopUpButton()
         threadOptions.forEach { threadsPopup.addItem(withTitle: "\($0)") }
         threadsPopup.target = self
         threadsPopup.action = #selector(paramChanged(_:))
+        threadsPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 70).isActive = true
 
         passesPopup = NSPopUpButton()
         passOptions.forEach { passesPopup.addItem(withTitle: "\($0)") }
         passesPopup.target = self
         passesPopup.action = #selector(paramChanged(_:))
+        passesPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 90).isActive = true
+
+        memLabel = NSTextField(labelWithString: "--- MB / \(physMB) MB")
+        memLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+
+        restartBtn = NSButton(title: "Restart", target: self, action: #selector(restartClicked(_:)))
+        restartBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
 
         stopBtn = NSButton(title: "Stop", target: self, action: #selector(stopClicked(_:)))
         stopBtn.isEnabled = false
+        stopBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
 
-        let row2 = NSStackView()
-        row2.orientation = .horizontal
-        row2.spacing = 6
-        row2.distribution = .fill
+        let threadsControl = NSStackView()
+        threadsControl.orientation = .horizontal
+        threadsControl.alignment = .centerY
+        threadsControl.spacing = 4
+        threadsControl.addArrangedSubview(threadsPopup)
+        threadsControl.addArrangedSubview(secondaryLabel("/ \(logicalCPUCount)"))
 
-        let threadGroup = NSStackView()
-        threadGroup.orientation = .horizontal
-        threadGroup.spacing = 4
-        threadGroup.addArrangedSubview(label("CPU threads:"))
-        threadGroup.addArrangedSubview(threadsPopup)
-        threadGroup.addArrangedSubview(label("/ \(logicalCPUCount)"))
+        let controlsColumn = NSStackView()
+        controlsColumn.orientation = .vertical
+        controlsColumn.alignment = .leading
+        controlsColumn.spacing = 8
+        controlsColumn.addArrangedSubview(controlRow(title: "Dictionary size", control: dictPopup))
+        controlsColumn.addArrangedSubview(controlRow(title: "CPU threads", control: threadsControl))
+        controlsColumn.addArrangedSubview(controlRow(title: "Passes", control: passesPopup))
+        controlsColumn.setContentHuggingPriority(.required, for: .horizontal)
 
-        let passGroup = NSStackView()
-        passGroup.orientation = .horizontal
-        passGroup.spacing = 4
-        passGroup.addArrangedSubview(label("Passes:"))
-        passGroup.addArrangedSubview(passesPopup)
+        let memoryGroup = NSStackView()
+        memoryGroup.orientation = .vertical
+        memoryGroup.alignment = .leading
+        memoryGroup.spacing = 3
+        memoryGroup.addArrangedSubview(secondaryLabel("Estimated memory"))
+        memoryGroup.addArrangedSubview(memLabel)
+        memoryGroup.addArrangedSubview(secondaryLabel("Usable limit: \(Self.displayMegabytes(memoryLimitBytes)) MB"))
+        memoryGroup.setContentHuggingPriority(.required, for: .horizontal)
 
-        row2.addArrangedSubview(threadGroup)
-        row2.addArrangedSubview(passGroup)
-        row2.addArrangedSubview(stopBtn)
-        stack.addArrangedSubview(row2)
-        row2.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        let actionGroup = NSStackView()
+        actionGroup.orientation = .vertical
+        actionGroup.alignment = .trailing
+        actionGroup.spacing = 6
+        actionGroup.addArrangedSubview(restartBtn)
+        actionGroup.addArrangedSubview(stopBtn)
+        actionGroup.setContentHuggingPriority(.required, for: .horizontal)
+
+        let trailingGroup = NSStackView()
+        trailingGroup.orientation = .horizontal
+        trailingGroup.alignment = .top
+        trailingGroup.spacing = 14
+        trailingGroup.addArrangedSubview(memoryGroup)
+        trailingGroup.addArrangedSubview(actionGroup)
+        trailingGroup.setContentHuggingPriority(.required, for: .horizontal)
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let topBar = NSStackView()
+        topBar.orientation = .horizontal
+        topBar.alignment = .top
+        topBar.spacing = 16
+        topBar.distribution = .fill
+        topBar.addArrangedSubview(controlsColumn)
+        topBar.addArrangedSubview(spacer)
+        topBar.addArrangedSubview(trailingGroup)
+        stack.addArrangedSubview(topBar)
+        topBar.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
         let topSeparator = NSBox()
         topSeparator.boxType = .separator
@@ -262,9 +340,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
         let bottomRow = NSStackView()
         bottomRow.spacing = 8
-        let systemLabel = label(
-            "ShichiZip (7-Zip core 26.00) | \(Self.arch()) | \(logicalCPUCount) threads | \(ByteCountFormatter.string(fromByteCount: Int64(physicalMemoryBytes), countStyle: .memory))"
-        )
+        let systemLabel = label(benchmarkSystemSummary())
         systemLabel.font = .systemFont(ofSize: 11)
         systemLabel.textColor = .secondaryLabelColor
         bottomRow.addArrangedSubview(systemLabel)
@@ -626,5 +702,32 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         #else
         return "Unknown"
         #endif
+    }
+
+    private static func cpuModel() -> String {
+        if let brandString = sysctlString(named: "machdep.cpu.brand_string"), !brandString.isEmpty {
+            return brandString
+        }
+
+        if let hardwareModel = sysctlString(named: "hw.model"), !hardwareModel.isEmpty {
+            return hardwareModel
+        }
+
+        return arch()
+    }
+
+    private static func sysctlString(named name: String) -> String? {
+        var size: size_t = 0
+        guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 1 else {
+            return nil
+        }
+
+        var buffer = [CChar](repeating: 0, count: Int(size))
+        guard sysctlbyname(name, &buffer, &size, nil, 0) == 0 else {
+            return nil
+        }
+
+        let value = String(cString: buffer).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
     }
 }

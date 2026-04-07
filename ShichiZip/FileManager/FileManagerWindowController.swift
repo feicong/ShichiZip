@@ -1,13 +1,16 @@
 import Cocoa
 
 /// Dual-pane file manager window replicating 7-Zip File Manager
-class FileManagerWindowController: NSWindowController {
+class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserInterfaceValidations {
 
     private var splitView: NSSplitView!
     private var leftPane: FileManagerPaneController!
     private var rightPane: FileManagerPaneController!
     private var toolbar: NSToolbar!
     private var isDualPane = false
+    private var keyEventMonitor: Any?
+
+    var onWindowWillClose: ((FileManagerWindowController) -> Void)?
 
     convenience init() {
         let window = NSWindow(
@@ -20,9 +23,29 @@ class FileManagerWindowController: NSWindowController {
         window.minSize = NSSize(width: 600, height: 400)
         window.center()
         self.init(window: window)
+        self.window?.delegate = self
         setupUI()
         setupToolbar()
         setupMainMenu()
+    }
+
+    deinit {
+        if let keyEventMonitor {
+            NSEvent.removeMonitor(keyEventMonitor)
+        }
+    }
+
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        activePane.focusFileList()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if let keyEventMonitor {
+            NSEvent.removeMonitor(keyEventMonitor)
+            self.keyEventMonitor = nil
+        }
+        onWindowWillClose?(self)
     }
 
     private func setupUI() {
@@ -61,7 +84,7 @@ class FileManagerWindowController: NSWindowController {
     private func setupMainMenu() {
         // Main menu is defined in MainMenu.xib or programmatically
         // We'll handle key events for F-key shortcuts
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             return self?.handleKeyEvent(event) ?? event
         }
     }
@@ -97,11 +120,7 @@ class FileManagerWindowController: NSWindowController {
 
     /// Navigate the active pane to show an archive's contents
     func navigateToArchive(_ url: URL) {
-        // First navigate to the archive's parent directory
-        let parentDir = url.deletingLastPathComponent()
-        leftPane.loadDirectory(parentDir)
-        // Then open the archive inline
-        leftPane.openArchiveInline(url)
+        activePane.showArchive(at: url)
         window?.makeKeyAndOrderFront(nil)
     }
 
@@ -116,6 +135,13 @@ class FileManagerWindowController: NSWindowController {
 
     @objc func addToArchive(_ sender: Any?) {
         let activePane = self.activePane
+        guard activePane.canAddSelectedItemsToArchive() else {
+            if activePane.isVirtualLocation {
+                showUnsupportedOperationAlert("Creating or updating archives from inside an open archive is not implemented yet.")
+            }
+            return
+        }
+
         let selectedPaths = activePane.selectedFilePaths()
         guard !selectedPaths.isEmpty else { return }
 
@@ -170,8 +196,7 @@ class FileManagerWindowController: NSWindowController {
 
     @objc func extractArchive(_ sender: Any?) {
         let activePane = self.activePane
-        let selectedPaths = activePane.selectedFilePaths()
-        guard let firstPath = selectedPaths.first else { return }
+        guard activePane.canExtractSelectionOrArchive() else { return }
 
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -189,12 +214,23 @@ class FileManagerWindowController: NSWindowController {
 
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let archive = SZArchive()
-                    try archive.open(atPath: firstPath)
-                    let settings = SZExtractionSettings()
-                    try archive.extract(toPath: destURL.path, settings: settings,
-                                       progress: progressController)
-                    archive.close()
+                    if activePane.isVirtualLocation {
+                        try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: destURL,
+                                                                                    progress: progressController,
+                                                                                    overwriteMode: .ask)
+                    } else {
+                        guard let archiveURL = activePane.selectedArchiveFileURL() else {
+                            throw NSError(domain: "SZArchiveErrorDomain",
+                                          code: -1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
+                        }
+                        let archive = SZArchive()
+                        try archive.open(atPath: archiveURL.path)
+                        let settings = SZExtractionSettings()
+                        try archive.extract(toPath: destURL.path, settings: settings,
+                                           progress: progressController)
+                        archive.close()
+                    }
                     DispatchQueue.main.async {
                         self?.window?.endSheet(progressController.window!)
                         NSWorkspace.shared.open(destURL)
@@ -214,7 +250,7 @@ class FileManagerWindowController: NSWindowController {
 
     @objc func testArchive(_ sender: Any?) {
         let activePane = self.activePane
-        guard let path = activePane.selectedFilePaths().first else { return }
+        guard activePane.canTestArchiveSelection() else { return }
 
         let progressController = ProgressDialogController()
         progressController.operationTitle = "Testing archive..."
@@ -222,10 +258,19 @@ class FileManagerWindowController: NSWindowController {
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
-                let archive = SZArchive()
-                try archive.open(atPath: path)
-                try archive.test(withProgress: progressController)
-                archive.close()
+                if activePane.isVirtualLocation {
+                    try activePane.testCurrentArchive(progress: progressController)
+                } else {
+                    guard let archiveURL = activePane.selectedArchiveFileURL() else {
+                        throw NSError(domain: "SZArchiveErrorDomain",
+                                      code: -1,
+                                      userInfo: [NSLocalizedDescriptionKey: "Select an archive to test."])
+                    }
+                    let archive = SZArchive()
+                    try archive.open(atPath: archiveURL.path)
+                    try archive.test(withProgress: progressController)
+                    archive.close()
+                }
                 DispatchQueue.main.async {
                     self?.window?.endSheet(progressController.window!)
                     let alert = NSAlert()
@@ -250,17 +295,17 @@ class FileManagerWindowController: NSWindowController {
 
     @objc func switchPanes(_ sender: Any?) {
         guard isDualPane else { return }
-        if window?.firstResponder === leftPane.view || leftPane.view.isDescendant(of: window?.firstResponder as? NSView ?? NSView()) {
-            window?.makeFirstResponder(rightPane.view)
+        if activePane === leftPane {
+            rightPane.focusFileList()
         } else {
-            window?.makeFirstResponder(leftPane.view)
+            leftPane.focusFileList()
         }
     }
 
     private var activePane: FileManagerPaneController {
         if isDualPane,
            let fr = window?.firstResponder as? NSView,
-           rightPane.view.isDescendant(of: fr) || fr.isDescendant(of: rightPane.view) {
+           fr === rightPane.view || fr.isDescendant(of: rightPane.view) {
             return rightPane
         }
         return leftPane
@@ -283,23 +328,46 @@ class FileManagerWindowController: NSWindowController {
 
     private func performFileOperation(move: Bool) {
         let pane = activePane
+
+        if pane.isVirtualLocation {
+            if move {
+                showUnsupportedOperationAlert("Moving items from an open archive is not implemented yet. Use Copy to extract them out first.")
+                return
+            }
+
+            guard pane.canCopySelection() else { return }
+            guard let destURL = chooseDestinationURL(forMove: false) else { return }
+
+            let progressController = ProgressDialogController()
+            progressController.operationTitle = "Copying selected archive items..."
+            window?.beginSheet(progressController.window!) { _ in }
+
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                do {
+                    try pane.extractSelectedArchiveItems(to: destURL,
+                                                        progress: progressController,
+                                                        overwriteMode: .ask)
+                    DispatchQueue.main.async {
+                        self?.window?.endSheet(progressController.window!)
+                        self?.inactivePane?.refresh()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self?.window?.endSheet(progressController.window!)
+                        if let win = self?.window {
+                            NSAlert(error: error).beginSheetModal(for: win)
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         let sourcePaths = pane.selectedFilePaths()
         guard !sourcePaths.isEmpty else { return }
 
         // Determine destination — other pane if dual, or ask via dialog
-        var destURL: URL
-        if let otherPane = inactivePane {
-            destURL = otherPane.currentDirectoryURL
-        } else {
-            let panel = NSOpenPanel()
-            panel.canChooseFiles = false
-            panel.canChooseDirectories = true
-            panel.canCreateDirectories = true
-            panel.prompt = move ? "Move" : "Copy"
-            panel.message = "\(move ? "Move" : "Copy") \(sourcePaths.count) item(s) to:"
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            destURL = url
-        }
+        guard let destURL = chooseDestinationURL(forMove: move) else { return }
 
         let operation = move ? "Moving" : "Copying"
         let progressController = ProgressDialogController()
@@ -415,6 +483,11 @@ class FileManagerWindowController: NSWindowController {
     }
 
     @objc func createFolder(_ sender: Any?) {
+        guard activePane.canCreateFolderHere() else {
+            showUnsupportedOperationAlert("Creating folders inside an open archive is not implemented yet.")
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = "Create Folder"
         alert.informativeText = "Enter folder name:"
@@ -429,12 +502,19 @@ class FileManagerWindowController: NSWindowController {
             guard response == .alertFirstButtonReturn else { return }
             let name = input.stringValue
             guard !name.isEmpty else { return }
-            self?.leftPane.createFolder(named: name)
+            self?.activePane.createFolder(named: name)
         }
     }
 
     @objc func deleteFiles(_ sender: Any?) {
         let activePane = self.activePane
+        guard activePane.canDeleteSelection() else {
+            if activePane.isVirtualLocation {
+                showUnsupportedOperationAlert("Deleting items from inside an open archive is not implemented yet.")
+            }
+            return
+        }
+
         let paths = activePane.selectedFilePaths()
         guard !paths.isEmpty else { return }
 
@@ -451,6 +531,56 @@ class FileManagerWindowController: NSWindowController {
                 try? FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
             }
             activePane.refresh()
+        }
+    }
+
+    func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        switch item.action {
+        case #selector(addToArchive(_:)):
+            return activePane.canAddSelectedItemsToArchive()
+        case #selector(extractArchive(_:)):
+            return activePane.canExtractSelectionOrArchive()
+        case #selector(testArchive(_:)):
+            return activePane.canTestArchiveSelection()
+        case #selector(copyFiles(_:)):
+            return activePane.canCopySelection()
+        case #selector(moveFiles(_:)):
+            return activePane.canMoveSelection()
+        case #selector(createFolder(_:)):
+            return activePane.canCreateFolderHere()
+        case #selector(deleteFiles(_:)):
+            return activePane.canDeleteSelection()
+        case #selector(switchPanes(_:)):
+            return isDualPane
+        default:
+            return true
+        }
+    }
+
+    private func chooseDestinationURL(forMove move: Bool) -> URL? {
+        if let otherPane = inactivePane, !otherPane.isVirtualLocation {
+            return otherPane.currentDirectoryURL
+        }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = move ? "Move" : "Copy"
+        panel.message = move ? "Choose destination folder:" : "Choose destination folder:"
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return url
+    }
+
+    private func showUnsupportedOperationAlert(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Operation Not Available"
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        if let window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
         }
     }
 }
@@ -547,18 +677,11 @@ extension FileManagerWindowController: NSToolbarDelegate {
 // MARK: - FileManagerPaneDelegate
 
 protocol FileManagerPaneDelegate: AnyObject {
-    func paneDidOpenArchive(_ path: String)
+    func paneDidRequestOpenArchiveInNewWindow(_ url: URL)
 }
 
 extension FileManagerWindowController: FileManagerPaneDelegate {
-    func paneDidOpenArchive(_ path: String) {
-        // Open archive in document-based window
-        let url = URL(fileURLWithPath: path)
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
-            if let error = error {
-                let alert = NSAlert(error: error)
-                self.window.map { alert.beginSheetModal(for: $0) }
-            }
-        }
+    func paneDidRequestOpenArchiveInNewWindow(_ url: URL) {
+        (NSApp.delegate as? AppDelegate)?.openArchiveInNewFileManager(url)
     }
 }

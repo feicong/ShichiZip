@@ -12,6 +12,7 @@
 #include "CPP/7zip/UI/Common/Bench.h"
 #include "CPP/7zip/UI/Common/HashCalc.h"
 #include "CPP/Common/Wildcard.h"
+#include "7zVersion.h"
 
 #include <atomic>
 #include <mutex>
@@ -89,6 +90,10 @@
 }
 
 - (void)dealloc { [self close]; delete _arcLink; _arcLink = nullptr; }
+
++ (NSString *)sevenZipVersionString {
+    return @MY_VERSION;
+}
 
 // MARK: - Open / Close
 
@@ -194,10 +199,32 @@ static NExtract::NOverwriteMode::EEnum MapOverwriteMode(SZOverwriteMode m) {
 
 static NExtract::NPathMode::EEnum MapPathMode(SZPathMode m) {
     switch (m) {
+        case SZPathModeCurrentPaths: return NExtract::NPathMode::kCurPaths;
         case SZPathModeNoPaths: return NExtract::NPathMode::kNoPaths;
         case SZPathModeAbsolutePaths: return NExtract::NPathMode::kAbsPaths;
         case SZPathModeFullPaths: default: return NExtract::NPathMode::kFullPaths;
     }
+}
+
+static UStringVector BuildRemovePathParts(NSString *pathPrefixToStrip) {
+    UStringVector pathParts;
+    if (!pathPrefixToStrip || pathPrefixToStrip.length == 0) {
+        return pathParts;
+    }
+
+    UString path = ToU(pathPrefixToStrip);
+    while (!path.IsEmpty()) {
+        const wchar_t tail = path.Back();
+        if (tail != L'/' && tail != L'\\') {
+            break;
+        }
+        path.DeleteBack();
+    }
+
+    if (!path.IsEmpty()) {
+        SplitPathToParts(path, pathParts);
+    }
+    return pathParts;
 }
 
 static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError **error) {
@@ -233,7 +260,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
-    UStringVector removePathParts;
+    UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
     ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),
         NExtract::NZoneIdMode::kNone, false);
@@ -259,7 +286,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
-    UStringVector removePathParts;
+    UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
     ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),
         NExtract::NZoneIdMode::kNone, false);
