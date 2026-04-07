@@ -165,12 +165,19 @@
     if (!_isOpen) return @[];
     IInArchive *archive = _arcLink->GetArchive();
     if (!archive) return @[];
+    const CArc &arc = _arcLink->Arcs.Back();
     UInt32 n = 0; archive->GetNumberOfItems(&n);
     NSMutableArray *arr = [NSMutableArray arrayWithCapacity:n];
     for (UInt32 i = 0; i < n; i++) {
         SZArchiveEntry *e = [SZArchiveEntry new];
         e.index = i;
-        e.path = ItemStr(archive, i, kpidPath) ?: @"";
+        // Use CArc::GetItem_Path which handles DefaultName fallback for
+        // formats like gzip where kpidPath may be empty.
+        UString itemPath;
+        if (arc.GetItem_Path(i, itemPath) == S_OK && !itemPath.IsEmpty())
+            e.path = ToNS(itemPath);
+        else
+            e.path = ItemStr(archive, i, kpidPath) ?: @"";
         e.size = ItemU64(archive, i, kpidSize);
         e.packedSize = ItemU64(archive, i, kpidPackSize);
         e.crc = (uint32_t)ItemU64(archive, i, kpidCRC);
