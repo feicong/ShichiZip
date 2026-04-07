@@ -1,4 +1,22 @@
 import Cocoa
+import UniformTypeIdentifiers
+
+private final class FileManagerTableView: NSTableView {
+    override func canDragRows(with rowIndexes: IndexSet, at mouseDownPoint: NSPoint) -> Bool {
+        let clickedColumn = column(at: mouseDownPoint)
+        guard clickedColumn >= 0,
+              tableColumns[clickedColumn].identifier.rawValue == "name" else {
+            return false
+        }
+
+        let clickedRow = row(at: mouseDownPoint)
+        guard clickedRow >= 0, rowIndexes.contains(clickedRow) else {
+            return false
+        }
+
+        return super.canDragRows(with: rowIndexes, at: mouseDownPoint)
+    }
+}
 
 /// Single pane of the file manager — displays file system contents
 class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSTextFieldDelegate, NSMenuItemValidation {
@@ -35,6 +53,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     private var isInsideArchive: Bool { !archiveStack.isEmpty }
     private var archiveDisplayItems: [ArchiveItem] = [] // currently visible items in archive
     private var temporaryDirectories: Set<URL> = []
+    private var showsRealFileIcons: Bool { SZSettings.bool(.showRealFileIcons) }
     private var showsParentRow: Bool {
         guard SZSettings.bool(.showDots) else {
             return false
@@ -77,13 +96,12 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         container.addSubview(pathField)
 
         // Table view for file listing
-        tableView = NSTableView()
+        tableView = FileManagerTableView()
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnResizing = true
         tableView.allowsColumnReordering = true
         tableView.rowSizeStyle = .small
-        tableView.style = .fullWidth
 
         // Columns
         let nameCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
@@ -117,7 +135,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.dataSource = self
         tableView.delegate = self
         tableView.target = self
-        tableView.doubleAction = #selector(doubleClickRow(_:))
         tableView.menu = buildContextMenu()
         NSLog("[ShichiZip] File manager pane context menu set with %ld items", tableView.menu?.items.count ?? 0)
 
@@ -170,6 +187,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         ) { [weak self] notification in
             self?.handleSettingsDidChange(notification)
         }
+
+        applyFileManagerSettings()
 
         self.view = container
         loadDirectory(currentDirectory)
@@ -290,14 +309,94 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         statusLabel.stringValue = "\(fileCount) files, \(dirCount) folders — \(sizeStr)"
     }
 
+    private func applyFileManagerSettings() {
+        tableView.style = .fullWidth
+        tableView.gridStyleMask = SZSettings.bool(.showGridLines)
+            ? [.solidHorizontalGridLineMask, .solidVerticalGridLineMask]
+            : []
+        tableView.allowsMultipleSelection = true
+
+        if SZSettings.bool(.singleClickOpen) {
+            tableView.action = #selector(singleClickRow(_:))
+            tableView.doubleAction = nil
+        } else {
+            tableView.action = nil
+            tableView.doubleAction = #selector(doubleClickRow(_:))
+        }
+    }
+
     private func handleSettingsDidChange(_ notification: Notification) {
         guard let key = notification.userInfo?["key"] as? String,
-              key == SZSettingsKey.showDots.rawValue else {
+              let settingsKey = SZSettingsKey(rawValue: key) else {
+            return
+        }
+
+        switch settingsKey {
+        case .showDots, .showRealFileIcons, .showGridLines, .singleClickOpen:
+            applyFileManagerSettings()
+        default:
             return
         }
 
         tableView.reloadData()
         updateStatusBar()
+    }
+
+    private func iconImage(for paneItem: PaneItem, isDirectory: Bool, iconPath: String) -> NSImage? {
+        switch paneItem {
+        case .parent:
+            let image = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Parent")
+            image?.isTemplate = true
+            return image
+
+        case .archive:
+            guard showsRealFileIcons else {
+                return NSImage(systemSymbolName: isDirectory ? "folder.fill" : "doc.fill",
+                               accessibilityDescription: isDirectory ? "Folder" : "File")
+            }
+
+            if isDirectory {
+                return NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "Folder")
+            }
+
+            let ext = (iconPath as NSString).pathExtension
+            if let type = UTType(filenameExtension: ext) {
+                return NSWorkspace.shared.icon(for: type)
+            }
+            return NSWorkspace.shared.icon(for: .data)
+
+        case .filesystem:
+            guard showsRealFileIcons else {
+                return NSImage(systemSymbolName: isDirectory ? "folder.fill" : "doc.fill",
+                               accessibilityDescription: isDirectory ? "Folder" : "File")
+            }
+            return NSWorkspace.shared.icon(forFile: iconPath)
+        }
+    }
+
+    private func activatePaneItem(at row: Int) {
+        guard let item = paneItem(at: row) else { return }
+
+        switch item {
+        case .parent:
+            goUp()
+
+        case let .archive(archiveItem):
+            if archiveItem.isDirectory {
+                navigateArchiveSubdir(archiveItem.path)
+            } else {
+                openItemInArchive(archiveItem)
+            }
+
+        case let .filesystem(fileSystemItem):
+            if fileSystemItem.isDirectory {
+                loadDirectory(fileSystemItem.url)
+            } else if fileSystemItem.isArchive {
+                _ = openArchiveInline(fileSystemItem.url, hostDirectory: currentDirectory)
+            } else {
+                NSWorkspace.shared.open(fileSystemItem.url)
+            }
+        }
     }
 
     func showArchive(at url: URL) {
@@ -681,28 +780,19 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     @objc private func doubleClickRow(_ sender: Any?) {
         let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
-        guard let item = paneItem(at: row) else { return }
+        activatePaneItem(at: row)
+    }
 
-        switch item {
-        case .parent:
-            goUp()
+    @objc private func singleClickRow(_ sender: Any?) {
+        guard SZSettings.bool(.singleClickOpen) else { return }
+        guard tableView.selectedRowIndexes.count <= 1 else { return }
+        guard let event = NSApp.currentEvent else { return }
 
-        case let .archive(archiveItem):
-            if archiveItem.isDirectory {
-                navigateArchiveSubdir(archiveItem.path)
-            } else {
-                openItemInArchive(archiveItem)
-            }
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard modifiers.isEmpty else { return }
 
-        case let .filesystem(fileSystemItem):
-            if fileSystemItem.isDirectory {
-                loadDirectory(fileSystemItem.url)
-            } else if fileSystemItem.isArchive {
-                _ = openArchiveInline(fileSystemItem.url, hostDirectory: currentDirectory)
-            } else {
-                NSWorkspace.shared.open(fileSystemItem.url)
-            }
-        }
+        let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
+        activatePaneItem(at: row)
     }
 
     /// Open Inside (PanelItemOpen.cpp): extract to temp, try as archive, then open with system app
@@ -810,6 +900,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard let columnID = tableColumn?.identifier.rawValue else { return nil }
         guard let paneItem = paneItem(at: row) else { return nil }
 
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .short
+
         // Determine the data source based on mode
         let itemName: String
         let itemSize: String
@@ -830,18 +924,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         case let .archive(ai):
             itemName = ai.name
             itemSize = ai.isDirectory ? "--" : ByteCountFormatter.string(fromByteCount: Int64(ai.size), countStyle: .file)
-            let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
-            itemModified = ai.modifiedDate.map { df.string(from: $0) } ?? ""
-            itemCreated = ai.createdDate.map { df.string(from: $0) } ?? ""
+            itemModified = ai.modifiedDate.map { dateFormatter.string(from: $0) } ?? ""
+            itemCreated = ai.createdDate.map { dateFormatter.string(from: $0) } ?? ""
             itemIsDir = ai.isDirectory
-            itemIconPath = ai.isDirectory ? "" : ai.name
+            itemIconPath = ai.name
 
         case let .filesystem(item):
             itemName = item.name
             itemSize = item.formattedSize
-            let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
-            itemModified = item.modifiedDate.map { df.string(from: $0) } ?? ""
-            itemCreated = item.createdDate.map { df.string(from: $0) } ?? ""
+            itemModified = item.modifiedDate.map { dateFormatter.string(from: $0) } ?? ""
+            itemCreated = item.createdDate.map { dateFormatter.string(from: $0) } ?? ""
             itemIsDir = item.isDirectory
             itemIconPath = item.url.path
         }
@@ -885,30 +977,19 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             }
         }
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .short
-
         switch columnID {
         case "name":
             cell.textField?.stringValue = itemName
-            if case .parent = paneItem {
-                cell.imageView?.image = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Parent")
+            cell.imageView?.image = iconImage(for: paneItem, isDirectory: itemIsDir, iconPath: itemIconPath)
+            switch paneItem {
+            case .parent:
                 cell.imageView?.contentTintColor = .secondaryLabelColor
-            } else if isInsideArchive {
-                // Archive mode: use SF Symbol for folders, extension-based for files
-                if itemIsDir {
-                    cell.imageView?.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "Folder")
-                    cell.imageView?.contentTintColor = .systemBlue
-                } else {
-                    let ext = (itemName as NSString).pathExtension
-                    cell.imageView?.image = NSWorkspace.shared.icon(for: .init(filenameExtension: ext) ?? .data)
+            default:
+                if showsRealFileIcons {
                     cell.imageView?.contentTintColor = nil
+                } else {
+                    cell.imageView?.contentTintColor = itemIsDir ? .systemBlue : .secondaryLabelColor
                 }
-            } else {
-                // Filesystem mode: use system icon for everything (consistent with Finder)
-                cell.imageView?.image = NSWorkspace.shared.icon(forFile: itemIconPath)
-                cell.imageView?.contentTintColor = nil
             }
             cell.imageView?.image?.size = NSSize(width: 16, height: 16)
 

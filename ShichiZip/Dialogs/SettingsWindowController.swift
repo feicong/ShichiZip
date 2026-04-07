@@ -33,6 +33,15 @@ enum SZSettingsKey: String {
 struct SZSettings {
     static let defaults = UserDefaults.standard
 
+    private static func defaultBool(for key: SZSettingsKey) -> Bool {
+        switch key {
+        case .showRealFileIcons:
+            return true
+        default:
+            return false
+        }
+    }
+
     private static func postChange(for key: SZSettingsKey) {
         NotificationCenter.default.post(name: .szSettingsDidChange,
                                         object: nil,
@@ -40,6 +49,9 @@ struct SZSettings {
     }
 
     static func bool(_ key: SZSettingsKey) -> Bool {
+        guard defaults.object(forKey: key.rawValue) != nil else {
+            return defaultBool(for: key)
+        }
         return defaults.bool(forKey: key.rawValue)
     }
 
@@ -172,10 +184,8 @@ class SettingsWindowController: NSWindowController {
         let checkboxes: [(String, SZSettingsKey)] = [
             ("Show \"..\" item", .showDots),
             ("Show real file icons", .showRealFileIcons),
-            ("Full row select", .fullRowSelect),
             ("Show grid lines", .showGridLines),
             ("Single-click to open an item", .singleClickOpen),
-            ("Alternative selection mode", .alternativeSelection),
         ]
 
         for (title, key) in checkboxes {
