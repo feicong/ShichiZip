@@ -5,6 +5,8 @@
 
 #include "SZBridgeCommon.h"
 
+#import "../Dialogs/SZDialogPresenter.h"
+
 NSString * const SZArchiveErrorDomain = @"SZArchiveErrorDomain";
 
 // ============================================================
@@ -28,28 +30,64 @@ CCodecs *SZGetCodecs() {
 // Password prompt
 // ============================================================
 
-HRESULT SZPromptForPassword(UString &outPassword, bool &wasDefined, NSString *context) {
-    __block NSString *result = @"";
-    __block BOOL confirmed = NO;
+static SZDialogStyle SZDialogStyleForPromptStyle(SZOperationPromptStyle style) {
+    switch (style) {
+        case SZOperationPromptStyleWarning:
+            return SZDialogStyleWarning;
+        case SZOperationPromptStyleCritical:
+            return SZDialogStyleCritical;
+        case SZOperationPromptStyleInformational:
+        default:
+            return SZDialogStyleInformational;
+    }
+}
 
-    void (^showDialog)(void) = ^{
-        NSString *message = context.length > 0
-            ? [NSString stringWithFormat:@"Enter password for \"%@\".", context]
-            : @"This archive is encrypted. Enter password.";
+SZOperationSession *SZCreateDefaultOperationSession(id<SZProgressDelegate> progressDelegate) {
+    SZOperationSession *session = [SZOperationSession new];
+    session.progressDelegate = progressDelegate;
+    session.passwordRequestHandler = ^BOOL(NSString *title,
+                                           NSString *message,
+                                           NSString *initialValue,
+                                           NSString * _Nullable * _Nullable password) {
+        return [SZDialogPresenter promptForPasswordWithTitle:title
+                                                     message:message
+                                                initialValue:initialValue
+                                                     password:password];
+    };
+    session.choiceRequestHandler = ^NSInteger(SZOperationPromptStyle style,
+                                              NSString *title,
+                                              NSString *message,
+                                              NSArray<NSString *> *buttonTitles) {
+        return [SZDialogPresenter runMessageWithStyle:SZDialogStyleForPromptStyle(style)
+                                                title:title
+                                              message:message
+                                         buttonTitles:buttonTitles];
+    };
+    return session;
+}
+
+HRESULT SZPromptForPassword(SZOperationSession *session, UString &outPassword, bool &wasDefined, NSString *context) {
+    NSString *message = context.length > 0
+        ? [NSString stringWithFormat:@"Enter password for \"%@\".", context]
+        : @"This archive is encrypted. Enter password.";
+    NSString *initialValue = wasDefined ? ToNS(outPassword) : nil;
+    __block NSString *result = @"";
+    BOOL confirmed = NO;
+
+    if (session) {
+        confirmed = [session requestPasswordWithTitle:@"Password Required"
+                                              message:message
+                                         initialValue:initialValue
+                                             password:&result];
+    } else {
         confirmed = [SZDialogPresenter promptForPasswordWithTitle:@"Password Required"
                                                           message:message
-                                                     initialValue:wasDefined ? ToNS(outPassword) : nil
+                                                     initialValue:initialValue
                                                           password:&result];
-    };
-
-    if ([NSThread isMainThread]) {
-        showDialog();
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), showDialog);
     }
 
     if (confirmed) {
-        outPassword = ToU(result);
+        outPassword = ToU(result ?: @"");
         wasDefined = true;
         return S_OK;
     }

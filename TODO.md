@@ -1,5 +1,7 @@
 # ShichiZip — Master TODO
 
+Current refactor sequencing is tracked in `PR_PHASE_PLAN.md`.
+
 ## Approach
 
 Study each Windows 7-Zip source file, understand the logic, translate to AppKit.

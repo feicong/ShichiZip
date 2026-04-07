@@ -12,11 +12,11 @@ SZOpenCallbackUI::SZOpenCallbackUI() :
     TotalValue(0),
     HasTotalValue(false),
     UsesBytesProgress(false),
-    Delegate(nil) {}
+    Session(nil) {}
 
 HRESULT SZOpenCallbackUI::Open_CheckBreak() {
-    id<SZProgressDelegate> d = Delegate;
-    if (d && [d progressShouldCancel]) {
+    SZOperationSession *session = Session;
+    if (session && [session shouldCancel]) {
         return E_ABORT;
     }
     return S_OK;
@@ -36,16 +36,14 @@ HRESULT SZOpenCallbackUI::Open_SetTotal(const UInt64 *numFiles, const UInt64 *nu
         HasTotalValue = false;
     }
 
-    id<SZProgressDelegate> d = Delegate;
-    if (d && HasTotalValue) {
+    SZOperationSession *session = Session;
+    if (session && HasTotalValue) {
         const UInt64 total = TotalValue;
         const bool useBytesProgress = UsesBytesProgress;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [d progressDidUpdate:0.0];
-            if (useBytesProgress) {
-                [d progressDidUpdateBytesCompleted:0 total:total];
-            }
-        });
+        [session reportProgressFraction:0.0];
+        if (useBytesProgress) {
+            [session reportBytesCompleted:0 total:total];
+        }
     }
 
     return Open_CheckBreak();
@@ -69,31 +67,25 @@ HRESULT SZOpenCallbackUI::Open_SetCompleted(const UInt64 *numFiles, const UInt64
 
     const UInt64 total = TotalValue;
     const double fraction = (double)completed / (double)total;
-    const bool useBytesProgress = UsesBytesProgress;
-    id<SZProgressDelegate> d = Delegate;
-    if (d) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [d progressDidUpdate:fraction];
-            if (useBytesProgress) {
-                [d progressDidUpdateBytesCompleted:completed total:total];
-            }
-        });
+    SZOperationSession *session = Session;
+    if (session) {
+        [session reportProgressFraction:fraction];
+        if (UsesBytesProgress) {
+            [session reportBytesCompleted:completed total:total];
+        }
     }
 
     return Open_CheckBreak();
 }
 
 HRESULT SZOpenCallbackUI::Open_Finished() {
-    id<SZProgressDelegate> d = Delegate;
-    if (d && HasTotalValue && TotalValue > 0) {
+    SZOperationSession *session = Session;
+    if (session && HasTotalValue && TotalValue > 0) {
         const UInt64 total = TotalValue;
-        const bool useBytesProgress = UsesBytesProgress;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [d progressDidUpdate:1.0];
-            if (useBytesProgress) {
-                [d progressDidUpdateBytesCompleted:total total:total];
-            }
-        });
+        [session reportProgressFraction:1.0];
+        if (UsesBytesProgress) {
+            [session reportBytesCompleted:total total:total];
+        }
     }
 
     return Open_CheckBreak();
@@ -112,13 +104,11 @@ Z7_COM7F_IMF(SZFolderExtractCallback::SetCompleted(const UInt64 *completed)) {
     if (completed && TotalSize > 0) {
         double f = (double)*completed / (double)TotalSize;
         UInt64 c = *completed, t = TotalSize;
-        id<SZProgressDelegate> d = Delegate;
-        if (d) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [d progressDidUpdate:f];
-                [d progressDidUpdateBytesCompleted:c total:t];
-            });
-            if ([d progressShouldCancel]) return E_ABORT;
+        SZOperationSession *session = Session;
+        if (session) {
+            [session reportProgressFraction:f];
+            [session reportBytesCompleted:c total:t];
+            if ([session shouldCancel]) return E_ABORT;
         }
     }
     return S_OK;
@@ -145,36 +135,32 @@ Z7_COM7F_IMF(SZFolderExtractCallback::AskOverwrite(
             NSString *existStr = existName ? ToNS(UString(existName)) : @"";
             NSString *newStr = newName ? ToNS(UString(newName)) : @"";
 
-            void (^showDialog)(void) = ^{
-                SZPrepareProgressForUserInteraction(Delegate);
-                NSMutableString *info = [NSMutableString string];
-                [info appendFormat:@"Would you like to replace the existing file:\n%@", existStr];
-                if (existSize) {
-                    [info appendFormat:@"\nSize: %@",
-                        [NSByteCountFormatter stringFromByteCount:(long long)*existSize
-                                                       countStyle:NSByteCountFormatterCountStyleFile]];
-                }
-                [info appendFormat:@"\n\nwith this one from the archive:\n%@", newStr];
-                if (newSize) {
-                    [info appendFormat:@"\nSize: %@",
-                        [NSByteCountFormatter stringFromByteCount:(long long)*newSize
-                                                       countStyle:NSByteCountFormatterCountStyleFile]];
-                }
+            NSMutableString *info = [NSMutableString string];
+            [info appendFormat:@"Would you like to replace the existing file:\n%@", existStr];
+            if (existSize) {
+                [info appendFormat:@"\nSize: %@",
+                    [NSByteCountFormatter stringFromByteCount:(long long)*existSize
+                                                   countStyle:NSByteCountFormatterCountStyleFile]];
+            }
+            [info appendFormat:@"\n\nwith this one from the archive:\n%@", newStr];
+            if (newSize) {
+                [info appendFormat:@"\nSize: %@",
+                    [NSByteCountFormatter stringFromByteCount:(long long)*newSize
+                                                   countStyle:NSByteCountFormatterCountStyleFile]];
+            }
 
-                NSInteger choice = [SZDialogPresenter runMessageWithStyle:SZDialogStyleWarning
-                                                                     title:@"File already exists"
-                                                                   message:info
-                                                              buttonTitles:@[@"Yes", @"Yes to All", @"No", @"No to All", @"Auto Rename", @"Cancel"]];
-                if (choice == 0) result = NOverwriteAnswer::kYes;
-                else if (choice == 1) result = NOverwriteAnswer::kYesToAll;
-                else if (choice == 2) result = NOverwriteAnswer::kNo;
-                else if (choice == 3) result = NOverwriteAnswer::kNoToAll;
-                else if (choice == 4) result = NOverwriteAnswer::kAutoRename;
-                else result = NOverwriteAnswer::kCancel;
-            };
-
-            if ([NSThread isMainThread]) showDialog();
-            else dispatch_sync(dispatch_get_main_queue(), showDialog);
+            NSInteger choice = Session
+                ? [Session requestChoiceWithStyle:SZOperationPromptStyleWarning
+                                            title:@"File already exists"
+                                          message:info
+                                     buttonTitles:@[@"Yes", @"Yes to All", @"No", @"No to All", @"Auto Rename", @"Cancel"]]
+                : 5;
+            if (choice == 0) result = NOverwriteAnswer::kYes;
+            else if (choice == 1) result = NOverwriteAnswer::kYesToAll;
+            else if (choice == 2) result = NOverwriteAnswer::kNo;
+            else if (choice == 3) result = NOverwriteAnswer::kNoToAll;
+            else if (choice == 4) result = NOverwriteAnswer::kAutoRename;
+            else result = NOverwriteAnswer::kCancel;
 
             *answer = result;
             if (result == NOverwriteAnswer::kYesToAll) OverwriteMode = SZOverwriteModeOverwrite;
@@ -186,12 +172,10 @@ Z7_COM7F_IMF(SZFolderExtractCallback::AskOverwrite(
 
 Z7_COM7F_IMF(SZFolderExtractCallback::PrepareOperation(const wchar_t *name, Int32 isFolder, Int32 askExtractMode, const UInt64 *position)) {
     if (name) {
-        id<SZProgressDelegate> d = Delegate;
-        if (d) {
+        SZOperationSession *session = Session;
+        if (session) {
             NSString *n = ToNS(UString(name));
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [d progressDidUpdateFileName:n];
-            });
+            [session reportCurrentFileName:n];
         }
     }
     return S_OK;
@@ -226,8 +210,7 @@ Z7_COM7F_IMF(SZFolderExtractCallback::ReportExtractResult(Int32 opRes, Int32 enc
 Z7_COM7F_IMF(SZFolderExtractCallback::CryptoGetTextPassword(BSTR *pw)) {
     PasswordWasAsked = true;
     if (!PasswordIsDefined) {
-        SZPrepareProgressForUserInteraction(Delegate);
-        HRESULT hr = SZPromptForPassword(Password, PasswordIsDefined);
+        HRESULT hr = SZPromptForPassword(Session, Password, PasswordIsDefined);
         if (hr != S_OK) return hr;
     }
     return StringToBstr(Password, pw);
@@ -246,32 +229,28 @@ HRESULT SZUpdateCallbackUI::SetCompleted(const UInt64 *completed) {
     if (completed && TotalSize > 0) {
         double f = (double)*completed / (double)TotalSize;
         UInt64 c = *completed, t = TotalSize;
-        id<SZProgressDelegate> d = Delegate;
-        if (d) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [d progressDidUpdate:f];
-                [d progressDidUpdateBytesCompleted:c total:t];
-            });
-            if ([d progressShouldCancel]) return E_ABORT;
+        SZOperationSession *session = Session;
+        if (session) {
+            [session reportProgressFraction:f];
+            [session reportBytesCompleted:c total:t];
+            if ([session shouldCancel]) return E_ABORT;
         }
     }
     return S_OK;
 }
 
 HRESULT SZUpdateCallbackUI::CheckBreak() {
-    id<SZProgressDelegate> d = Delegate;
-    if (d && [d progressShouldCancel]) return E_ABORT;
+    SZOperationSession *session = Session;
+    if (session && [session shouldCancel]) return E_ABORT;
     return S_OK;
 }
 
 HRESULT SZUpdateCallbackUI::GetStream(const wchar_t *name, bool, bool, UInt32) {
     if (name) {
-        id<SZProgressDelegate> d = Delegate;
-        if (d) {
+        SZOperationSession *session = Session;
+        if (session) {
             NSString *n = ToNS(UString(name));
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [d progressDidUpdateFileName:n];
-            });
+            [session reportCurrentFileName:n];
         }
     }
     return S_OK;

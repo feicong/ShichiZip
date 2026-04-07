@@ -170,8 +170,9 @@
     options.stream = NULL;
     options.filePath = ToU(path);
 
+    SZOperationSession *session = SZCreateDefaultOperationSession(progress);
     SZOpenCallbackUI callbackUI;
-    callbackUI.Delegate = progress;
+    callbackUI.Session = session;
     if (password) {
         callbackUI.PasswordIsDefined = true;
         callbackUI.Password = ToU(password);
@@ -336,9 +337,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
+    SZOperationSession *session = SZCreateDefaultOperationSession(p);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
-    faeSpec->Delegate = p;
+    faeSpec->Session = session;
     faeSpec->OverwriteMode = s.overwriteMode;
     [self configureExtractPasswordForCallback:faeSpec explicitPassword:s.password];
 
@@ -363,9 +365,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
+    SZOperationSession *session = SZCreateDefaultOperationSession(p);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
-    faeSpec->Delegate = p;
+    faeSpec->Session = session;
     faeSpec->OverwriteMode = s.overwriteMode;
     [self configureExtractPasswordForCallback:faeSpec explicitPassword:s.password];
 
@@ -391,9 +394,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     IInArchive *archive = _arcLink->GetArchive();
     const CArc &arc = _arcLink->Arcs.Back();
 
+    SZOperationSession *session = SZCreateDefaultOperationSession(p);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
-    faeSpec->Delegate = p;
+    faeSpec->Session = session;
     [self configureExtractPasswordForCallback:faeSpec explicitPassword:nil];
 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
@@ -463,14 +467,16 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         censor.AddItem(NWildcard::k_AbsPath, true, ToU(srcPath), pathProps);
     }
 
+    SZOperationSession *session = SZCreateDefaultOperationSession(p);
     SZUpdateCallbackUI callbackUI;
-    callbackUI.Delegate = p;
+    callbackUI.Session = session;
     if (s.password && s.encryption != SZEncryptionMethodNone) {
         callbackUI.PasswordIsDefined = true;
         callbackUI.Password = ToU(s.password);
     }
 
     SZOpenCallbackUI openCallbackUI;
+    openCallbackUI.Session = session;
     CUpdateErrorInfo errorInfo;
     CObjectVector<COpenType> types;
 

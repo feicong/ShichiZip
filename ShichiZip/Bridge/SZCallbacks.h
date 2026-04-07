@@ -7,22 +7,6 @@
 #include "CPP/7zip/UI/Common/UpdateCallback.h"
 #include "CPP/7zip/UI/Common/EnumDirItems.h"
 
-static inline void SZPrepareProgressForUserInteraction(id<SZProgressDelegate> delegate) {
-    if (!delegate || ![delegate respondsToSelector:@selector(progressPrepareForUserInteraction)]) {
-        return;
-    }
-
-    void (^showProgressWindow)(void) = ^{
-        [delegate progressPrepareForUserInteraction];
-    };
-
-    if ([NSThread isMainThread]) {
-        showProgressWindow();
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), showProgressWindow);
-    }
-}
-
 // ============================================================
 // IOpenCallbackUI — for CArchiveLink::Open3()
 // ============================================================
@@ -34,7 +18,7 @@ public:
     UInt64 TotalValue;
     bool HasTotalValue;
     bool UsesBytesProgress;
-    __unsafe_unretained id<SZProgressDelegate> Delegate;
+    __unsafe_unretained SZOperationSession *Session;
 
     SZOpenCallbackUI();
 
@@ -46,8 +30,7 @@ public:
     HRESULT Open_CryptoGetTextPassword(BSTR *password) override {
         PasswordWasAsked = true;
         if (!PasswordIsDefined) {
-            SZPrepareProgressForUserInteraction(Delegate);
-            HRESULT hr = SZPromptForPassword(Password, PasswordIsDefined);
+            HRESULT hr = SZPromptForPassword(Session, Password, PasswordIsDefined);
             if (hr != S_OK) return hr;
         }
         return StringToBstr(Password, password);
@@ -70,12 +53,12 @@ public:
     bool PasswordWasAsked;
     UInt64 TotalSize;
     SZOverwriteMode OverwriteMode;
-    __unsafe_unretained id<SZProgressDelegate> Delegate;
+    __unsafe_unretained SZOperationSession *Session;
     UInt32 NumErrors;
     bool PasswordWasWrong;
 
     SZFolderExtractCallback() : PasswordIsDefined(false), PasswordWasAsked(false), TotalSize(0),
-        OverwriteMode(SZOverwriteModeAsk), Delegate(nil),
+        OverwriteMode(SZOverwriteModeAsk), Session(nil),
         NumErrors(0), PasswordWasWrong(false) {}
 
     Z7_COM_UNKNOWN_IMP_3(IFolderArchiveExtractCallback, IFolderArchiveExtractCallback2, ICryptoGetTextPassword)
@@ -101,9 +84,9 @@ public:
     UString Password;
     bool PasswordIsDefined;
     UInt64 TotalSize;
-    __unsafe_unretained id<SZProgressDelegate> Delegate;
+    __unsafe_unretained SZOperationSession *Session;
 
-    SZUpdateCallbackUI() : PasswordIsDefined(false), TotalSize(0), Delegate(nil) {}
+    SZUpdateCallbackUI() : PasswordIsDefined(false), TotalSize(0), Session(nil) {}
 
     // IUpdateCallbackUI
     HRESULT WriteSfx(const wchar_t *, UInt64) override { return S_OK; }

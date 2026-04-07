@@ -7,7 +7,7 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #import "SZArchive.h"
-#import "../Dialogs/SZDialogPresenter.h"
+#import "SZOperationSession.h"
 
 #define BOOL BOOL_7Z_COMPAT
 #include "CPP/Common/MyWindows.h"
@@ -114,4 +114,5 @@ static inline NSDate *ItemDate(IInArchive *ar, UInt32 i, PROPID p) {
 // Password prompt — shows dialog, safe from any thread
 // ============================================================
 
-HRESULT SZPromptForPassword(UString &outPassword, bool &wasDefined, NSString *context = nil);
+SZOperationSession *SZCreateDefaultOperationSession(id<SZProgressDelegate> _Nullable progressDelegate);
+HRESULT SZPromptForPassword(SZOperationSession * _Nullable session, UString &outPassword, bool &wasDefined, NSString *context = nil);
