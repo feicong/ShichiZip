@@ -7,6 +7,32 @@
 #include "CPP/7zip/UI/Common/UpdateCallback.h"
 #include "CPP/7zip/UI/Common/EnumDirItems.h"
 
+static inline HRESULT SZRequestOperationPassword(SZOperationSession *session,
+                                                 UString &outPassword,
+                                                 bool &wasDefined,
+                                                 NSString *context = nil) {
+    if (!session) {
+        return E_ABORT;
+    }
+
+    NSString *message = context.length > 0
+        ? [NSString stringWithFormat:@"Enter password for \"%@\".", context]
+        : @"This archive is encrypted. Enter password.";
+    NSString *initialValue = wasDefined ? ToNS(outPassword) : nil;
+    NSString *resolvedPassword = nil;
+    BOOL confirmed = [session requestPasswordWithTitle:@"Password Required"
+                                               message:message
+                                          initialValue:initialValue
+                                              password:&resolvedPassword];
+    if (!confirmed) {
+        return E_ABORT;
+    }
+
+    outPassword = ToU(resolvedPassword ?: @"");
+    wasDefined = true;
+    return S_OK;
+}
+
 // ============================================================
 // IOpenCallbackUI — for CArchiveLink::Open3()
 // ============================================================
@@ -30,7 +56,7 @@ public:
     HRESULT Open_CryptoGetTextPassword(BSTR *password) override {
         PasswordWasAsked = true;
         if (!PasswordIsDefined) {
-            HRESULT hr = SZPromptForPassword(Session, Password, PasswordIsDefined);
+            HRESULT hr = SZRequestOperationPassword(Session, Password, PasswordIsDefined);
             if (hr != S_OK) return hr;
         }
         return StringToBstr(Password, password);

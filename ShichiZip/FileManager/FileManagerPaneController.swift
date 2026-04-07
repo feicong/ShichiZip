@@ -1216,31 +1216,18 @@ extension FileManagerPaneController {
         let paneHostDirectory = hostDirectory ?? archiveHostDirectory()
         let resolvedDisplayPathPrefix = displayPathPrefix ?? url.path
 
-        let coordinator = ArchiveOperationCoordinator(operationTitle: "Opening archive...",
-                                 initialFileName: resolvedDisplayPathPrefix,
-                                 deferredDisplay: true)
-        coordinator.start()
-        var preparedResult: PreparedArchiveOpenResult?
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            let result = self.prepareArchiveOpen(url,
-                                                 hostDirectory: paneHostDirectory,
-                                                 temporaryDirectory: temporaryDirectory,
-                                                 displayPathPrefix: resolvedDisplayPathPrefix,
-                                                 session: coordinator.session)
-            DispatchQueue.main.async {
-                preparedResult = result
+        let preparedResult: PreparedArchiveOpenResult
+        do {
+            preparedResult = try ArchiveOperationRunner.runSynchronously(operationTitle: "Opening archive...",
+                                                                        initialFileName: resolvedDisplayPathPrefix,
+                                                                        deferredDisplay: true) { session in
+                self.prepareArchiveOpen(url,
+                                        hostDirectory: paneHostDirectory,
+                                        temporaryDirectory: temporaryDirectory,
+                                        displayPathPrefix: resolvedDisplayPathPrefix,
+                                        session: session)
             }
-        }
-
-        while preparedResult == nil {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
-        }
-
-        coordinator.finish()
-
-        guard let preparedResult else {
-            let error = paneOperationError("The archive open operation did not finish correctly.")
+        } catch {
             cleanupTemporaryDirectory(temporaryDirectory)
             if showError {
                 showErrorAlert(error)
@@ -1496,25 +1483,17 @@ extension FileManagerPaneController {
     @objc private func extractHere(_ sender: Any?) {
         if isInsideArchive {
             let destinationURL = archiveHostDirectory()
-            guard let parentWindow = view.window else { return }
-            let coordinator = ArchiveOperationCoordinator(operationTitle: "Extracting...",
-                                                         parentWindow: parentWindow)
-            coordinator.start()
-
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self else { return }
+            Task { @MainActor [weak self] in
+                guard let self, let parentWindow = self.view.window else { return }
                 do {
-                    try self.extractCurrentSelectionOrDisplayedArchiveItems(to: destinationURL,
-                                                                            session: coordinator.session,
-                                                                            overwriteMode: .ask)
-                    DispatchQueue.main.async {
-                        coordinator.finish()
+                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                         parentWindow: parentWindow) { session in
+                        try self.extractCurrentSelectionOrDisplayedArchiveItems(to: destinationURL,
+                                                                                session: session,
+                                                                                overwriteMode: .ask)
                     }
                 } catch {
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self.showErrorAlert(error)
-                    }
+                    self.showErrorAlert(error)
                 }
             }
             return
@@ -1523,28 +1502,21 @@ extension FileManagerPaneController {
         guard let url = selectedArchiveCandidateURL() else { return }
 
         let destURL = currentDirectory
-        guard let parentWindow = view.window else { return }
-        let coordinator = ArchiveOperationCoordinator(operationTitle: "Extracting...",
-                                                     parentWindow: parentWindow)
-        coordinator.start()
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        Task { @MainActor [weak self] in
+            guard let self, let parentWindow = self.view.window else { return }
             do {
-                let archive = SZArchive()
-                try archive.open(atPath: url.path, session: coordinator.session)
-                let settings = SZExtractionSettings()
-                settings.overwriteMode = .ask
-                try archive.extract(toPath: destURL.path, settings: settings, session: coordinator.session)
-                archive.close()
-                DispatchQueue.main.async {
-                    coordinator.finish()
-                    self?.refresh()
+                try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                     parentWindow: parentWindow) { session in
+                    let archive = SZArchive()
+                    try archive.open(atPath: url.path, session: session)
+                    let settings = SZExtractionSettings()
+                    settings.overwriteMode = .ask
+                    try archive.extract(toPath: destURL.path, settings: settings, session: session)
+                    archive.close()
                 }
+                self.refresh()
             } catch {
-                DispatchQueue.main.async {
-                    coordinator.finish()
-                    self?.showErrorAlert(error)
-                }
+                self.showErrorAlert(error)
             }
         }
     }

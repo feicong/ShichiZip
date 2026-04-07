@@ -2,6 +2,9 @@
 
 This file tracks the worker/session/UI refactor as reviewable pull requests.
 
+Status:
+- Completed on current branch: Phases 1-5
+
 ## Ground Rules
 
 - One operation family per PR.

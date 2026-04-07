@@ -1,5 +1,6 @@
 import Cocoa
 
+@MainActor
 final class ArchiveOperationCoordinator {
     private static let updateInterval: TimeInterval = 0.2
 

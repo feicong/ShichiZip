@@ -3,6 +3,8 @@
 #include "SZBridgeCommon.h"
 #include "SZCallbacks.h"
 
+#import "../Utilities/SZOperationSessionDefaults.h"
+
 #include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
 #include "CPP/7zip/UI/Common/Extract.h"
 #include "CPP/7zip/UI/Common/Update.h"
@@ -155,7 +157,7 @@
 }
 
 - (BOOL)openAtPath:(NSString *)path password:(NSString *)password progress:(id<SZProgressDelegate>)progress error:(NSError **)error {
-    return [self openAtPath:path password:password session:SZCreateDefaultOperationSession(progress) error:error];
+    return [self openAtPath:path password:password session:SZMakeDefaultOperationSession(progress) error:error];
 }
 
 - (BOOL)openAtPath:(NSString *)path password:(NSString *)password session:(SZOperationSession *)session error:(NSError **)error {
@@ -178,7 +180,7 @@
     options.stream = NULL;
     options.filePath = ToU(path);
 
-    SZOperationSession *resolvedSession = session ?: SZCreateDefaultOperationSession(nil);
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZOpenCallbackUI callbackUI;
     callbackUI.Session = resolvedSession;
     if (password) {
@@ -340,7 +342,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
 // MARK: - Extract
 
 - (BOOL)extractToPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
-    return [self extractToPath:dest settings:s session:SZCreateDefaultOperationSession(p) error:error];
+    return [self extractToPath:dest settings:s session:SZMakeDefaultOperationSession(p) error:error];
 }
 
 - (BOOL)extractToPath:(NSString *)dest settings:(SZExtractionSettings *)s session:(SZOperationSession *)session error:(NSError **)error {
@@ -349,7 +351,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
-    SZOperationSession *resolvedSession = session ?: SZCreateDefaultOperationSession(nil);
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
@@ -372,7 +374,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
 }
 
 - (BOOL)extractEntries:(NSArray<NSNumber *> *)indices toPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
-    return [self extractEntries:indices toPath:dest settings:s session:SZCreateDefaultOperationSession(p) error:error];
+    return [self extractEntries:indices toPath:dest settings:s session:SZMakeDefaultOperationSession(p) error:error];
 }
 
 - (BOOL)extractEntries:(NSArray<NSNumber *> *)indices toPath:(NSString *)dest settings:(SZExtractionSettings *)s session:(SZOperationSession *)session error:(NSError **)error {
@@ -381,7 +383,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     const CArc &arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
-    SZOperationSession *resolvedSession = session ?: SZCreateDefaultOperationSession(nil);
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
@@ -406,7 +408,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
 }
 
 - (BOOL)testWithProgress:(id<SZProgressDelegate>)p error:(NSError **)error {
-    return [self testWithSession:SZCreateDefaultOperationSession(p) error:error];
+    return [self testWithSession:SZMakeDefaultOperationSession(p) error:error];
 }
 
 - (BOOL)testWithSession:(SZOperationSession *)session error:(NSError **)error {
@@ -414,7 +416,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     IInArchive *archive = _arcLink->GetArchive();
     const CArc &arc = _arcLink->Arcs.Back();
 
-    SZOperationSession *resolvedSession = session ?: SZCreateDefaultOperationSession(nil);
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
@@ -441,7 +443,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         return [self createAtPath:archivePath
                                         fromPaths:src
                                          settings:s
-                                            session:SZCreateDefaultOperationSession(p)
+                                            session:SZMakeDefaultOperationSession(p)
                                                 error:error];
 }
 
@@ -495,7 +497,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         censor.AddItem(NWildcard::k_AbsPath, true, ToU(srcPath), pathProps);
     }
 
-    SZOperationSession *resolvedSession = session ?: SZCreateDefaultOperationSession(nil);
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZUpdateCallbackUI callbackUI;
     callbackUI.Session = resolvedSession;
     if (s.password && s.encryption != SZEncryptionMethodNone) {

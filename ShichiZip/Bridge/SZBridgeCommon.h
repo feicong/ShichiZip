@@ -5,7 +5,6 @@
 
 // Workaround for BOOL typedef conflict between 7-Zip (int) and ObjC (bool on arm64)
 #import <Foundation/Foundation.h>
-#import <AppKit/AppKit.h>
 #import "SZArchive.h"
 #import "SZOperationSession.h"
 
@@ -110,9 +109,3 @@ static inline NSDate *ItemDate(IInArchive *ar, UInt32 i, PROPID p) {
     return [NSDate dateWithTimeIntervalSince1970:(double)(ft - EPOCH_DIFF) / 10000000.0];
 }
 
-// ============================================================
-// Password prompt — shows dialog, safe from any thread
-// ============================================================
-
-SZOperationSession *SZCreateDefaultOperationSession(id<SZProgressDelegate> _Nullable progressDelegate);
-HRESULT SZPromptForPassword(SZOperationSession * _Nullable session, UString &outPassword, bool &wasDefined, NSString *context = nil);

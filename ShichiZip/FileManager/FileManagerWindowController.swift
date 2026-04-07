@@ -169,28 +169,21 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             self?.window?.endSheet(dialogWindow)
             guard let settings = settings, let archivePath = archivePath else { return }
 
-            guard let self, let parentWindow = self.window else { return }
-            let coordinator = ArchiveOperationCoordinator(operationTitle: "Compressing...",
-                                                         parentWindow: parentWindow)
-            coordinator.start()
-
-            DispatchQueue.global(qos: .userInitiated).async {
+            Task { @MainActor [weak self] in
+                guard let self, let parentWindow = self.window else { return }
                 do {
-                    try SZArchive.create(
-                        atPath: archivePath,
-                        fromPaths: selectedPaths,
-                        settings: settings,
-                        session: coordinator.session
-                    )
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        activePane.refresh()
+                    try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
+                                                         parentWindow: parentWindow) { session in
+                        try SZArchive.create(
+                            atPath: archivePath,
+                            fromPaths: selectedPaths,
+                            settings: settings,
+                            session: session
+                        )
                     }
+                    activePane.refresh()
                 } catch {
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self.showErrorAlert(error)
-                    }
+                    self.showErrorAlert(error)
                 }
             }
         }
@@ -209,39 +202,32 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         panel.beginSheetModal(for: window!) { [weak self] response in
             guard response == .OK, let destURL = panel.url else { return }
 
-            guard let self, let parentWindow = self.window else { return }
-            let coordinator = ArchiveOperationCoordinator(operationTitle: "Extracting...",
-                                                         parentWindow: parentWindow)
-            coordinator.start()
-
-            DispatchQueue.global(qos: .userInitiated).async {
+            Task { @MainActor [weak self] in
+                guard let self, let parentWindow = self.window else { return }
                 do {
-                    if activePane.isVirtualLocation {
-                        try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: destURL,
-                                                                                    session: coordinator.session,
-                                                                                    overwriteMode: .ask)
-                    } else {
-                        guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
-                            throw NSError(domain: SZArchiveErrorDomain,
-                                          code: -1,
-                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
+                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                         parentWindow: parentWindow) { session in
+                        if activePane.isVirtualLocation {
+                            try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: destURL,
+                                                                                          session: session,
+                                                                                          overwriteMode: .ask)
+                        } else {
+                            guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
+                                throw NSError(domain: SZArchiveErrorDomain,
+                                              code: -1,
+                                              userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
+                            }
+                            let archive = SZArchive()
+                            try archive.open(atPath: archiveURL.path, session: session)
+                            let settings = SZExtractionSettings()
+                            try archive.extract(toPath: destURL.path, settings: settings,
+                                                session: session)
+                            archive.close()
                         }
-                        let archive = SZArchive()
-                        try archive.open(atPath: archiveURL.path, session: coordinator.session)
-                        let settings = SZExtractionSettings()
-                        try archive.extract(toPath: destURL.path, settings: settings,
-                                           session: coordinator.session)
-                        archive.close()
                     }
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        NSWorkspace.shared.open(destURL)
-                    }
+                    NSWorkspace.shared.open(destURL)
                 } catch {
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self.showErrorAlert(error)
-                    }
+                    self.showErrorAlert(error)
                 }
             }
         }
@@ -251,37 +237,30 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let activePane = self.activePane
         guard activePane.canTestArchiveSelection() else { return }
 
-        guard let parentWindow = window else { return }
-        let coordinator = ArchiveOperationCoordinator(operationTitle: "Testing archive...",
-                                                     parentWindow: parentWindow)
-        coordinator.start()
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        Task { @MainActor [weak self] in
+            guard let self, let parentWindow = self.window else { return }
             do {
-                if activePane.isVirtualLocation {
-                    try activePane.testCurrentArchive(session: coordinator.session)
-                } else {
-                    guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
-                        throw NSError(domain: SZArchiveErrorDomain,
-                                      code: -1,
-                                      userInfo: [NSLocalizedDescriptionKey: "Select an archive to test."])
+                try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
+                                                     parentWindow: parentWindow) { session in
+                    if activePane.isVirtualLocation {
+                        try activePane.testCurrentArchive(session: session)
+                    } else {
+                        guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
+                            throw NSError(domain: SZArchiveErrorDomain,
+                                          code: -1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to test."])
+                        }
+                        let archive = SZArchive()
+                        try archive.open(atPath: archiveURL.path, session: session)
+                        try archive.test(with: session)
+                        archive.close()
                     }
-                    let archive = SZArchive()
-                    try archive.open(atPath: archiveURL.path, session: coordinator.session)
-                    try archive.test(with: coordinator.session)
-                    archive.close()
                 }
-                DispatchQueue.main.async {
-                    coordinator.finish()
-                    szPresentMessage(title: "Test OK",
-                                     message: "No errors found.",
-                                     for: self?.window)
-                }
+                szPresentMessage(title: "Test OK",
+                                 message: "No errors found.",
+                                 for: self.window)
             } catch {
-                DispatchQueue.main.async {
-                    coordinator.finish()
-                    self?.showErrorAlert(error)
-                }
+                self.showErrorAlert(error)
             }
         }
     }
@@ -331,25 +310,18 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             guard pane.canCopySelection() else { return }
             guard let destURL = chooseDestinationURL(forMove: false) else { return }
 
-            guard let parentWindow = window else { return }
-            let coordinator = ArchiveOperationCoordinator(operationTitle: "Copying selected archive items...",
-                                                         parentWindow: parentWindow)
-            coordinator.start()
-
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, let parentWindow = self.window else { return }
                 do {
-                    try pane.extractSelectedArchiveItems(to: destURL,
-                                                        session: coordinator.session,
-                                                        overwriteMode: .ask)
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self?.inactivePane?.refresh()
+                    try await ArchiveOperationRunner.run(operationTitle: "Copying selected archive items...",
+                                                         parentWindow: parentWindow) { session in
+                        try pane.extractSelectedArchiveItems(to: destURL,
+                                                             session: session,
+                                                             overwriteMode: .ask)
                     }
+                    self.inactivePane?.refresh()
                 } catch {
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self?.showErrorAlert(error)
-                    }
+                    self.showErrorAlert(error)
                 }
             }
             return
@@ -362,119 +334,93 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         guard let destURL = chooseDestinationURL(forMove: move) else { return }
 
         let operation = move ? "Moving" : "Copying"
-        guard let parentWindow = window else { return }
-        let coordinator = ArchiveOperationCoordinator(operationTitle: "\(operation) \(sourcePaths.count) item(s)...",
-                                                     parentWindow: parentWindow)
-        coordinator.start()
+        Task { @MainActor [weak self] in
+            guard let self, let parentWindow = self.window else { return }
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: "\(operation) \(sourcePaths.count) item(s)...",
+                                                     parentWindow: parentWindow) { session in
+                    let fm = FileManager.default
+                    var skipAll = false
+                    var overwriteAll = false
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let fm = FileManager.default
-            var skipAll = false
-            var overwriteAll = false
-            let session = coordinator.session
+                    for (index, sourcePath) in sourcePaths.enumerated() {
+                        if session.shouldCancel() {
+                            return
+                        }
 
-            for (i, sourcePath) in sourcePaths.enumerated() {
-                if session.shouldCancel() {
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                    }
-                    return
-                }
+                        let sourceURL = URL(fileURLWithPath: sourcePath)
+                        let destFile = destURL.appendingPathComponent(sourceURL.lastPathComponent)
+                        let fraction = Double(index) / Double(sourcePaths.count)
 
-                let sourceURL = URL(fileURLWithPath: sourcePath)
-                let destFile = destURL.appendingPathComponent(sourceURL.lastPathComponent)
-                let fraction = Double(i) / Double(sourcePaths.count)
+                        session.reportProgressFraction(fraction)
+                        session.reportCurrentFileName(sourceURL.lastPathComponent)
 
-                session.reportProgressFraction(fraction)
-                session.reportCurrentFileName(sourceURL.lastPathComponent)
+                        if fm.fileExists(atPath: destFile.path) {
+                            if skipAll { continue }
+                            if !overwriteAll {
+                                let srcAttrs = try? fm.attributesOfItem(atPath: sourcePath)
+                                let dstAttrs = try? fm.attributesOfItem(atPath: destFile.path)
+                                let srcSize = (srcAttrs?[.size] as? UInt64) ?? 0
+                                let dstSize = (dstAttrs?[.size] as? UInt64) ?? 0
+                                let srcDate = srcAttrs?[.modificationDate] as? Date
+                                let dstDate = dstAttrs?[.modificationDate] as? Date
+                                let dateFormatter = DateFormatter()
+                                dateFormatter.dateStyle = .medium
+                                dateFormatter.timeStyle = .medium
 
-                // Overwrite check (matches COverwriteDialog in 7-Zip)
-                if fm.fileExists(atPath: destFile.path) {
-                    if skipAll { continue }
-                    if !overwriteAll {
-                        var shouldSkip = false
-                        var cancelled = false
-                        DispatchQueue.main.sync {
-                            let srcAttrs = try? fm.attributesOfItem(atPath: sourcePath)
-                            let dstAttrs = try? fm.attributesOfItem(atPath: destFile.path)
-                            let srcSize = (srcAttrs?[.size] as? UInt64) ?? 0
-                            let dstSize = (dstAttrs?[.size] as? UInt64) ?? 0
-                            let srcDate = (srcAttrs?[.modificationDate] as? Date)
-                            let dstDate = (dstAttrs?[.modificationDate] as? Date)
-                            let df = DateFormatter()
-                            df.dateStyle = .medium; df.timeStyle = .medium
+                                let message = """
+                                Destination: \(destFile.lastPathComponent)
+                                Size: \(ByteCountFormatter.string(fromByteCount: Int64(dstSize), countStyle: .file))  Modified: \(dstDate.map { dateFormatter.string(from: $0) } ?? "—")
 
-                            let message = """
-                            Destination: \(destFile.lastPathComponent)
-                            Size: \(ByteCountFormatter.string(fromByteCount: Int64(dstSize), countStyle: .file))  Modified: \(dstDate.map { df.string(from: $0) } ?? "—")
-
-                            Source: \(sourceURL.lastPathComponent)
-                            Size: \(ByteCountFormatter.string(fromByteCount: Int64(srcSize), countStyle: .file))  Modified: \(srcDate.map { df.string(from: $0) } ?? "—")
-                            """
-                            let choice = coordinator.requestChoice(style: .warning,
+                                Source: \(sourceURL.lastPathComponent)
+                                Size: \(ByteCountFormatter.string(fromByteCount: Int64(srcSize), countStyle: .file))  Modified: \(srcDate.map { dateFormatter.string(from: $0) } ?? "—")
+                                """
+                                let choice = session.requestChoice(with: .warning,
                                                                    title: "File already exists",
                                                                    message: message,
                                                                    buttonTitles: ["Replace", "Replace All", "Skip", "Skip All", "Cancel"])
-                            switch choice {
-                            case 0:
-                                break
-                            case 1:
-                                overwriteAll = true
-                            case 2:
-                                shouldSkip = true
-                            case 3:
-                                skipAll = true
-                                shouldSkip = true
-                            default: cancelled = true
+                                switch choice {
+                                case 0:
+                                    break
+                                case 1:
+                                    overwriteAll = true
+                                case 2:
+                                    continue
+                                case 3:
+                                    skipAll = true
+                                    continue
+                                default:
+                                    return
+                                }
                             }
+                            try? fm.removeItem(at: destFile)
                         }
-                        if cancelled {
-                            DispatchQueue.main.async { coordinator.finish() }
-                            return
-                        }
-                        if shouldSkip { continue }
-                    }
-                    // Remove existing before copy/move
-                    try? fm.removeItem(at: destFile)
-                }
 
-                do {
-                    if move {
-                        try fm.moveItem(at: sourceURL, to: destFile)
-                    } else {
-                        let r = copyfile(
-                            sourceURL.path.cString(using: .utf8),
-                            destFile.path.cString(using: .utf8),
-                            nil,
-                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE)
-                        )
-                        if r != 0 {
-                            let r2 = copyfile(
-                                sourceURL.path.cString(using: .utf8),
-                                destFile.path.cString(using: .utf8),
-                                nil,
-                                copyfile_flags_t(COPYFILE_ALL)
-                            )
-                            if r2 != 0 {
-                                throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                        if move {
+                            try fm.moveItem(at: sourceURL, to: destFile)
+                        } else {
+                            let result = copyfile(sourceURL.path.cString(using: .utf8),
+                                                  destFile.path.cString(using: .utf8),
+                                                  nil,
+                                                  copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE))
+                            if result != 0 {
+                                let fallbackResult = copyfile(sourceURL.path.cString(using: .utf8),
+                                                              destFile.path.cString(using: .utf8),
+                                                              nil,
+                                                              copyfile_flags_t(COPYFILE_ALL))
+                                if fallbackResult != 0 {
+                                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                                }
                             }
                         }
                     }
-                } catch {
-                    // Stop on first error (matches 7-Zip behavior)
-                    DispatchQueue.main.async {
-                        coordinator.finish()
-                        self?.showErrorAlert(error)
-                    }
-                    return
-                }
-            }
 
-            session.reportProgressFraction(1.0)
-            DispatchQueue.main.async {
-                coordinator.finish()
+                    session.reportProgressFraction(1.0)
+                }
                 pane.refresh()
-                self?.inactivePane?.refresh()
+                self.inactivePane?.refresh()
+            } catch {
+                self.showErrorAlert(error)
             }
         }
     }

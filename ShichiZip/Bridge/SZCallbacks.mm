@@ -210,7 +210,7 @@ Z7_COM7F_IMF(SZFolderExtractCallback::ReportExtractResult(Int32 opRes, Int32 enc
 Z7_COM7F_IMF(SZFolderExtractCallback::CryptoGetTextPassword(BSTR *pw)) {
     PasswordWasAsked = true;
     if (!PasswordIsDefined) {
-        HRESULT hr = SZPromptForPassword(Session, Password, PasswordIsDefined);
+        HRESULT hr = SZRequestOperationPassword(Session, Password, PasswordIsDefined);
         if (hr != S_OK) return hr;
     }
     return StringToBstr(Password, pw);
