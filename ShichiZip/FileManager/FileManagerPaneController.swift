@@ -66,6 +66,8 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
 }
 
 private final class FileManagerTableView: NSTableView {
+    var contextMenuPreparationHandler: ((Int) -> Void)?
+
     override func canDragRows(with rowIndexes: IndexSet, at mouseDownPoint: NSPoint) -> Bool {
         let clickedColumn = column(at: mouseDownPoint)
         guard clickedColumn >= 0,
@@ -79,6 +81,12 @@ private final class FileManagerTableView: NSTableView {
         }
 
         return super.canDragRows(with: rowIndexes, at: mouseDownPoint)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let point = convert(event.locationInWindow, from: nil)
+        contextMenuPreparationHandler?(row(at: point))
+        return super.menu(for: event)
     }
 }
 
@@ -185,7 +193,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         pathField.delegate = self
         container.addSubview(pathField)
 
-        tableView = FileManagerTableView()
+        let fileTableView = FileManagerTableView()
+        fileTableView.contextMenuPreparationHandler = { [weak self] clickedRow in
+            self?.prepareContextMenu(forClickedRow: clickedRow)
+        }
+        tableView = fileTableView
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnResizing = true
@@ -464,6 +476,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     func focusFileList() {
+        delegate?.paneDidBecomeActive(self)
         view.window?.makeFirstResponder(tableView)
     }
 
@@ -1119,6 +1132,26 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return .filesystem(items[itemRow])
     }
 
+    private func dropDestinationDirectory(for row: Int,
+                                          dropOperation: NSTableView.DropOperation) -> URL? {
+        guard !isInsideArchive else { return nil }
+
+        if dropOperation != .on {
+            return currentDirectory.standardizedFileURL
+        }
+
+        guard let item = paneItem(at: row) else {
+            return currentDirectory.standardizedFileURL
+        }
+
+        switch item {
+        case let .filesystem(fileSystemItem) where fileSystemItem.isDirectory:
+            return fileSystemItem.url.standardizedFileURL
+        default:
+            return nil
+        }
+    }
+
     private func selectedPaneItems() -> [PaneItem] {
         tableView.selectedRowIndexes.compactMap { paneItem(at: $0) }
     }
@@ -1475,6 +1508,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     // MARK: - Actions
 
     @objc private func pathFieldSubmitted(_ sender: NSTextField) {
+        delegate?.paneDidBecomeActive(self)
         let path = sender.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if path.isEmpty { return }
 
@@ -1805,11 +1839,18 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     func tableView(_ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
         if isInsideArchive { return [] }
-        // Accept drops onto the table (not between rows)
-        if dropOperation == .on { return [] }
-        tableView.setDropRow(-1, dropOperation: .on) // highlight whole table
 
-        let operation = resolvedDropOperation(for: info, destinationDirectory: currentDirectory)
+        guard let destinationDirectory = dropDestinationDirectory(for: row, dropOperation: dropOperation) else {
+            return []
+        }
+
+        if dropOperation == .on {
+            tableView.setDropRow(row, dropOperation: .on)
+        } else {
+            tableView.setDropRow(-1, dropOperation: .on)
+        }
+
+        let operation = resolvedDropOperation(for: info, destinationDirectory: destinationDirectory)
         pendingDropOperation = operation.isEmpty ? nil : (info.draggingSequenceNumber, operation)
         return operation
     }
@@ -1817,7 +1858,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
         if isInsideArchive { return false }
 
-        let destDir = currentDirectory.standardizedFileURL
+        guard let destDir = dropDestinationDirectory(for: row, dropOperation: dropOperation) else {
+            return false
+        }
         let operation = takeResolvedDropOperation(for: info, destinationDirectory: destDir)
 
         if let promiseReceivers = info.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
@@ -1835,6 +1878,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                  operation: operation,
                                  sourcePane: sourcePaneController(for: info))
         return true
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        delegate?.paneDidBecomeActive(self)
     }
 
     private func resolvedDropOperation(for info: any NSDraggingInfo,
@@ -2280,7 +2327,19 @@ extension FileManagerPaneController {
 // MARK: - NSMenuDelegate (auto-select row on right-click)
 
 extension FileManagerPaneController {
+    private func prepareContextMenu(forClickedRow clickedRow: Int) {
+        delegate?.paneDidBecomeActive(self)
+
+        if clickedRow >= 0 && !tableView.selectedRowIndexes.contains(clickedRow) {
+            tableView.selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
+        }
+
+        view.window?.makeFirstResponder(tableView)
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
+        delegate?.paneDidBecomeActive(self)
+
         let clickedRow = tableView.clickedRow
         if clickedRow >= 0 && !tableView.selectedRowIndexes.contains(clickedRow) {
             tableView.selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
@@ -2293,9 +2352,13 @@ extension FileManagerPaneController {
 extension FileManagerPaneController {
 
     private func buildContextMenu() -> NSMenu {
-        let menu = FileManagerMenuFactory.makeContextMenu(windowTarget: nil)
+        let menu = FileManagerMenuFactory.makeContextMenu(windowTarget: delegate as AnyObject?)
         menu.delegate = self
         return menu
+    }
+
+    func controlTextDidBeginEditing(_ obj: Notification) {
+        delegate?.paneDidBecomeActive(self)
     }
 
     @objc private func openSelectedItem(_ sender: Any?) {

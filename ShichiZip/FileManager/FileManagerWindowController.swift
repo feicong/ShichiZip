@@ -287,6 +287,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private var rightPane: FileManagerPaneController!
     private var toolbar: NSToolbar!
     private var isDualPane = PanePreferences.showsDualPane
+    private weak var trackedActivePane: FileManagerPaneController?
     private var keyEventMonitor: Any?
     private var viewPreferencesObserver: NSObjectProtocol?
     private var autoRefreshTimer: Timer?
@@ -312,6 +313,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         setupMainMenu()
         observeViewPreferences()
         configureAutoRefreshTimer()
+        trackedActivePane = leftPane
         self.window?.initialFirstResponder = leftPane.preferredInitialFirstResponder
         self.window?.makeFirstResponder(leftPane.preferredInitialFirstResponder)
     }
@@ -940,17 +942,45 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private var activePane: FileManagerPaneController {
-        if isDualPane,
-           let fr = window?.firstResponder as? NSView,
-           fr === rightPane.view || fr.isDescendant(of: rightPane.view) {
-            return rightPane
+        if !isDualPane {
+            return leftPane
         }
+
+        if let firstResponderPane = paneContainingFirstResponder() {
+            return firstResponderPane
+        }
+
+        if let trackedActivePane {
+            return trackedActivePane
+        }
+
         return leftPane
     }
 
     private var inactivePane: FileManagerPaneController? {
         guard isDualPane else { return nil }
         return activePane === leftPane ? rightPane : leftPane
+    }
+
+    private func paneContainingFirstResponder() -> FileManagerPaneController? {
+        guard isDualPane,
+              let firstResponder = window?.firstResponder as? NSView else {
+            return nil
+        }
+
+        if firstResponder === rightPane.view || firstResponder.isDescendant(of: rightPane.view) {
+            return rightPane
+        }
+
+        if firstResponder === leftPane.view || firstResponder.isDescendant(of: leftPane.view) {
+            return leftPane
+        }
+
+        return nil
+    }
+
+    private func setActivePane(_ pane: FileManagerPaneController) {
+        trackedActivePane = pane === rightPane ? rightPane : leftPane
     }
 
     // MARK: - Copy/Move (PanelCopy.cpp pattern)
@@ -1396,10 +1426,15 @@ extension FileManagerWindowController: NSToolbarDelegate {
 
 protocol FileManagerPaneDelegate: AnyObject {
     func paneDidRequestOpenArchiveInNewWindow(_ url: URL)
+    func paneDidBecomeActive(_ pane: FileManagerPaneController)
 }
 
 extension FileManagerWindowController: FileManagerPaneDelegate {
     func paneDidRequestOpenArchiveInNewWindow(_ url: URL) {
         (NSApp.delegate as? AppDelegate)?.openArchiveInNewFileManager(url)
+    }
+
+    func paneDidBecomeActive(_ pane: FileManagerPaneController) {
+        setActivePane(pane)
     }
 }
