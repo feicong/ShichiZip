@@ -4,6 +4,68 @@ extension Notification.Name {
     static let fileManagerViewPreferencesDidChange = Notification.Name("FileManagerViewPreferencesDidChange")
 }
 
+private final class FileOperationDestinationPicker: NSObject {
+    private weak var ownerWindow: NSWindow?
+    private weak var pathField: NSComboBox?
+    private let baseDirectory: URL
+
+    init(ownerWindow: NSWindow?,
+         pathField: NSComboBox,
+         baseDirectory: URL) {
+        self.ownerWindow = ownerWindow
+        self.pathField = pathField
+        self.baseDirectory = baseDirectory.standardizedFileURL
+    }
+
+    @objc func browse(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "Choose"
+        panel.message = "Choose destination folder:"
+        panel.directoryURL = suggestedDirectoryURL()
+
+        if let ownerWindow {
+            panel.beginSheetModal(for: ownerWindow) { [weak self] response in
+                guard response == .OK, let url = panel.url else { return }
+                self?.pathField?.stringValue = url.standardizedFileURL.path
+            }
+            return
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        pathField?.stringValue = url.standardizedFileURL.path
+    }
+
+    private func suggestedDirectoryURL() -> URL {
+        guard let pathField else {
+            return baseDirectory
+        }
+
+        let currentValue = pathField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !currentValue.isEmpty else {
+            return baseDirectory
+        }
+
+        let expandedPath = NSString(string: currentValue).expandingTildeInPath
+        let candidateURL: URL
+        if NSString(string: expandedPath).isAbsolutePath {
+            candidateURL = URL(fileURLWithPath: expandedPath)
+        } else {
+            candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+        }
+
+        let standardizedURL = candidateURL.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: standardizedURL.path, isDirectory: &isDirectory) {
+            return isDirectory.boolValue ? standardizedURL : standardizedURL.deletingLastPathComponent()
+        }
+
+        return standardizedURL.deletingLastPathComponent()
+    }
+}
+
 enum FileManagerViewPreferences {
     private static var fixedFormatFormatterCache: [String: DateFormatter] = [:]
     private static var styleFormatterCache: [String: DateFormatter] = [:]
@@ -282,12 +344,33 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
+    private enum FileOperationDestinationHistory {
+        private static let defaults = UserDefaults.standard
+        private static let entriesKey = "FileManager.CopyMoveDestinationHistory"
+        private static let maxEntries = 20
+
+        static func entries() -> [String] {
+            defaults.stringArray(forKey: entriesKey) ?? []
+        }
+
+        static func record(_ path: String) {
+            let normalizedPath = URL(fileURLWithPath: path).standardizedFileURL.path
+            var updatedEntries = entries().filter { $0 != normalizedPath }
+            updatedEntries.insert(normalizedPath, at: 0)
+            if updatedEntries.count > maxEntries {
+                updatedEntries.removeSubrange(maxEntries..<updatedEntries.count)
+            }
+            defaults.set(updatedEntries, forKey: entriesKey)
+        }
+    }
+
     private var splitView: NSSplitView!
     private var leftPane: FileManagerPaneController!
     private var rightPane: FileManagerPaneController!
     private var toolbar: NSToolbar!
     private var isDualPane = PanePreferences.showsDualPane
     private weak var trackedActivePane: FileManagerPaneController?
+    private var fileOperationDestinationPicker: FileOperationDestinationPicker?
     private var keyEventMonitor: Any?
     private var viewPreferencesObserver: NSObjectProtocol?
     private var autoRefreshTimer: Timer?
@@ -1003,7 +1086,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             }
 
             guard pane.canCopySelection() else { return }
-            guard let destURL = chooseDestinationURL(forMove: false) else { return }
+            guard let destURL = promptForFileOperationDestination(forMove: false, sourcePane: pane) else { return }
 
             Task { @MainActor [weak self] in
                 guard let self, let parentWindow = self.window else { return }
@@ -1014,7 +1097,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                                                              session: session,
                                                              overwriteMode: .ask)
                     }
-                    self.inactivePane?.refresh()
+                    self.refreshPaneDisplayingDirectory(destURL)
                 } catch {
                     self.showErrorAlert(error)
                 }
@@ -1022,97 +1105,27 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             return
         }
 
-        let sourcePaths = pane.selectedFilePaths()
-        guard !sourcePaths.isEmpty else { return }
+        let sourceURLs = pane.selectedFileURLs()
+        guard !sourceURLs.isEmpty else { return }
 
-        // Determine destination — other pane if dual, or ask via dialog
-        guard let destURL = chooseDestinationURL(forMove: move) else { return }
+        guard let destURL = promptForFileOperationDestination(forMove: move, sourcePane: pane) else { return }
+        guard validateTransferDestination(destURL, for: pane, move: move) else { return }
 
         let operation = move ? "Moving" : "Copying"
+        let dragOperation: NSDragOperation = move ? .move : .copy
         Task { @MainActor [weak self] in
             guard let self, let parentWindow = self.window else { return }
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "\(operation) \(sourcePaths.count) item(s)...",
+                try await ArchiveOperationRunner.run(operationTitle: "\(operation) \(sourceURLs.count) item(s)...",
                                                      parentWindow: parentWindow) { session in
-                    let fm = FileManager.default
-                    var skipAll = false
-                    var overwriteAll = false
-
-                    for (index, sourcePath) in sourcePaths.enumerated() {
-                        if session.shouldCancel() {
-                            return
-                        }
-
-                        let sourceURL = URL(fileURLWithPath: sourcePath)
-                        let destFile = destURL.appendingPathComponent(sourceURL.lastPathComponent)
-                        let fraction = Double(index) / Double(sourcePaths.count)
-
-                        session.reportProgressFraction(fraction)
-                        session.reportCurrentFileName(sourceURL.lastPathComponent)
-
-                        if fm.fileExists(atPath: destFile.path) {
-                            if skipAll { continue }
-                            if !overwriteAll {
-                                let srcAttrs = try? fm.attributesOfItem(atPath: sourcePath)
-                                let dstAttrs = try? fm.attributesOfItem(atPath: destFile.path)
-                                let srcSize = (srcAttrs?[.size] as? UInt64) ?? 0
-                                let dstSize = (dstAttrs?[.size] as? UInt64) ?? 0
-                                let srcDate = srcAttrs?[.modificationDate] as? Date
-                                let dstDate = dstAttrs?[.modificationDate] as? Date
-                                let dateFormatter = FileManagerViewPreferences.makeDateFormatter(dateStyle: .medium,
-                                                                                                 timeStyle: .medium)
-
-                                let message = """
-                                Destination: \(destFile.lastPathComponent)
-                                Size: \(ByteCountFormatter.string(fromByteCount: Int64(dstSize), countStyle: .file))  Modified: \(dstDate.map { dateFormatter.string(from: $0) } ?? "—")
-
-                                Source: \(sourceURL.lastPathComponent)
-                                Size: \(ByteCountFormatter.string(fromByteCount: Int64(srcSize), countStyle: .file))  Modified: \(srcDate.map { dateFormatter.string(from: $0) } ?? "—")
-                                """
-                                let choice = session.requestChoice(with: .warning,
-                                                                   title: "File already exists",
-                                                                   message: message,
-                                                                   buttonTitles: ["Replace", "Replace All", "Skip", "Skip All", "Cancel"])
-                                switch choice {
-                                case 0:
-                                    break
-                                case 1:
-                                    overwriteAll = true
-                                case 2:
-                                    continue
-                                case 3:
-                                    skipAll = true
-                                    continue
-                                default:
-                                    return
-                                }
-                            }
-                            try? fm.removeItem(at: destFile)
-                        }
-
-                        if move {
-                            try fm.moveItem(at: sourceURL, to: destFile)
-                        } else {
-                            let result = copyfile(sourceURL.path.cString(using: .utf8),
-                                                  destFile.path.cString(using: .utf8),
-                                                  nil,
-                                                  copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE))
-                            if result != 0 {
-                                let fallbackResult = copyfile(sourceURL.path.cString(using: .utf8),
-                                                              destFile.path.cString(using: .utf8),
-                                                              nil,
-                                                              copyfile_flags_t(COPYFILE_ALL))
-                                if fallbackResult != 0 {
-                                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
-                                }
-                            }
-                        }
-                    }
-
-                    session.reportProgressFraction(1.0)
+                    try pane.transferFileSystemItemURLs(sourceURLs,
+                                                        to: destURL,
+                                                        operation: dragOperation,
+                                                        session: session)
                 }
-                pane.refresh()
-                self.inactivePane?.refresh()
+                self.refreshAfterFilesystemTransfer(from: pane,
+                                                   to: destURL,
+                                                   operation: dragOperation)
             } catch {
                 self.showErrorAlert(error)
             }
@@ -1347,19 +1360,181 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         return isEnabled
     }
 
-    private func chooseDestinationURL(forMove move: Bool) -> URL? {
+    private func suggestedDestinationURL(for sourcePane: FileManagerPaneController) -> URL {
         if let otherPane = inactivePane, !otherPane.isVirtualLocation {
-            return otherPane.currentDirectoryURL
+            return otherPane.currentDirectoryURL.standardizedFileURL
         }
 
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.prompt = move ? "Move" : "Copy"
-        panel.message = move ? "Choose destination folder:" : "Choose destination folder:"
-        guard panel.runModal() == .OK, let url = panel.url else { return nil }
-        return url
+        return sourcePane.currentDirectoryURL.standardizedFileURL
+    }
+
+    private func promptForFileOperationDestination(forMove move: Bool,
+                                                   sourcePane: FileManagerPaneController) -> URL? {
+        let title = move ? "Move" : "Copy"
+        let actionTitle = move ? "Move" : "Copy"
+        let labelTitle = move ? "Move to:" : "Copy to:"
+        let historyEntries = FileOperationDestinationHistory.entries()
+        let defaultPath = suggestedDestinationURL(for: sourcePane).path
+        let infoText = fileOperationInfoText(for: sourcePane)
+
+        while true {
+            let pathField = NSComboBox(frame: NSRect(x: 0, y: 0, width: 260, height: 26))
+            pathField.isEditable = true
+            pathField.usesDataSource = false
+            pathField.completes = false
+            pathField.addItems(withObjectValues: historyEntries)
+            pathField.stringValue = defaultPath
+            pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            pathField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+            let browseButton = NSButton(title: "Browse…", target: nil, action: nil)
+            browseButton.bezelStyle = .rounded
+            browseButton.setContentHuggingPriority(.required, for: .horizontal)
+            browseButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+            let label = NSTextField(labelWithString: labelTitle)
+            label.font = .systemFont(ofSize: 12, weight: .medium)
+            label.setContentHuggingPriority(.required, for: .vertical)
+
+            let inputRow = NSStackView(views: [pathField, browseButton])
+            inputRow.orientation = .horizontal
+            inputRow.alignment = .centerY
+            inputRow.spacing = 8
+            inputRow.distribution = .fill
+
+            let stack = NSStackView(views: [label, inputRow])
+            stack.orientation = .vertical
+            stack.alignment = .leading
+            stack.spacing = 6
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 240).isActive = true
+
+            let controller = SZModalDialogController(style: .informational,
+                                                     title: title,
+                                                     message: infoText,
+                                                     buttonTitles: ["Cancel", actionTitle],
+                                                     accessoryView: stack,
+                                                     preferredFirstResponder: pathField,
+                                                     cancelButtonIndex: 0)
+
+            let windowBoundPicker = FileOperationDestinationPicker(ownerWindow: controller.window,
+                                                                   pathField: pathField,
+                                                                   baseDirectory: sourcePane.currentDirectoryURL)
+            fileOperationDestinationPicker = windowBoundPicker
+            browseButton.target = windowBoundPicker
+            browseButton.action = #selector(FileOperationDestinationPicker.browse(_:))
+
+            defer {
+                fileOperationDestinationPicker = nil
+            }
+
+            guard controller.runModal() == 1 else {
+                return nil
+            }
+
+            let enteredPath = pathField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            do {
+                let destinationURL = try resolveDestinationDirectoryURL(from: enteredPath,
+                                                                        relativeTo: sourcePane.currentDirectoryURL)
+                FileOperationDestinationHistory.record(destinationURL.path)
+                return destinationURL
+            } catch {
+                showErrorAlert(error)
+            }
+        }
+    }
+
+    private func resolveDestinationDirectoryURL(from enteredPath: String,
+                                                relativeTo baseDirectory: URL) throws -> URL {
+        guard !enteredPath.isEmpty else {
+            throw NSError(domain: NSCocoaErrorDomain,
+                          code: NSFileNoSuchFileError,
+                          userInfo: [NSLocalizedDescriptionKey: "Enter a destination folder."])
+        }
+
+        let expandedPath = NSString(string: enteredPath).expandingTildeInPath
+        let candidateURL: URL
+        if NSString(string: expandedPath).isAbsolutePath {
+            candidateURL = URL(fileURLWithPath: expandedPath)
+        } else {
+            candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+        }
+
+        let standardizedURL = candidateURL.standardizedFileURL
+        var isDirectory: ObjCBool = false
+
+        if FileManager.default.fileExists(atPath: standardizedURL.path, isDirectory: &isDirectory) {
+            guard isDirectory.boolValue else {
+                throw NSError(domain: NSCocoaErrorDomain,
+                              code: NSFileWriteInvalidFileNameError,
+                              userInfo: [
+                                  NSFilePathErrorKey: standardizedURL.path,
+                                  NSLocalizedDescriptionKey: "The destination path must be a folder."
+                              ])
+            }
+            return standardizedURL
+        }
+
+        try FileManager.default.createDirectory(at: standardizedURL, withIntermediateDirectories: true)
+        return standardizedURL
+    }
+
+    private func fileOperationInfoText(for sourcePane: FileManagerPaneController) -> String {
+        var lines: [String] = []
+        lines.append(sourcePane.currentLocationDisplayPath)
+
+        let names = sourcePane.selectedItemNames(limit: 5)
+        lines.append(contentsOf: names.map { "  \($0)" })
+
+        if sourcePane.selectedRealItemCount > names.count {
+            lines.append("  ...")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func validateTransferDestination(_ destinationURL: URL,
+                                             for sourcePane: FileManagerPaneController,
+                                             move: Bool) -> Bool {
+        let sourceDirectory = sourcePane.currentDirectoryURL.standardizedFileURL
+        let standardizedDestination = destinationURL.standardizedFileURL
+
+        guard sourceDirectory != standardizedDestination else {
+            let action = move ? "move" : "copy"
+            szPresentMessage(title: "Cannot \(action) files onto itself",
+                             message: "Choose a different destination folder.",
+                             style: .warning,
+                             for: window)
+            return false
+        }
+
+        return true
+    }
+
+    private func refreshPaneDisplayingDirectory(_ directoryURL: URL) {
+        let standardizedDirectory = directoryURL.standardizedFileURL
+
+        if !leftPane.isVirtualLocation,
+           leftPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory {
+            leftPane.refresh()
+        }
+
+        if isDualPane,
+           !rightPane.isVirtualLocation,
+           rightPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory {
+            rightPane.refresh()
+        }
+    }
+
+    private func refreshAfterFilesystemTransfer(from sourcePane: FileManagerPaneController,
+                                                to destinationURL: URL,
+                                                operation: NSDragOperation) {
+        refreshPaneDisplayingDirectory(destinationURL)
+
+        if operation == .move {
+            sourcePane.refresh()
+        }
     }
 
     private func showErrorAlert(_ error: Error) {

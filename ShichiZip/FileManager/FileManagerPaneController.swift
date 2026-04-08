@@ -784,8 +784,46 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.sortDescriptors.first?.key
     }
 
+    var currentLocationDisplayPath: String {
+        isInsideArchive ? currentArchiveDisplayPathPrefix() : currentDirectory.path
+    }
+
+    var selectedRealItemCount: Int {
+        selectedRealPaneItems().count
+    }
+
+    func selectedItemNames(limit: Int? = nil) -> [String] {
+        let paneItems = selectedRealPaneItems()
+        let visibleItems = limit.map { Array(paneItems.prefix($0)) } ?? paneItems
+
+        return visibleItems.compactMap {
+            switch $0 {
+            case let .filesystem(item):
+                return item.name
+            case let .archive(item):
+                return item.name
+            case .parent:
+                return nil
+            }
+        }
+    }
+
     func selectedFilePaths() -> [String] {
         selectedFileSystemItems().map { $0.url.path }
+    }
+
+    func selectedFileURLs() -> [URL] {
+        selectedFileSystemItems().map { $0.url.standardizedFileURL }
+    }
+
+    func transferFileSystemItemURLs(_ urls: [URL],
+                                    to destinationDirectory: URL,
+                                    operation: NSDragOperation,
+                                    session: SZOperationSession) throws {
+        try transferDroppedFileURLs(urls.map { $0.standardizedFileURL },
+                                    to: destinationDirectory.standardizedFileURL,
+                                    operation: operation,
+                                    session: session)
     }
 
     func createFolder(named name: String) {
