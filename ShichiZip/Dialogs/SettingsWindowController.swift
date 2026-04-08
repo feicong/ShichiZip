@@ -17,11 +17,6 @@ enum SZSettingsKey: String {
     case memLimitEnabled = "MemLimitEnabled"
     case memLimitGB = "MemLimitGB"
 
-    // Edit page
-    case viewerPath = "Viewer"
-    case editorPath = "Editor"
-    case diffPath = "Diff"
-
     // Folders page
     case workDirMode = "WorkDirMode" // 0=system temp, 1=current, 2=specified
     case workDirPath = "WorkDirPath"
@@ -132,12 +127,6 @@ class SettingsWindowController: NSWindowController {
         settingsTab.view = createSettingsPage()
         tabView.addTabViewItem(settingsTab)
 
-        // Editor tab (EditPage.cpp)
-        let editTab = NSTabViewItem(identifier: "editor")
-        editTab.label = "Editor"
-        editTab.view = createEditorPage()
-        tabView.addTabViewItem(editTab)
-
         // Folders tab (FoldersPage.cpp)
         let foldersTab = NSTabViewItem(identifier: "folders")
         foldersTab.label = "Folders"
@@ -147,7 +136,7 @@ class SettingsWindowController: NSWindowController {
         contentView.addSubview(tabView)
 
         // Segmented control for tab switching
-        let segmented = NSSegmentedControl(labels: ["Settings", "Editor", "Folders"],
+        let segmented = NSSegmentedControl(labels: ["Settings", "Folders"],
                                            trackingMode: .selectOne,
                                            target: self,
                                            action: #selector(tabSegmentChanged(_:)))
@@ -235,48 +224,6 @@ class SettingsWindowController: NSWindowController {
             stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-        ])
-        return view
-    }
-
-    // MARK: - Editor Page (EditPage.cpp)
-
-    private func createEditorPage() -> NSView {
-        let view = NSView()
-        let grid = NSGridView(numberOfColumns: 3, rows: 0)
-        grid.translatesAutoresizingMaskIntoConstraints = false
-        grid.column(at: 0).xPlacement = .trailing
-        grid.rowSpacing = 10
-        grid.columnSpacing = 8
-
-        let fields: [(String, SZSettingsKey)] = [
-            ("Viewer:", .viewerPath),
-            ("Editor:", .editorPath),
-            ("Diff:", .diffPath),
-        ]
-
-        for (label, key) in fields {
-            let lbl = NSTextField(labelWithString: label)
-            let field = NSTextField()
-            field.stringValue = SZSettings.string(key)
-            field.identifier = NSUserInterfaceItemIdentifier(key.rawValue)
-            field.placeholderString = "Path to application"
-            field.target = self
-            field.action = #selector(editorPathChanged(_:))
-
-            let browseBtn = NSButton(title: "...", target: self, action: #selector(browseEditorPath(_:)))
-            browseBtn.identifier = NSUserInterfaceItemIdentifier(key.rawValue)
-            browseBtn.widthAnchor.constraint(equalToConstant: 30).isActive = true
-
-            grid.addRow(with: [lbl, field, browseBtn])
-            field.widthAnchor.constraint(greaterThanOrEqualToConstant: 250).isActive = true
-        }
-
-        view.addSubview(grid)
-        NSLayoutConstraint.activate([
-            grid.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
-            grid.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            grid.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
         ])
         return view
     }
@@ -371,33 +318,6 @@ class SettingsWindowController: NSWindowController {
 
     @objc private func memLimitChanged(_ sender: NSTextField) {
         SZSettings.set(max(1, sender.integerValue), for: .memLimitGB)
-    }
-
-    @objc private func editorPathChanged(_ sender: NSTextField) {
-        guard let keyStr = sender.identifier?.rawValue,
-              let key = SZSettingsKey(rawValue: keyStr) else { return }
-        SZSettings.set(sender.stringValue, for: key)
-    }
-
-    @objc private func browseEditorPath(_ sender: NSButton) {
-        guard let keyStr = sender.identifier?.rawValue,
-              let key = SZSettingsKey(rawValue: keyStr) else { return }
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.application, .executable]
-        if panel.runModal() == .OK, let url = panel.url {
-            SZSettings.set(url.path, for: key)
-            // Update the corresponding text field
-            if let grid = sender.superview?.superview as? NSGridView {
-                for row in 0..<grid.numberOfRows {
-                    if let field = grid.cell(atColumnIndex: 1, rowIndex: row).contentView as? NSTextField,
-                       field.identifier?.rawValue == keyStr {
-                        field.stringValue = url.path
-                    }
-                }
-            }
-        }
     }
 
     @objc private func workDirModeChanged(_ sender: NSButton) {
