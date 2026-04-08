@@ -1,5 +1,11 @@
 import Cocoa
 
+private enum MainMenuIdentifiers {
+        static let favoritesMenu = NSUserInterfaceItemIdentifier("FavoritesMenu")
+        static let viewMenu = NSUserInterfaceItemIdentifier("ViewMenu")
+        static let timeMenu = NSUserInterfaceItemIdentifier("TimeMenu")
+}
+
 enum FileManagerFavoriteStore {
     static let slotCount = 10
 
@@ -58,8 +64,49 @@ enum FileManagerFavoriteStore {
 }
 
 private final class MainMenuCoordinator: NSObject, NSMenuDelegate {
+        var timeMenuItem: NSMenuItem?
+
     func menuNeedsUpdate(_ menu: NSMenu) {
+                if menu.identifier == MainMenuIdentifiers.viewMenu {
+                        refreshTimeMenuTitle()
+                        return
+                }
+
+                if menu.identifier == MainMenuIdentifiers.timeMenu {
+                        rebuildTimeMenu(menu)
+                        return
+                }
+
+                guard menu.identifier == MainMenuIdentifiers.favoritesMenu else {
+                        return
+                }
+
+                rebuildFavoritesMenu(menu)
+        }
+
+        func refreshTimeMenuTitle() {
+                timeMenuItem?.title = FileManagerViewPreferences.timeMenuPreviewTitle(for: .day)
+        }
+
+        private func rebuildTimeMenu(_ menu: NSMenu) {
         menu.removeAllItems()
+
+                for level in FileManagerViewPreferences.TimestampDisplayLevel.allCases {
+                        let item = NSMenuItem(title: FileManagerViewPreferences.timeMenuPreviewTitle(for: level),
+                                                                  action: selector(for: level),
+                                                                  keyEquivalent: "")
+                        menu.addItem(item)
+                }
+
+                menu.addItem(.separator())
+                menu.addItem(NSMenuItem(title: "UTC",
+                                                                action: #selector(FileManagerWindowController.toggleTimestampUTC(_:)),
+                                                                keyEquivalent: ""))
+                refreshTimeMenuTitle()
+        }
+
+        private func rebuildFavoritesMenu(_ menu: NSMenu) {
+                menu.removeAllItems()
 
         let addToFavoritesItem = NSMenuItem(title: "Add Folder to Favorites As", action: nil, keyEquivalent: "")
         let addToFavoritesMenu = NSMenu(title: addToFavoritesItem.title)
@@ -84,6 +131,21 @@ private final class MainMenuCoordinator: NSObject, NSMenuDelegate {
             menu.addItem(item)
         }
     }
+
+        private func selector(for level: FileManagerViewPreferences.TimestampDisplayLevel) -> Selector {
+                switch level {
+                case .day:
+                        return #selector(FileManagerWindowController.showTimestampDay(_:))
+                case .minute:
+                        return #selector(FileManagerWindowController.showTimestampMinute(_:))
+                case .second:
+                        return #selector(FileManagerWindowController.showTimestampSecond(_:))
+                case .ntfs:
+                        return #selector(FileManagerWindowController.showTimestampNTFS(_:))
+                case .nanoseconds:
+                        return #selector(FileManagerWindowController.showTimestampNanoseconds(_:))
+                }
+        }
 }
 
 /// Sets up the main application menu bar programmatically.
@@ -202,6 +264,8 @@ enum MainMenu {
                 action: #selector(FileManagerWindowController.invertSelection(_:)))
 
         let viewMenu = NSMenu(title: "View")
+        viewMenu.identifier = MainMenuIdentifiers.viewMenu
+        viewMenu.delegate = coordinator
         addTopLevelMenu(viewMenu, to: mainMenu)
         addDisabledItem(to: viewMenu, title: "Large Icons")
         addDisabledItem(to: viewMenu, title: "Small Icons")
@@ -228,14 +292,13 @@ enum MainMenu {
                 title: "2 Panels",
                 action: #selector(FileManagerWindowController.toggleDualPane(_:)))
 
-        let timeMenuItem = NSMenuItem(title: "Time", action: nil, keyEquivalent: "")
-        let timeMenu = NSMenu(title: "Time")
-        addItem(to: timeMenu,
-                title: "Local Time",
-                action: #selector(FileManagerWindowController.showLocalTimestamps(_:)))
-        addItem(to: timeMenu,
-                title: "UTC",
-                action: #selector(FileManagerWindowController.showUTCTimestamps(_:)))
+        let timeMenuItem = NSMenuItem(title: FileManagerViewPreferences.timeMenuPreviewTitle(for: .day),
+                                      action: nil,
+                                      keyEquivalent: "")
+        let timeMenu = NSMenu(title: timeMenuItem.title)
+        timeMenu.identifier = MainMenuIdentifiers.timeMenu
+        timeMenu.delegate = coordinator
+        coordinator.timeMenuItem = timeMenuItem
         timeMenuItem.submenu = timeMenu
         viewMenu.addItem(timeMenuItem)
 
@@ -278,6 +341,7 @@ enum MainMenu {
                 modifiers: [.command, .control])
 
         let favoritesMenu = NSMenu(title: "Favorites")
+        favoritesMenu.identifier = MainMenuIdentifiers.favoritesMenu
         favoritesMenu.delegate = coordinator
         addTopLevelMenu(favoritesMenu, to: mainMenu)
 
@@ -326,6 +390,11 @@ enum MainMenu {
         NSApp.helpMenu = helpMenu
 
         NSApp.mainMenu = mainMenu
+                coordinator.refreshTimeMenuTitle()
+        }
+
+        static func refreshDynamicMenuState() {
+                coordinator.refreshTimeMenuTitle()
     }
 
     @discardableResult

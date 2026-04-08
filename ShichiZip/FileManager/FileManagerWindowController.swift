@@ -5,12 +5,41 @@ extension Notification.Name {
 }
 
 enum FileManagerViewPreferences {
+    enum TimestampDisplayLevel: Int, CaseIterable {
+        case day
+        case minute
+        case second
+        case ntfs
+        case nanoseconds
+
+        fileprivate var dateFormat: String {
+            switch self {
+            case .day:
+                return "yyyy-MM-dd"
+            case .minute:
+                return "yyyy-MM-dd HH:mm"
+            case .second:
+                return "yyyy-MM-dd HH:mm:ss"
+            case .ntfs:
+                return "yyyy-MM-dd HH:mm:ss.SSSSSSS"
+            case .nanoseconds:
+                return "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+            }
+        }
+    }
+
     private static let defaults = UserDefaults.standard
     private static let timestampUTCKey = "FileManager.TimestampUTC"
+    private static let timestampLevelKey = "FileManager.TimestampLevel"
     private static let autoRefreshKey = "FileManager.AutoRefresh"
 
     static var usesUTCTimestamps: Bool {
         bool(forKey: timestampUTCKey, defaultValue: false)
+    }
+
+    static var timestampDisplayLevel: TimestampDisplayLevel {
+        TimestampDisplayLevel(rawValue: integer(forKey: timestampLevelKey,
+                                                defaultValue: TimestampDisplayLevel.minute.rawValue)) ?? .minute
     }
 
     static var autoRefreshEnabled: Bool {
@@ -21,8 +50,20 @@ enum FileManagerViewPreferences {
         set(value, forKey: timestampUTCKey)
     }
 
+    static func setTimestampDisplayLevel(_ value: TimestampDisplayLevel) {
+        set(value.rawValue, forKey: timestampLevelKey)
+    }
+
     static func setAutoRefreshEnabled(_ value: Bool) {
         set(value, forKey: autoRefreshKey)
+    }
+
+    static func timeMenuPreviewTitle(for level: TimestampDisplayLevel, referenceDate: Date = Date()) -> String {
+        makeFixedFormatFormatter(format: level.dateFormat).string(from: referenceDate)
+    }
+
+    static func makeListDateFormatter() -> DateFormatter {
+        makeFixedFormatFormatter(format: timestampDisplayLevel.dateFormat)
     }
 
     static func makeDateFormatter(dateStyle: DateFormatter.Style,
@@ -30,13 +71,16 @@ enum FileManagerViewPreferences {
         let formatter = DateFormatter()
         formatter.dateStyle = dateStyle
         formatter.timeStyle = timeStyle
-        if usesUTCTimestamps {
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        }
+        formatter.timeZone = usesUTCTimestamps ? TimeZone(secondsFromGMT: 0) : .current
         return formatter
     }
 
     private static func set(_ value: Bool, forKey key: String) {
+        defaults.set(value, forKey: key)
+        NotificationCenter.default.post(name: .fileManagerViewPreferencesDidChange, object: nil)
+    }
+
+    private static func set(_ value: Int, forKey key: String) {
         defaults.set(value, forKey: key)
         NotificationCenter.default.post(name: .fileManagerViewPreferencesDidChange, object: nil)
     }
@@ -46,6 +90,22 @@ enum FileManagerViewPreferences {
             return defaultValue
         }
         return defaults.bool(forKey: key)
+    }
+
+    private static func integer(forKey key: String, defaultValue: Int) -> Int {
+        guard defaults.object(forKey: key) != nil else {
+            return defaultValue
+        }
+        return defaults.integer(forKey: key)
+    }
+
+    private static func makeFixedFormatFormatter(format: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = format
+        formatter.timeZone = usesUTCTimestamps ? TimeZone(secondsFromGMT: 0) : .current
+        return formatter
     }
 }
 
@@ -277,6 +337,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func handleViewPreferencesDidChange() {
         configureAutoRefreshTimer()
+        MainMenu.refreshDynamicMenuState()
         leftPane.reloadPresentedValues()
         rightPane.reloadPresentedValues()
         if FileManagerViewPreferences.autoRefreshEnabled {
@@ -535,12 +596,28 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.sortByCreatedDate()
     }
 
-    @objc func showLocalTimestamps(_ sender: Any?) {
-        FileManagerViewPreferences.setUsesUTCTimestamps(false)
+    @objc func showTimestampDay(_ sender: Any?) {
+        FileManagerViewPreferences.setTimestampDisplayLevel(.day)
     }
 
-    @objc func showUTCTimestamps(_ sender: Any?) {
-        FileManagerViewPreferences.setUsesUTCTimestamps(true)
+    @objc func showTimestampMinute(_ sender: Any?) {
+        FileManagerViewPreferences.setTimestampDisplayLevel(.minute)
+    }
+
+    @objc func showTimestampSecond(_ sender: Any?) {
+        FileManagerViewPreferences.setTimestampDisplayLevel(.second)
+    }
+
+    @objc func showTimestampNTFS(_ sender: Any?) {
+        FileManagerViewPreferences.setTimestampDisplayLevel(.ntfs)
+    }
+
+    @objc func showTimestampNanoseconds(_ sender: Any?) {
+        FileManagerViewPreferences.setTimestampDisplayLevel(.nanoseconds)
+    }
+
+    @objc func toggleTimestampUTC(_ sender: Any?) {
+        FileManagerViewPreferences.setUsesUTCTimestamps(!FileManagerViewPreferences.usesUTCTimestamps)
     }
 
     @objc func toggleAutoRefresh(_ sender: Any?) {
@@ -836,8 +913,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
              #selector(sortByModifiedDate(_:)),
              #selector(sortByCreatedDate(_:)):
             return true
-        case #selector(showLocalTimestamps(_:)),
-             #selector(showUTCTimestamps(_:)),
+           case #selector(showTimestampDay(_:)),
+               #selector(showTimestampMinute(_:)),
+               #selector(showTimestampSecond(_:)),
+               #selector(showTimestampNTFS(_:)),
+               #selector(showTimestampNanoseconds(_:)),
+               #selector(toggleTimestampUTC(_:)),
              #selector(toggleAutoRefresh(_:)):
             return true
         case #selector(openRootFolder(_:)):
@@ -878,9 +959,17 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             menuItem.state = activePane.primarySortKey == "modified" ? .on : .off
         case #selector(sortByCreatedDate(_:)):
             menuItem.state = activePane.primarySortKey == "created" ? .on : .off
-        case #selector(showLocalTimestamps(_:)):
-            menuItem.state = FileManagerViewPreferences.usesUTCTimestamps ? .off : .on
-        case #selector(showUTCTimestamps(_:)):
+        case #selector(showTimestampDay(_:)):
+            menuItem.state = FileManagerViewPreferences.timestampDisplayLevel == .day ? .on : .off
+        case #selector(showTimestampMinute(_:)):
+            menuItem.state = FileManagerViewPreferences.timestampDisplayLevel == .minute ? .on : .off
+        case #selector(showTimestampSecond(_:)):
+            menuItem.state = FileManagerViewPreferences.timestampDisplayLevel == .second ? .on : .off
+        case #selector(showTimestampNTFS(_:)):
+            menuItem.state = FileManagerViewPreferences.timestampDisplayLevel == .ntfs ? .on : .off
+        case #selector(showTimestampNanoseconds(_:)):
+            menuItem.state = FileManagerViewPreferences.timestampDisplayLevel == .nanoseconds ? .on : .off
+        case #selector(toggleTimestampUTC(_:)):
             menuItem.state = FileManagerViewPreferences.usesUTCTimestamps ? .on : .off
         case #selector(toggleAutoRefresh(_:)):
             menuItem.state = FileManagerViewPreferences.autoRefreshEnabled ? .on : .off

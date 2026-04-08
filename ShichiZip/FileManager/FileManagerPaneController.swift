@@ -205,6 +205,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     // MARK: - Navigation
 
+    private struct FileSystemSelectionState {
+        let selectedPaths: Set<String>
+        let focusedPath: String?
+
+        static let empty = FileSystemSelectionState(selectedPaths: [], focusedPath: nil)
+    }
+
     func loadDirectory(_ url: URL) {
         do {
             let contents = try directoryContents(for: url)
@@ -223,6 +230,59 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                                        options: fileManagerDirectoryEnumerationOptions())
     }
 
+    private func captureFileSystemSelectionState() -> FileSystemSelectionState {
+        guard isViewLoaded, !isInsideArchive else {
+            return .empty
+        }
+
+        let selectedPaths = Set(selectedFileSystemItems().map { $0.url.standardizedFileURL.path })
+        let focusedPath: String?
+
+        if let focusedItem = paneItem(at: tableView.selectedRow),
+           case let .filesystem(item) = focusedItem {
+            focusedPath = item.url.standardizedFileURL.path
+        } else {
+            focusedPath = selectedFileSystemItems().first?.url.standardizedFileURL.path
+        }
+
+        return FileSystemSelectionState(selectedPaths: selectedPaths, focusedPath: focusedPath)
+    }
+
+    private func restoreFileSystemSelectionState(_ selectionState: FileSystemSelectionState) {
+        guard !isInsideArchive else { return }
+
+        let baseRow = showsParentRow ? 1 : 0
+        let selectedRows = IndexSet(items.enumerated().compactMap { index, item in
+            selectionState.selectedPaths.contains(item.url.standardizedFileURL.path) ? baseRow + index : nil
+        })
+
+        if selectedRows.isEmpty {
+            tableView.deselectAll(nil)
+            return
+        }
+
+        tableView.selectRowIndexes(selectedRows, byExtendingSelection: false)
+
+        if let focusedPath = selectionState.focusedPath,
+           let row = items.firstIndex(where: { $0.url.standardizedFileURL.path == focusedPath }).map({ baseRow + $0 }) {
+            tableView.scrollRowToVisible(row)
+        } else if let firstRow = selectedRows.first {
+            tableView.scrollRowToVisible(firstRow)
+        }
+    }
+
+    private func reloadCurrentDirectoryPreservingSelection() {
+        let selectionState = captureFileSystemSelectionState()
+
+        do {
+            let contents = try directoryContents(for: currentDirectory)
+            applyDirectoryContents(contents, for: currentDirectory)
+            restoreFileSystemSelectionState(selectionState)
+        } catch {
+            return
+        }
+    }
+
     private func applyDirectoryContents(_ contents: [URL], for url: URL) {
         currentDirectory = url
         recordDirectoryVisit(url)
@@ -237,14 +297,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if isInsideArchive {
             navigateArchiveSubdir(archiveStack.last?.currentSubdir ?? "")
         } else {
-            loadDirectory(currentDirectory)
+            reloadCurrentDirectoryPreservingSelection()
         }
     }
 
     func autoRefreshIfPossible() {
         guard isViewLoaded else { return }
         guard !isInsideArchive else { return }
-        loadDirectory(currentDirectory)
+        reloadCurrentDirectoryPreservingSelection()
     }
 
     func reloadPresentedValues() {
@@ -1222,8 +1282,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard let columnID = tableColumn?.identifier.rawValue else { return nil }
         guard let paneItem = paneItem(at: row) else { return nil }
 
-        let dateFormatter = FileManagerViewPreferences.makeDateFormatter(dateStyle: .medium,
-                                        timeStyle: .short)
+        let dateFormatter = FileManagerViewPreferences.makeListDateFormatter()
 
         let itemName: String
         let itemSize: String
