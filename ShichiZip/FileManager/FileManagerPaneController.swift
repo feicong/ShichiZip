@@ -106,8 +106,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     private var recentDirectories: [URL] = []
     private var isLiveScrolling = false
     private var pendingAutoRefresh = false
+    private var pendingDropOperation: (sequenceNumber: Int, operation: NSDragOperation)?
     private let iconCache = NSCache<NSString, NSImage>()
     private let iconSize = NSSize(width: 16, height: 16)
+    private let listRowHeight: CGFloat = 22
     private var currentDirectoryFingerprint: [DirectoryEntryFingerprint] = []
 
     private(set) var currentDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
@@ -188,7 +190,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnResizing = true
         tableView.allowsColumnReordering = true
-        tableView.rowSizeStyle = .small
+        tableView.rowSizeStyle = .custom
+        tableView.rowHeight = listRowHeight
+        tableView.intercellSpacing = NSSize(width: tableView.intercellSpacing.width, height: 0)
 
         let nameCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
         nameCol.title = "Name"
@@ -1589,7 +1593,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        return 22
+        listRowHeight
     }
 
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
@@ -1626,17 +1630,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if dropOperation == .on { return [] }
         tableView.setDropRow(-1, dropOperation: .on) // highlight whole table
 
-        if pasteboardContainsFilePromises(info.draggingPasteboard) {
-            return .copy
-        }
-
-        return info.draggingSourceOperationMask.contains(.move) ? .move : .copy
+        let operation = resolvedDropOperation(for: info, destinationDirectory: currentDirectory)
+        pendingDropOperation = operation.isEmpty ? nil : (info.draggingSequenceNumber, operation)
+        return operation
     }
 
     func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
         if isInsideArchive { return false }
 
-        let destDir = currentDirectory
+        let destDir = currentDirectory.standardizedFileURL
+        let operation = takeResolvedDropOperation(for: info, destinationDirectory: destDir)
 
         if let promiseReceivers = info.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
            !promiseReceivers.isEmpty {
@@ -1644,45 +1647,240 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return true
         }
 
-        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty else { return false }
+        guard !operation.isEmpty else { return false }
+        let urls = droppedFileURLs(from: info)
+        guard !urls.isEmpty else { return false }
 
-        let isMove = info.draggingSourceOperationMask.contains(.move)
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            for url in urls {
-                let dest = destDir.appendingPathComponent(url.lastPathComponent)
-                do {
-                    if isMove {
-                        // rename() is atomic and preserves all metadata on same volume
-                        try FileManager.default.moveItem(at: url, to: dest)
-                    } else {
-                        // copyfile with CLONE for APFS, falls back to full copy preserving all metadata
-                        let result = copyfile(
-                            url.path.cString(using: .utf8),
-                            dest.path.cString(using: .utf8),
-                            nil,
-                            copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE)
-                        )
-                        if result != 0 {
-                            // CLONE_FORCE failed (not APFS) — retry without clone (same as cp)
-                            let r2 = copyfile(
-                                url.path.cString(using: .utf8),
-                                dest.path.cString(using: .utf8),
-                                nil,
-                                copyfile_flags_t(COPYFILE_ALL)
-                            )
-                            if r2 != 0 {
-                                throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
-                            }
-                        }
-                    }
-                } catch {
-                    NSLog("[ShichiZip] Drop error: %@", error.localizedDescription)
-                }
-            }
-            DispatchQueue.main.async { self?.refresh() }
-        }
+        beginDroppedFileTransfer(urls,
+                                 to: destDir,
+                                 operation: operation,
+                                 sourcePane: sourcePaneController(for: info))
         return true
+    }
+
+    private func resolvedDropOperation(for info: any NSDraggingInfo,
+                                       destinationDirectory: URL) -> NSDragOperation {
+        if pasteboardContainsFilePromises(info.draggingPasteboard) {
+            return .copy
+        }
+
+        let sourceMask = info.draggingSourceOperationMask
+        let canCopy = sourceMask.contains(.copy)
+        let canMove = sourceMask.contains(.move)
+
+        switch (canCopy, canMove) {
+        case (false, false):
+            return []
+        case (true, false):
+            return .copy
+        case (false, true):
+            return .move
+        case (true, true):
+            let urls = droppedFileURLs(from: info)
+            guard !urls.isEmpty else {
+                return .move
+            }
+            return shouldPreferMoveForDroppedURLs(urls, destinationDirectory: destinationDirectory) ? .move : .copy
+        }
+    }
+
+    private func takeResolvedDropOperation(for info: any NSDraggingInfo,
+                                           destinationDirectory: URL) -> NSDragOperation {
+        defer { pendingDropOperation = nil }
+
+        if let pendingDropOperation,
+           pendingDropOperation.sequenceNumber == info.draggingSequenceNumber {
+            return pendingDropOperation.operation
+        }
+
+        return resolvedDropOperation(for: info, destinationDirectory: destinationDirectory)
+    }
+
+    private func droppedFileURLs(from info: any NSDraggingInfo) -> [URL] {
+        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] else {
+            return []
+        }
+
+        return urls.map { $0.standardizedFileURL }
+    }
+
+    private func shouldPreferMoveForDroppedURLs(_ urls: [URL],
+                                                destinationDirectory: URL) -> Bool {
+        guard let destinationVolumeURL = volumeURL(for: destinationDirectory) else {
+            return false
+        }
+
+        return urls.allSatisfy { volumeURL(for: $0) == destinationVolumeURL }
+    }
+
+    private func volumeURL(for url: URL) -> URL? {
+        try? url.resourceValues(forKeys: [.volumeURLKey]).volume?.standardizedFileURL
+    }
+
+    private func sourcePaneController(for info: any NSDraggingInfo) -> FileManagerPaneController? {
+        guard let sourceTableView = info.draggingSource as? NSTableView else {
+            return nil
+        }
+
+        return sourceTableView.delegate as? FileManagerPaneController
+    }
+
+    private func beginDroppedFileTransfer(_ urls: [URL],
+                                          to destinationDirectory: URL,
+                                          operation: NSDragOperation,
+                                          sourcePane: FileManagerPaneController?) {
+        let operationTitle = operation == .move ? "Moving..." : "Copying..."
+
+        Task { @MainActor [weak self, weak sourcePane] in
+            guard let self else { return }
+
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: operationTitle,
+                                                     parentWindow: self.view.window,
+                                                     deferredDisplay: true) { session in
+                    try self.transferDroppedFileURLs(urls,
+                                                     to: destinationDirectory,
+                                                     operation: operation,
+                                                     session: session)
+                }
+
+                self.refresh()
+                if operation == .move,
+                   let sourcePane,
+                   sourcePane !== self {
+                    sourcePane.refresh()
+                }
+            } catch {
+                self.showErrorAlert(error)
+            }
+        }
+    }
+
+    private func transferDroppedFileURLs(_ urls: [URL],
+                                         to destinationDirectory: URL,
+                                         operation: NSDragOperation,
+                                         session: SZOperationSession) throws {
+        let fileManager = FileManager.default
+        var skipAll = false
+        var overwriteAll = false
+
+        for (index, sourceURL) in urls.enumerated() {
+            if session.shouldCancel() {
+                return
+            }
+
+            let destinationFileURL = destinationDirectory
+                .appendingPathComponent(sourceURL.lastPathComponent)
+                .standardizedFileURL
+
+            if sourceURL == destinationFileURL {
+                continue
+            }
+
+            let fraction = Double(index) / Double(urls.count)
+            session.reportProgressFraction(fraction)
+            session.reportCurrentFileName(sourceURL.lastPathComponent)
+
+            if fileManager.fileExists(atPath: destinationFileURL.path) {
+                if skipAll { continue }
+                if !overwriteAll {
+                    let choice = session.requestChoice(with: .warning,
+                                                       title: "File already exists",
+                                                       message: overwritePromptMessage(sourceURL: sourceURL,
+                                                                                      destinationURL: destinationFileURL,
+                                                                                      fileManager: fileManager),
+                                                       buttonTitles: ["Replace", "Replace All", "Skip", "Skip All", "Cancel"])
+                    switch choice {
+                    case 0:
+                        break
+                    case 1:
+                        overwriteAll = true
+                    case 2:
+                        continue
+                    case 3:
+                        skipAll = true
+                        continue
+                    default:
+                        return
+                    }
+                }
+
+                try fileManager.removeItem(at: destinationFileURL)
+            }
+
+            if operation == .move {
+                try moveDroppedItemPreservingMetadata(from: sourceURL, to: destinationFileURL)
+            } else {
+                try copyDroppedItemPreservingMetadata(from: sourceURL, to: destinationFileURL)
+            }
+        }
+
+        session.reportProgressFraction(1.0)
+    }
+
+    private func overwritePromptMessage(sourceURL: URL,
+                                        destinationURL: URL,
+                                        fileManager: FileManager) -> String {
+        let sourceAttributes = try? fileManager.attributesOfItem(atPath: sourceURL.path)
+        let destinationAttributes = try? fileManager.attributesOfItem(atPath: destinationURL.path)
+        let sourceSize = (sourceAttributes?[.size] as? UInt64) ?? 0
+        let destinationSize = (destinationAttributes?[.size] as? UInt64) ?? 0
+        let sourceDate = sourceAttributes?[.modificationDate] as? Date
+        let destinationDate = destinationAttributes?[.modificationDate] as? Date
+        let dateFormatter = FileManagerViewPreferences.makeDateFormatter(dateStyle: .medium,
+                                                                         timeStyle: .medium)
+
+        return """
+        Destination: \(destinationURL.lastPathComponent)
+        Size: \(ByteCountFormatter.string(fromByteCount: Int64(destinationSize), countStyle: .file))  Modified: \(destinationDate.map { dateFormatter.string(from: $0) } ?? "—")
+
+        Source: \(sourceURL.lastPathComponent)
+        Size: \(ByteCountFormatter.string(fromByteCount: Int64(sourceSize), countStyle: .file))  Modified: \(sourceDate.map { dateFormatter.string(from: $0) } ?? "—")
+        """
+    }
+
+    private func moveDroppedItemPreservingMetadata(from sourceURL: URL,
+                                                   to destinationURL: URL) throws {
+        do {
+            try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+            return
+        } catch {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                throw error
+            }
+        }
+
+        try copyDroppedItemPreservingMetadata(from: sourceURL, to: destinationURL)
+        try FileManager.default.removeItem(at: sourceURL)
+    }
+
+    private func copyDroppedItemPreservingMetadata(from sourceURL: URL,
+                                                   to destinationURL: URL) throws {
+        let cloneResult = sourceURL.path.withCString { sourcePath in
+            destinationURL.path.withCString { destinationPath in
+                copyfile(sourcePath,
+                         destinationPath,
+                         nil,
+                         copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE))
+            }
+        }
+        if cloneResult == 0 {
+            return
+        }
+
+        let copyResult = sourceURL.path.withCString { sourcePath in
+            destinationURL.path.withCString { destinationPath in
+                copyfile(sourcePath,
+                         destinationPath,
+                         nil,
+                         copyfile_flags_t(COPYFILE_ALL))
+            }
+        }
+        if copyResult == 0 {
+            return
+        }
+
+        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
     }
 
     private func archivePromiseFileType(for item: ArchiveItem) -> String {

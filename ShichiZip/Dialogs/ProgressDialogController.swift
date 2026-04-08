@@ -18,6 +18,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     private var elapsedLabel: NSTextField!
     private var isWaitingForProgress = false
     private var lastMetricsUpdateTime: TimeInterval = 0
+    var showRequestHandler: (() -> Void)?
 
     var operationTitle: String = "Working..." {
         didSet {
@@ -155,6 +156,23 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             }
             return
         }
+
+        if let showRequestHandler {
+            showRequestHandler()
+            return
+        }
+
+        showWindowNowIfNeeded()
+    }
+
+    func showWindowNowIfNeeded() {
+        if !Thread.isMainThread {
+            DispatchQueue.main.sync {
+                self.showWindowNowIfNeeded()
+            }
+            return
+        }
+
         guard let window else { return }
         if !window.isVisible {
             window.center()
@@ -171,6 +189,18 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             }
             return
         }
+
+        hideWindowIfVisible()
+    }
+
+    func hideWindowIfVisible() {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async {
+                self.hideWindowIfVisible()
+            }
+            return
+        }
+
         window?.orderOut(nil)
     }
 

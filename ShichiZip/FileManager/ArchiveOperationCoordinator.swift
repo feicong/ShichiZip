@@ -28,6 +28,9 @@ final class ArchiveOperationCoordinator {
         self.showDeadline = deferredDisplay
             ? Date().addingTimeInterval(ProgressDialogController.deferredPresentationDelay)
             : nil
+        progressController.showRequestHandler = { [weak self] in
+            self?.showProgressIfNeeded()
+        }
 
         session.passwordRequestHandler = { [weak self] title, message, initialValue, passwordPointer in
             self?.prepareForPromptIfNeeded()
@@ -60,11 +63,8 @@ final class ArchiveOperationCoordinator {
         self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
 
-        if let parentWindow, let progressWindow = progressController.window {
-            parentWindow.beginSheet(progressWindow) { _ in }
-            isSheetVisible = true
-        } else if !deferredDisplay {
-            progressController.showNowIfNeeded()
+        if !deferredDisplay {
+            showProgressIfNeeded()
         }
 
         updateFromSession()
@@ -75,14 +75,7 @@ final class ArchiveOperationCoordinator {
         timer = nil
         updateFromSession()
 
-        if isSheetVisible,
-           let parentWindow,
-           let progressWindow = progressController.window {
-            parentWindow.endSheet(progressWindow)
-            isSheetVisible = false
-        } else {
-            progressController.hideIfVisible()
-        }
+        hideProgressIfVisible()
     }
 
     func requestChoice(style: SZOperationPromptStyle,
@@ -103,7 +96,7 @@ final class ArchiveOperationCoordinator {
         }
 
         if shouldShowProgress(for: snapshot) {
-            progressController.showNowIfNeeded()
+            showProgressIfNeeded()
         }
 
         if !snapshot.currentFileName.isEmpty {
@@ -119,9 +112,34 @@ final class ArchiveOperationCoordinator {
     }
 
     private func prepareForPromptIfNeeded() {
-        if deferredDisplay || (parentWindow == nil && !isSheetVisible) {
-            progressController.showNowIfNeeded()
+        showProgressIfNeeded()
+    }
+
+    private func showProgressIfNeeded() {
+        if isSheetVisible {
+            return
         }
+
+        if let parentWindow,
+           let progressWindow = progressController.window {
+            parentWindow.beginSheet(progressWindow) { _ in }
+            isSheetVisible = true
+            return
+        }
+
+        progressController.showWindowNowIfNeeded()
+    }
+
+    private func hideProgressIfVisible() {
+        if isSheetVisible,
+           let parentWindow,
+           let progressWindow = progressController.window {
+            parentWindow.endSheet(progressWindow)
+            isSheetVisible = false
+            return
+        }
+
+        progressController.hideWindowIfVisible()
     }
 
     private func shouldShowProgress(for snapshot: SZOperationSnapshot) -> Bool {
