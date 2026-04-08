@@ -105,6 +105,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     private static let listDateColumnFont = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize,
                                                                               weight: .regular)
+    private static let addressBarIconSize: CGFloat = 14
 
     private struct DirectoryEntryFingerprint: Equatable {
         let path: String
@@ -116,6 +117,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     weak var delegate: FileManagerPaneDelegate?
 
+    private var locationIconView: NSImageView!
     private var pathField: NSTextField!
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
@@ -195,16 +197,36 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         upButton.refusesFirstResponder = true
         container.addSubview(upButton)
 
+        locationIconView = NSImageView()
+        locationIconView.translatesAutoresizingMaskIntoConstraints = false
+        locationIconView.imageScaling = .scaleProportionallyDown
+        locationIconView.refusesFirstResponder = true
+        locationIconView.image = NSWorkspace.shared.icon(forFile: currentDirectory.path)
+        container.addSubview(locationIconView)
+
         pathField = NSTextField()
         pathField.translatesAutoresizingMaskIntoConstraints = false
-        pathField.font = .systemFont(ofSize: 12)
         pathField.usesSingleLineMode = true
         pathField.lineBreakMode = .byTruncatingHead
+        pathField.cell?.usesSingleLineMode = true
+        pathField.cell?.wraps = false
+        pathField.cell?.isScrollable = true
         pathField.stringValue = currentDirectory.path
         pathField.target = self
         pathField.action = #selector(pathFieldSubmitted(_:))
         pathField.delegate = self
         container.addSubview(pathField)
+
+        NSLayoutConstraint.activate([
+            locationIconView.leadingAnchor.constraint(equalTo: upButton.trailingAnchor, constant: 6),
+            locationIconView.centerYAnchor.constraint(equalTo: pathField.centerYAnchor),
+            locationIconView.widthAnchor.constraint(equalToConstant: Self.addressBarIconSize),
+            locationIconView.heightAnchor.constraint(equalToConstant: Self.addressBarIconSize),
+            pathField.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            pathField.leadingAnchor.constraint(equalTo: locationIconView.trailingAnchor, constant: 6),
+            pathField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+            pathField.heightAnchor.constraint(equalToConstant: 24),
+        ])
 
         let fileTableView = FileManagerTableView()
         fileTableView.contextMenuPreparationHandler = { [weak self] clickedRow in
@@ -307,11 +329,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             upButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
             upButton.widthAnchor.constraint(equalToConstant: 24),
             upButton.heightAnchor.constraint(equalToConstant: 24),
-
-            pathField.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            pathField.leadingAnchor.constraint(equalTo: upButton.trailingAnchor, constant: 2),
-            pathField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            pathField.heightAnchor.constraint(equalToConstant: 24),
 
             scrollView.topAnchor.constraint(equalTo: pathField.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -1830,6 +1847,25 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         } else {
             pathField.stringValue = currentDirectory.path
         }
+
+        updateLocationIcon()
+    }
+
+    private func updateLocationIcon() {
+        let image: NSImage?
+
+        if let level = archiveStack.last {
+            if level.currentSubdir.isEmpty {
+                image = NSWorkspace.shared.icon(forFile: level.archivePath)
+            } else {
+                image = NSImage(named: NSImage.folderName)
+                    ?? NSWorkspace.shared.icon(forFile: level.filesystemDirectory.path)
+            }
+        } else {
+            image = NSWorkspace.shared.icon(forFile: currentDirectory.path)
+        }
+
+        locationIconView.image = image
     }
 
     @objc private func doubleClickRow(_ sender: Any?) {
