@@ -799,7 +799,7 @@ extension FileManagerWindowController: NSToolbarDelegate {
         case Self.moveItem:
             item.label = "Move"
             item.toolTip = "Move files"
-            item.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: "Move")
+            item.image = NSImage(systemSymbolName: "arrow.right.circle", accessibilityDescription: "Move")
             item.target = self
             item.action = #selector(moveFiles(_:))
 
