@@ -107,7 +107,8 @@ final class FileManagerArchiveItemWorkflowService {
     private func stage(item: ArchiveItem,
                        context: FileManagerArchiveItemWorkflowContext,
                        temporaryDirectoryPrefix: String) throws -> StagedArchiveItem {
-        let temporaryDirectory = try createTemporaryDirectory(prefix: temporaryDirectoryPrefix)
+        let temporaryDirectory = try createTemporaryDirectory(prefix: temporaryDirectoryPrefix,
+                                      currentDirectory: context.hostDirectory)
 
         do {
             try context.archive.extractEntries([NSNumber(value: item.index)],
@@ -128,8 +129,12 @@ final class FileManagerArchiveItemWorkflowService {
         }
     }
 
-    private func createTemporaryDirectory(prefix: String) throws -> URL {
-        let tempDir = fileManager.temporaryDirectory
+    private func createTemporaryDirectory(prefix: String,
+                                          currentDirectory: URL) throws -> URL {
+        let workDir = SZSettings.resolvedWorkDir(currentDir: currentDirectory)
+        try fileManager.createDirectory(at: workDir, withIntermediateDirectories: true)
+
+        let tempDir = workDir
             .appendingPathComponent("\(prefix)\(UUID().uuidString)")
         try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
         register(tempDir)

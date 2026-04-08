@@ -30,7 +30,7 @@ struct SZSettings {
 
     private static func defaultBool(for key: SZSettingsKey) -> Bool {
         switch key {
-        case .showRealFileIcons:
+        case .showRealFileIcons, .workDirRemovableOnly:
             return true
         default:
             return false
@@ -82,15 +82,41 @@ struct SZSettings {
         return defaults.integer(forKey: SZSettingsKey.workDirMode.rawValue)
     }
 
-    /// Resolve the working directory based on settings
+    private static func useConfiguredWorkDir(for currentDir: URL?) -> Bool {
+        guard bool(.workDirRemovableOnly) else {
+            return true
+        }
+
+        guard let currentDir else {
+            return false
+        }
+
+        let keys: Set<URLResourceKey> = [.volumeIsRemovableKey, .volumeIsEjectableKey]
+        let values = try? currentDir.resourceValues(forKeys: keys)
+        return values?.volumeIsRemovable == true || values?.volumeIsEjectable == true
+    }
+
+    /// Resolve the working directory based on settings.
+    /// If "Use for removable drives only" is enabled, non-removable volumes fall back to the current folder.
     static func resolvedWorkDir(currentDir: URL? = nil) -> URL {
-        switch workDirMode {
-        case 1: return currentDir ?? FileManager.default.temporaryDirectory
+        let fallbackCurrentDir = currentDir ?? FileManager.default.temporaryDirectory
+        let effectiveMode: Int
+
+        if useConfiguredWorkDir(for: currentDir) {
+            effectiveMode = workDirMode
+        } else {
+            effectiveMode = 1
+        }
+
+        switch effectiveMode {
+        case 1:
+            return fallbackCurrentDir
         case 2:
             let path = string(.workDirPath)
             if !path.isEmpty { return URL(fileURLWithPath: path) }
             return FileManager.default.temporaryDirectory
-        default: return FileManager.default.temporaryDirectory
+        default:
+            return FileManager.default.temporaryDirectory
         }
     }
 }
