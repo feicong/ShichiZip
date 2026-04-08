@@ -93,6 +93,9 @@ private final class FileManagerTableView: NSTableView {
 /// Single pane of the file manager — displays file system contents
 class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSTextFieldDelegate, NSMenuItemValidation {
 
+    private static let listDateColumnFont = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize,
+                                                                              weight: .regular)
+
     private struct DirectoryEntryFingerprint: Equatable {
         let path: String
         let isDirectory: Bool
@@ -1916,9 +1919,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         case "modified":
             cell.textField?.stringValue = itemModified
+            cell.textField?.font = Self.listDateColumnFont
 
         case "created":
             cell.textField?.stringValue = itemCreated
+            cell.textField?.font = Self.listDateColumnFont
 
         default:
             break
