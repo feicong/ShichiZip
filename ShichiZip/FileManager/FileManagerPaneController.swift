@@ -580,14 +580,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return selectedItems.isEmpty ? archiveDisplayItems : selectedItems
     }
 
-    private func normalizeArchivePath(_ path: String) -> String {
-        var normalized = path
-        while normalized.hasSuffix("/") {
-            normalized.removeLast()
-        }
-        return normalized
-    }
-
     private func currentArchiveDisplayPathPrefix() -> String {
         archiveStack.last?.displayPathPrefix ?? currentDirectory.path
     }
@@ -679,45 +671,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return true
     }
 
-    private func makeArchiveExtractionSettings(overwriteMode: SZOverwriteMode,
-                                               pathMode: SZPathMode) -> SZExtractionSettings {
-        let settings = SZExtractionSettings()
-        settings.overwriteMode = overwriteMode
-        settings.pathMode = pathMode
-        if pathMode == .currentPaths,
-           let level = archiveStack.last,
-           !level.currentSubdir.isEmpty {
-            settings.pathPrefixToStrip = level.currentSubdir
-        }
-        return settings
-    }
-
-    private func archiveEntryIndices(for selectedItems: [ArchiveItem]) -> [NSNumber] {
-        guard let level = archiveStack.last else { return [] }
-
-        var indices = Set<Int>()
-
-        for item in selectedItems {
-            if item.index >= 0 {
-                indices.insert(item.index)
-            }
-
-            if item.isDirectory || item.index < 0 {
-                let directoryPath = normalizeArchivePath(item.path)
-                let prefix = directoryPath.isEmpty ? "" : directoryPath + "/"
-
-                for entry in level.allEntries where entry.index >= 0 {
-                    let entryPath = normalizeArchivePath(entry.path)
-                    if entryPath == directoryPath || (!prefix.isEmpty && entryPath.hasPrefix(prefix)) {
-                        indices.insert(entry.index)
-                    }
-                }
-            }
-        }
-
-        return indices.sorted().map { NSNumber(value: $0) }
-    }
-
     private func extractArchiveItems(_ itemsToExtract: [ArchiveItem],
                                      to destinationURL: URL,
                                      progress: SZProgressDelegate?,
@@ -728,12 +681,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             throw paneOperationError("No archive is open.")
         }
 
-        let indices = archiveEntryIndices(for: itemsToExtract)
+        let indices = FileManagerArchiveExtractionService.archiveEntryIndices(for: itemsToExtract,
+                                                                             in: level.allEntries)
         guard !indices.isEmpty else {
             throw paneOperationError("The selected archive items cannot be extracted.")
         }
 
-        let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode, pathMode: pathMode)
+        let settings = FileManagerArchiveExtractionService.extractionSettings(overwriteMode: overwriteMode,
+                                                                             pathMode: pathMode,
+                                                                             currentSubdir: level.currentSubdir)
         if let session {
             try level.archive.extractEntries(indices,
                                              toPath: destinationURL.path,
@@ -769,81 +725,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     private func sortCurrentItems(by descriptors: [NSSortDescriptor]) {
         if isInsideArchive {
-            sortArchiveItems(by: descriptors)
+            FileManagerItemSorter.sort(&archiveDisplayItems, by: descriptors)
         } else {
-            sortFileSystemItems(by: descriptors)
-        }
-    }
-
-    private func sortFileSystemItems(by descriptors: [NSSortDescriptor]) {
-        guard let descriptor = descriptors.first else {
-            items.sort { a, b in
-                if a.isDirectory != b.isDirectory { return a.isDirectory }
-                return a.name.localizedStandardCompare(b.name) == .orderedAscending
-            }
-            return
-        }
-
-        let key = descriptor.key ?? "name"
-        let ascending = descriptor.ascending
-
-        items.sort { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-
-            let result: ComparisonResult
-            switch key {
-            case "name":
-                result = a.name.localizedStandardCompare(b.name)
-            case "size":
-                result = a.size == b.size ? .orderedSame : (a.size < b.size ? .orderedAscending : .orderedDescending)
-            case "modified":
-                let ad = a.modifiedDate ?? Date.distantPast
-                let bd = b.modifiedDate ?? Date.distantPast
-                result = ad.compare(bd)
-            case "created":
-                let ad = a.createdDate ?? Date.distantPast
-                let bd = b.createdDate ?? Date.distantPast
-                result = ad.compare(bd)
-            default:
-                result = a.name.localizedStandardCompare(b.name)
-            }
-            return ascending ? result == .orderedAscending : result == .orderedDescending
-        }
-    }
-
-    private func sortArchiveItems(by descriptors: [NSSortDescriptor]) {
-        guard let descriptor = descriptors.first else {
-            archiveDisplayItems.sort { a, b in
-                if a.isDirectory != b.isDirectory { return a.isDirectory }
-                return a.name.localizedStandardCompare(b.name) == .orderedAscending
-            }
-            return
-        }
-
-        let key = descriptor.key ?? "name"
-        let ascending = descriptor.ascending
-
-        archiveDisplayItems.sort { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-
-            let result: ComparisonResult
-            switch key {
-            case "name":
-                result = a.name.localizedStandardCompare(b.name)
-            case "size":
-                result = a.size == b.size ? .orderedSame : (a.size < b.size ? .orderedAscending : .orderedDescending)
-            case "modified":
-                let ad = a.modifiedDate ?? Date.distantPast
-                let bd = b.modifiedDate ?? Date.distantPast
-                result = ad.compare(bd)
-            case "created":
-                let ad = a.createdDate ?? Date.distantPast
-                let bd = b.createdDate ?? Date.distantPast
-                result = ad.compare(bd)
-            default:
-                result = a.name.localizedStandardCompare(b.name)
-            }
-            return ascending ? result == .orderedAscending : result == .orderedDescending
+            FileManagerItemSorter.sort(&items, by: descriptors)
         }
     }
 
@@ -946,7 +830,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard let level = archiveStack.last, item.index >= 0 else { return }
         do {
             let tempDir = try createTemporaryDirectory(prefix: "7zO")
-            let settings = makeArchiveExtractionSettings(overwriteMode: .overwrite, pathMode: .fullPaths)
+            let settings = FileManagerArchiveExtractionService.extractionSettings(overwriteMode: .overwrite,
+                                                                                 pathMode: .fullPaths,
+                                                                                 currentSubdir: level.currentSubdir)
             try level.archive.extractEntries([NSNumber(value: item.index)],
                                              toPath: tempDir.path,
                                              settings: settings,
@@ -1181,7 +1067,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             guard let level = archiveStack.last else { return nil }
             do {
                 let tempDir = try createTemporaryDirectory(prefix: "ShichiZip-drag-")
-                let settings = makeArchiveExtractionSettings(overwriteMode: .overwrite, pathMode: .fullPaths)
+                let settings = FileManagerArchiveExtractionService.extractionSettings(overwriteMode: .overwrite,
+                                                                                     pathMode: .fullPaths,
+                                                                                     currentSubdir: level.currentSubdir)
                 try level.archive.extractEntries([NSNumber(value: ai.index)],
                                                  toPath: tempDir.path,
                                                  settings: settings,
