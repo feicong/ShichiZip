@@ -93,28 +93,48 @@ final class FileManagerArchiveItemWorkflowService {
 
     func writePromise(for item: ArchiveItem,
                       context: FileManagerArchiveItemWorkflowContext,
-                      to destinationURL: URL) throws {
+                      to destinationURL: URL,
+                      session: SZOperationSession?) throws {
+        let standardizedDestinationURL = destinationURL.standardizedFileURL
+
+        if try extractPromiseDirectlyIfPossible(for: item,
+                                               context: context,
+                                               to: standardizedDestinationURL,
+                                               session: session) {
+            return
+        }
+
         let stagedItem = try stage(item: item,
                                    context: context,
-                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.dragPrefix)
+                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.dragPrefix,
+                                   session: session)
         defer {
             cleanup(stagedItem.temporaryDirectory)
         }
 
         try moveItemPreservingMetadata(from: stagedItem.fileURL,
-                                       to: destinationURL.standardizedFileURL)
+                                       to: standardizedDestinationURL)
     }
 
     private func stage(item: ArchiveItem,
                        context: FileManagerArchiveItemWorkflowContext,
-                       temporaryDirectoryPrefix: String) throws -> StagedArchiveItem {
+                       temporaryDirectoryPrefix: String,
+                       session: SZOperationSession? = nil) throws -> StagedArchiveItem {
         let temporaryDirectory = try createTemporaryDirectory(prefix: temporaryDirectoryPrefix)
 
         do {
-            try context.archive.extractEntries([NSNumber(value: item.index)],
-                                              toPath: temporaryDirectory.path,
-                                              settings: stagingExtractionSettings(),
-                                              progress: nil)
+            let settings = stagingExtractionSettings()
+            if let session {
+                try context.archive.extractEntries([NSNumber(value: item.index)],
+                                                  toPath: temporaryDirectory.path,
+                                                  settings: settings,
+                                                  session: session)
+            } else {
+                try context.archive.extractEntries([NSNumber(value: item.index)],
+                                                  toPath: temporaryDirectory.path,
+                                                  settings: settings,
+                                                  progress: nil)
+            }
 
             let fileURL = temporaryDirectory.appendingPathComponent(item.path)
             guard fileManager.fileExists(atPath: fileURL.path) else {
@@ -125,6 +145,53 @@ final class FileManagerArchiveItemWorkflowService {
                                      fileURL: fileURL)
         } catch {
             cleanup(temporaryDirectory)
+            throw error
+        }
+    }
+
+    private func extractPromiseDirectlyIfPossible(for item: ArchiveItem,
+                                                  context: FileManagerArchiveItemWorkflowContext,
+                                                  to destinationURL: URL,
+                                                  session: SZOperationSession?) throws -> Bool {
+        let destinationDirectory = destinationURL.deletingLastPathComponent()
+        let extractedURL = destinationDirectory.appendingPathComponent(item.name, isDirectory: false)
+        let standardizedExtractedURL = extractedURL.standardizedFileURL
+
+        if standardizedExtractedURL != destinationURL,
+           fileManager.fileExists(atPath: standardizedExtractedURL.path) {
+            return false
+        }
+
+        let settings = directPromiseExtractionSettings()
+
+        do {
+            if let session {
+                try context.archive.extractEntries([NSNumber(value: item.index)],
+                                                  toPath: destinationDirectory.path,
+                                                  settings: settings,
+                                                  session: session)
+            } else {
+                try context.archive.extractEntries([NSNumber(value: item.index)],
+                                                  toPath: destinationDirectory.path,
+                                                  settings: settings,
+                                                  progress: nil)
+            }
+
+            guard fileManager.fileExists(atPath: standardizedExtractedURL.path) else {
+                throw extractionPreparationError()
+            }
+
+            if standardizedExtractedURL != destinationURL {
+                try moveItemPreservingMetadata(from: standardizedExtractedURL,
+                                               to: destinationURL)
+            }
+
+            return true
+        } catch {
+            if standardizedExtractedURL != destinationURL,
+               fileManager.fileExists(atPath: standardizedExtractedURL.path) {
+                try? fileManager.removeItem(at: standardizedExtractedURL)
+            }
             throw error
         }
     }
@@ -158,6 +225,13 @@ final class FileManagerArchiveItemWorkflowService {
         let settings = SZExtractionSettings()
         settings.overwriteMode = .overwrite
         settings.pathMode = .fullPaths
+        return settings
+    }
+
+    private func directPromiseExtractionSettings() -> SZExtractionSettings {
+        let settings = SZExtractionSettings()
+        settings.overwriteMode = .overwrite
+        settings.pathMode = .noPaths
         return settings
     }
 

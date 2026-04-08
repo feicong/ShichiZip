@@ -29,13 +29,34 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider,
                              writePromiseTo url: URL,
                              completionHandler: @escaping (Error?) -> Void) {
-        do {
-            try workflowService.writePromise(for: item,
-                                             context: context,
-                                             to: url)
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: Result<Void, Error>?
+
+        Task { @MainActor in
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                     initialFileName: self.item.path,
+                                                     deferredDisplay: true) { session in
+                    try self.workflowService.writePromise(for: self.item,
+                                                         context: self.context,
+                                                         to: url,
+                                                         session: session)
+                }
+                result = .success(())
+            } catch {
+                result = .failure(error)
+            }
+            semaphore.signal()
+        }
+
+        semaphore.wait()
+        switch result {
+        case .success?:
             completionHandler(nil)
-        } catch {
+        case let .failure(error)?:
             completionHandler(error)
+        case nil:
+            completionHandler(nil)
         }
     }
 
