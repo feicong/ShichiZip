@@ -11,15 +11,18 @@ NSString * const SZArchiveErrorDomain = @"SZArchiveErrorDomain";
 // Codec manager singleton
 // ============================================================
 
-static CCodecs *g_Codecs = nullptr;
-static bool g_CodecsInitialized = false;
-
 CCodecs *SZGetCodecs() {
-    if (!g_CodecsInitialized) {
+    static CCodecs *codecs = []() -> CCodecs * {
         CrcGenerateTable();
-        g_Codecs = new CCodecs;
-        if (g_Codecs->Load() != S_OK) { delete g_Codecs; g_Codecs = nullptr; }
-        g_CodecsInitialized = true;
-    }
-    return g_Codecs;
+
+        CCodecs *loadedCodecs = new CCodecs;
+        if (loadedCodecs->Load() != S_OK) {
+            delete loadedCodecs;
+            return nullptr;
+        }
+
+        return loadedCodecs;
+    }();
+
+    return codecs;
 }

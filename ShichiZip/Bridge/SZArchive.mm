@@ -14,6 +14,7 @@
 #include "CPP/7zip/UI/Common/Bench.h"
 #include "CPP/7zip/UI/Common/HashCalc.h"
 #include "CPP/Common/Wildcard.h"
+#include "CPP/Windows/ErrorMsg.h"
 #include "7zVersion.h"
 
 #include <atomic>
@@ -638,7 +639,14 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     class HashCB : public IHashCallbackUI {
     public:
         NSMutableDictionary *results;
-        HashCB() { results = [NSMutableDictionary dictionary]; }
+        UString failureDescription;
+        UString failureReason;
+        HRESULT failureResult;
+
+        HashCB(): results([NSMutableDictionary dictionary]), failureResult(S_OK) {}
+
+        bool HasFailure() const { return failureResult != S_OK; }
+
         HRESULT StartScanning() override { return S_OK; }
         HRESULT FinishScanning(const CDirItemsStat &) override { return S_OK; }
         HRESULT SetNumFiles(UInt64) override { return S_OK; }
@@ -647,7 +655,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         HRESULT CheckBreak() override { return S_OK; }
         HRESULT BeforeFirstFile(const CHashBundle &) override { return S_OK; }
         HRESULT GetStream(const wchar_t *, bool) override { return S_OK; }
-        HRESULT OpenFileError(const FString &, DWORD) override { return S_OK; }
+        HRESULT OpenFileError(const FString &path, DWORD errorCode) override {
+            RecordFailure(L"Unable to open file for hashing.", path, errorCode);
+            return S_FALSE;
+        }
         HRESULT SetOperationResult(UInt64, const CHashBundle &hb, bool) override {
             for (unsigned i = 0; i < hb.Hashers.Size(); i++) {
                 const CHasherState &h = hb.Hashers[i];
@@ -658,14 +669,49 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
             return S_OK;
         }
         HRESULT AfterLastFile(CHashBundle &) override { return S_OK; }
-        HRESULT ScanError(const FString &, DWORD) override { return S_OK; }
+        HRESULT ScanError(const FString &path, DWORD errorCode) override {
+            RecordFailure(L"Unable to scan file for hashing.", path, errorCode);
+            return S_FALSE;
+        }
         HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override { return S_OK; }
+
+    private:
+        void RecordFailure(const wchar_t *description, const FString &path, DWORD errorCode) {
+            if (HasFailure()) {
+                return;
+            }
+
+            failureDescription = description;
+            failureReason = fs2us(path);
+
+            const UString systemMessage = NWindows::NError::MyFormatMessage(errorCode);
+            if (!failureReason.IsEmpty() && !systemMessage.IsEmpty()) {
+                failureReason += L"\n\n";
+            }
+            failureReason += systemMessage;
+            failureResult = (errorCode == 0) ? E_FAIL : HRESULT_FROM_WIN32(errorCode);
+        }
     };
 
     HashCB cb;
     AString errorInfo;
     HRESULT r = HashCalc(EXTERNAL_CODECS_LOC_VARS censor, options, errorInfo, &cb);
-    if (r != S_OK) { if (error) *error = SZMakeError(r, @"Hash calculation failed"); return nil; }
+
+    if (cb.HasFailure()) {
+        if (error) {
+            NSString *description = cb.failureDescription.IsEmpty() ? @"Hash calculation failed" : ToNS(cb.failureDescription);
+            NSString *reason = cb.failureReason.IsEmpty() ? nil : ToNS(cb.failureReason);
+            *error = SZMakeDetailedError(cb.failureResult, description, reason);
+        }
+        return nil;
+    }
+
+    if (r != S_OK) {
+        NSString *reason = errorInfo.IsEmpty() ? nil : [NSString stringWithUTF8String:errorInfo.Ptr()];
+        if (error) *error = SZMakeDetailedError(r, @"Hash calculation failed", reason);
+        return nil;
+    }
+
     return cb.results;
 }
 

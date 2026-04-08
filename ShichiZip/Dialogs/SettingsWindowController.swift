@@ -11,11 +11,9 @@ enum SZSettingsKey: String {
     case showDots = "ShowDots"
     case showRealFileIcons = "ShowRealFileIcons"
     case showHiddenFiles = "ShowHiddenFiles"
-    case fullRowSelect = "FullRow"
     case showGridLines = "ShowGrid"
     case singleClickOpen = "SingleClick"
     case quitAfterLastWindowClosed = "QuitAfterLastWindowClosed"
-    case alternativeSelection = "AlternativeSelection"
     case memLimitEnabled = "MemLimitEnabled"
     case memLimitGB = "MemLimitGB"
 
