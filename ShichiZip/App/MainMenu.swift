@@ -251,6 +251,19 @@ enum MainMenu {
         let editMenu = NSMenu(title: "Edit")
         addTopLevelMenu(editMenu, to: mainMenu)
         addItem(to: editMenu,
+                title: "Cut",
+                action: #selector(NSText.cut(_:)),
+                keyEquivalent: "x")
+        addItem(to: editMenu,
+                title: "Copy",
+                action: #selector(NSText.copy(_:)),
+                keyEquivalent: "c")
+        addItem(to: editMenu,
+                title: "Paste",
+                action: #selector(NSText.paste(_:)),
+                keyEquivalent: "v")
+        editMenu.addItem(.separator())
+        addItem(to: editMenu,
                 title: "Select All",
                 action: #selector(FileManagerWindowController.selectAllItems(_:)),
                 keyEquivalent: "a")

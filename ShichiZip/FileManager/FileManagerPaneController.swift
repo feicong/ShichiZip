@@ -1,6 +1,49 @@
 import Cocoa
 import UniformTypeIdentifiers
 
+private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate {
+    private let item: ArchiveItem
+    private let context: FileManagerArchiveItemWorkflowContext
+    private let workflowService: FileManagerArchiveItemWorkflowService
+    private let promiseQueue: OperationQueue
+
+    init(item: ArchiveItem,
+         context: FileManagerArchiveItemWorkflowContext,
+         workflowService: FileManagerArchiveItemWorkflowService) {
+        self.item = item
+        self.context = context
+        self.workflowService = workflowService
+
+        let queue = OperationQueue()
+        queue.name = "shichizip.archive-drag-promise"
+        queue.qualityOfService = .userInitiated
+        queue.maxConcurrentOperationCount = 1
+        self.promiseQueue = queue
+    }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider,
+                             fileNameForType fileType: String) -> String {
+        item.name
+    }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider,
+                             writePromiseTo url: URL,
+                             completionHandler: @escaping (Error?) -> Void) {
+        do {
+            try workflowService.writePromise(for: item,
+                                             context: context,
+                                             to: url)
+            completionHandler(nil)
+        } catch {
+            completionHandler(error)
+        }
+    }
+
+    func operationQueue(for filePromiseProvider: NSFilePromiseProvider) -> OperationQueue {
+        promiseQueue
+    }
+}
+
 private final class FileManagerTableView: NSTableView {
     override func canDragRows(with rowIndexes: IndexSet, at mouseDownPoint: NSPoint) -> Bool {
         let clickedColumn = column(at: mouseDownPoint)
@@ -161,7 +204,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         NSLog("[ShichiZip] File manager pane context menu set with %ld items", tableView.menu?.items.count ?? 0)
 
         // Register for drag and drop
-        tableView.registerForDraggedTypes([.fileURL])
+        let promisedFileTypes = NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+        tableView.registerForDraggedTypes([.fileURL] + promisedFileTypes)
         tableView.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
 
@@ -519,6 +563,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     func openRecentDirectory(_ url: URL) {
+        if isInsideArchive {
+            closeAllArchives()
+        }
         loadDirectory(url)
     }
 
@@ -1517,11 +1564,17 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         case let .archive(ai):
             guard let context = currentArchiveItemWorkflowContext(),
-                  let extractedFile = archiveItemWorkflowService.dragURL(for: ai, context: context) else {
+                  !ai.isDirectory else {
                 return nil
             }
 
-            return extractedFile as NSURL
+            let promise = ArchiveDragPromise(item: ai,
+                                             context: context,
+                                             workflowService: archiveItemWorkflowService)
+            let provider = NSFilePromiseProvider(fileType: archivePromiseFileType(for: ai),
+                                                 delegate: promise)
+            provider.userInfo = promise
+            return provider
 
         case let .filesystem(item):
             return item.url as NSURL
@@ -1535,14 +1588,27 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         // Accept drops onto the table (not between rows)
         if dropOperation == .on { return [] }
         tableView.setDropRow(-1, dropOperation: .on) // highlight whole table
+
+        if pasteboardContainsFilePromises(info.draggingPasteboard) {
+            return .copy
+        }
+
         return info.draggingSourceOperationMask.contains(.move) ? .move : .copy
     }
 
     func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
         if isInsideArchive { return false }
-        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty else { return false }
 
         let destDir = currentDirectory
+
+        if let promiseReceivers = info.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
+           !promiseReceivers.isEmpty {
+            receivePromisedFiles(promiseReceivers, at: destDir)
+            return true
+        }
+
+        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty else { return false }
+
         let isMove = info.draggingSourceOperationMask.contains(.move)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1580,6 +1646,52 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             DispatchQueue.main.async { self?.refresh() }
         }
         return true
+    }
+
+    private func archivePromiseFileType(for item: ArchiveItem) -> String {
+        guard !item.fileExtension.isEmpty,
+              let fileType = UTType(filenameExtension: item.fileExtension) else {
+            return UTType.data.identifier
+        }
+        return fileType.identifier
+    }
+
+    private func pasteboardContainsFilePromises(_ pasteboard: NSPasteboard) -> Bool {
+        let promisedTypes = Set(NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
+        return pasteboard.types?.contains(where: promisedTypes.contains) ?? false
+    }
+
+    private func receivePromisedFiles(_ promiseReceivers: [NSFilePromiseReceiver],
+                                      at destinationDirectory: URL) {
+        let operationQueue = OperationQueue()
+        operationQueue.qualityOfService = .userInitiated
+
+        let completionGroup = DispatchGroup()
+        let errorLock = NSLock()
+        var firstError: Error?
+
+        for promiseReceiver in promiseReceivers {
+            completionGroup.enter()
+            promiseReceiver.receivePromisedFiles(atDestination: destinationDirectory,
+                                                 options: [:],
+                                                 operationQueue: operationQueue) { _, error in
+                if let error {
+                    errorLock.lock()
+                    if firstError == nil {
+                        firstError = error
+                    }
+                    errorLock.unlock()
+                }
+                completionGroup.leave()
+            }
+        }
+
+        completionGroup.notify(queue: .main) { [weak self] in
+            self?.refresh()
+            if let firstError {
+                self?.showErrorAlert(firstError)
+            }
+        }
     }
 
     // MARK: - Sorting (matches PanelSort.cpp: folders first, natural sort for names)

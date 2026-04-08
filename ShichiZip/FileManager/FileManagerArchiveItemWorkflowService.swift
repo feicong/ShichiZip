@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 struct FileManagerArchiveItemWorkflowContext {
@@ -13,6 +14,7 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private let fileManager: FileManager
+    private let temporaryDirectoriesLock = NSLock()
     private var temporaryDirectories: Set<URL> = []
 
     init(fileManager: FileManager = .default) {
@@ -20,20 +22,18 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     func register(_ url: URL) {
-        temporaryDirectories.insert(url)
+        rememberTemporaryDirectory(url)
     }
 
     func cleanup(_ url: URL?) {
         guard let url else { return }
-        temporaryDirectories.remove(url)
-        try? fileManager.removeItem(at: url)
+        _ = cleanupIfPossible(url)
     }
 
     func cleanupAll() {
-        for url in temporaryDirectories {
-            try? fileManager.removeItem(at: url)
+        for url in trackedTemporaryDirectories() {
+            _ = cleanupIfPossible(url)
         }
-        temporaryDirectories.removeAll()
     }
 
     func open(_ item: ArchiveItem,
@@ -91,17 +91,18 @@ final class FileManagerArchiveItemWorkflowService {
         }
     }
 
-    func dragURL(for item: ArchiveItem,
-                 context: FileManagerArchiveItemWorkflowContext) -> URL? {
-        guard !item.isDirectory, item.index >= 0 else { return nil }
-
-        do {
-            return try stage(item: item,
-                             context: context,
-                             temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.dragPrefix).fileURL
-        } catch {
-            return nil
+    func writePromise(for item: ArchiveItem,
+                      context: FileManagerArchiveItemWorkflowContext,
+                      to destinationURL: URL) throws {
+        let stagedItem = try stage(item: item,
+                                   context: context,
+                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.dragPrefix)
+        defer {
+            cleanup(stagedItem.temporaryDirectory)
         }
+
+        try moveItemPreservingMetadata(from: stagedItem.fileURL,
+                                       to: destinationURL.standardizedFileURL)
     }
 
     private func stage(item: ArchiveItem,
@@ -131,8 +132,26 @@ final class FileManagerArchiveItemWorkflowService {
     private func createTemporaryDirectory(prefix: String) throws -> URL {
         let tempDir = try FileManagerTemporaryDirectorySupport.makeTemporaryDirectory(prefix: prefix,
                                                                                       fileManager: fileManager)
-        register(tempDir)
+        rememberTemporaryDirectory(tempDir)
         return tempDir
+    }
+
+    @discardableResult
+    private func cleanupIfPossible(_ url: URL) -> Bool {
+        let standardizedURL = url.standardizedFileURL
+
+        if !fileManager.fileExists(atPath: standardizedURL.path) {
+            forgetTemporaryDirectory(standardizedURL)
+            return true
+        }
+
+        do {
+            try fileManager.removeItem(at: standardizedURL)
+            forgetTemporaryDirectory(standardizedURL)
+            return true
+        } catch {
+            return false
+        }
     }
 
     private func stagingExtractionSettings() -> SZExtractionSettings {
@@ -157,5 +176,72 @@ final class FileManagerArchiveItemWorkflowService {
         NSError(domain: SZArchiveErrorDomain,
                 code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "No application is available to open \"\(itemName)\"."])
+    }
+
+    private func rememberTemporaryDirectory(_ url: URL) {
+        temporaryDirectoriesLock.lock()
+        temporaryDirectories.insert(url.standardizedFileURL)
+        temporaryDirectoriesLock.unlock()
+    }
+
+    private func forgetTemporaryDirectory(_ url: URL) {
+        temporaryDirectoriesLock.lock()
+        temporaryDirectories.remove(url.standardizedFileURL)
+        temporaryDirectories.remove(url)
+        temporaryDirectoriesLock.unlock()
+    }
+
+    private func trackedTemporaryDirectories() -> [URL] {
+        temporaryDirectoriesLock.lock()
+        let urls = Array(temporaryDirectories)
+        temporaryDirectoriesLock.unlock()
+        return urls
+    }
+
+    private func moveItemPreservingMetadata(from sourceURL: URL,
+                                            to destinationURL: URL) throws {
+        do {
+            try fileManager.moveItem(at: sourceURL, to: destinationURL)
+            return
+        } catch {
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                throw error
+            }
+        }
+
+        try copyItemPreservingMetadata(from: sourceURL, to: destinationURL)
+        try fileManager.removeItem(at: sourceURL)
+    }
+
+    private func copyItemPreservingMetadata(from sourceURL: URL,
+                                            to destinationURL: URL) throws {
+        let cloneResult = sourceURL.path.withCString { sourcePath in
+            destinationURL.path.withCString { destinationPath in
+                copyfile(sourcePath,
+                         destinationPath,
+                         nil,
+                         copyfile_flags_t(COPYFILE_ALL | COPYFILE_CLONE_FORCE))
+            }
+        }
+        if cloneResult == 0 {
+            return
+        }
+
+        let copyResult = sourceURL.path.withCString { sourcePath in
+            destinationURL.path.withCString { destinationPath in
+                copyfile(sourcePath,
+                         destinationPath,
+                         nil,
+                         copyfile_flags_t(COPYFILE_ALL))
+            }
+        }
+        if copyResult == 0 {
+            return
+        }
+
+        let errorCode = errno
+        throw NSError(domain: NSPOSIXErrorDomain,
+                      code: Int(errorCode),
+                      userInfo: [NSLocalizedDescriptionKey: "The promised file could not be written."])
     }
 }

@@ -586,7 +586,29 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.refresh()
     }
 
+    private func firstResponderSupportsTextEditingAction(_ action: Selector) -> Bool {
+        guard let firstResponder = window?.firstResponder as? NSResponder,
+              firstResponder is NSTextView else {
+            return false
+        }
+
+        return firstResponder.responds(to: action)
+    }
+
+    @discardableResult
+    private func dispatchTextEditingActionIfPossible(_ action: Selector,
+                                                     sender: Any?) -> Bool {
+        guard firstResponderSupportsTextEditingAction(action) else {
+            return false
+        }
+
+        return NSApp.sendAction(action, to: nil, from: sender)
+    }
+
     @objc func selectAllItems(_ sender: Any?) {
+        if dispatchTextEditingActionIfPossible(#selector(NSText.selectAll(_:)), sender: sender) {
+            return
+        }
         activePane.selectAllItems()
     }
 
@@ -924,7 +946,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             return activePane.canShowSelectedItemProperties()
         case #selector(goUpOneLevel(_:)):
             return activePane.canGoUp()
-        case #selector(selectAllItems(_:)), #selector(invertSelection(_:)):
+        case #selector(selectAllItems(_:)):
+            return firstResponderSupportsTextEditingAction(#selector(NSText.selectAll(_:))) ||
+                activePane.canSelectVisibleItems()
+        case #selector(invertSelection(_:)):
             return activePane.canSelectVisibleItems()
         case #selector(deselectAllItems(_:)):
             return activePane.canDeselectSelection()
