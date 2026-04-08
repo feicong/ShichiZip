@@ -726,42 +726,51 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let activePane = self.activePane
         guard activePane.canExtractSelectionOrArchive() else { return }
 
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.prompt = "Extract"
+        guard let extractResult = promptForArchiveDestination(from: activePane) else { return }
 
-        panel.beginSheetModal(for: window!) { [weak self] response in
-            guard response == .OK, let destURL = panel.url else { return }
-
-            Task { @MainActor [weak self] in
-                guard let self, let parentWindow = self.window else { return }
-                do {
-                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
-                                                         parentWindow: parentWindow) { session in
-                        if activePane.isVirtualLocation {
-                            try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: destURL,
-                                                                                          session: session,
-                                                                                          overwriteMode: .ask)
-                        } else {
-                            guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
-                                throw NSError(domain: SZArchiveErrorDomain,
-                                              code: -1,
-                                              userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
-                            }
-                            let archive = SZArchive()
-                            try archive.open(atPath: archiveURL.path, session: session)
-                            let settings = SZExtractionSettings()
-                            try archive.extract(toPath: destURL.path, settings: settings,
-                                                session: session)
-                            archive.close()
+        Task { @MainActor [weak self] in
+            guard let self, let parentWindow = self.window else { return }
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                     parentWindow: parentWindow) { session in
+                    if activePane.isVirtualLocation {
+                        try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: extractResult.destinationURL,
+                                                                                      session: session,
+                                                                                      overwriteMode: extractResult.overwriteMode,
+                                                                                      pathMode: extractResult.pathMode,
+                                                                                      password: extractResult.password,
+                                                                                      preserveNtSecurityInfo: extractResult.preserveNtSecurityInfo,
+                                                                                      eliminateDuplicates: extractResult.eliminateDuplicates)
+                    } else {
+                        guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
+                            throw NSError(domain: SZArchiveErrorDomain,
+                                          code: -1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
                         }
+                        let archive = SZArchive()
+                        try archive.open(atPath: archiveURL.path,
+                                         password: extractResult.password,
+                                         session: session)
+                        let archiveItems = archive.entries().map(ArchiveItem.init)
+                        let settings = SZExtractionSettings()
+                        settings.overwriteMode = extractResult.overwriteMode
+                        settings.pathMode = extractResult.pathMode
+                        settings.password = extractResult.password
+                        settings.preserveNtSecurityInfo = extractResult.preserveNtSecurityInfo
+                        settings.pathPrefixToStrip = self.archiveExtractionPathPrefixToStrip(for: archiveItems,
+                                                                                             destinationURL: extractResult.destinationURL,
+                                                                                             pathMode: extractResult.pathMode,
+                                                                                             eliminateDuplicates: extractResult.eliminateDuplicates)
+                        try archive.extract(toPath: extractResult.destinationURL.path,
+                                            settings: settings,
+                                            session: session)
+                        archive.close()
                     }
-                    NSWorkspace.shared.open(destURL)
-                } catch {
-                    self.showErrorAlert(error)
                 }
+                self.refreshPaneDisplayingDirectory(extractResult.destinationURL)
+                NSWorkspace.shared.open(extractResult.destinationURL)
+            } catch {
+                self.showErrorAlert(error)
             }
         }
     }
@@ -1366,6 +1375,49 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
 
         return sourcePane.currentDirectoryURL.standardizedFileURL
+    }
+
+    private func promptForArchiveDestination(from sourcePane: FileManagerPaneController) -> ExtractDialogResult? {
+        let dialog = ExtractDialogController(suggestedDestinationURL: sourcePane.currentDirectoryURL,
+                                             baseDirectory: sourcePane.currentDirectoryURL,
+                                             message: extractDialogInfoText(for: sourcePane),
+                                             defaultPathMode: sourcePane.isVirtualLocation ? .currentPaths : .fullPaths,
+                                             showsCurrentPathsOption: sourcePane.isVirtualLocation,
+                                             suggestedSplitDestinationName: sourcePane.suggestedExtractDestinationName)
+        return dialog.runModal(for: window)
+    }
+
+    private func extractDialogInfoText(for sourcePane: FileManagerPaneController) -> String {
+        var lines: [String] = []
+        lines.append(sourcePane.currentLocationDisplayPath)
+
+        let names = sourcePane.selectedItemNames(limit: 5)
+        if names.isEmpty {
+            if sourcePane.isVirtualLocation {
+                lines.append("Displayed items in the current archive folder will be extracted.")
+            }
+        } else {
+            lines.append(contentsOf: names.map { "  \($0)" })
+            if sourcePane.selectedRealItemCount > names.count {
+                lines.append("  ...")
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func archiveExtractionPathPrefixToStrip(for items: [ArchiveItem],
+                                                    destinationURL: URL,
+                                                    pathMode: SZPathMode,
+                                                    eliminateDuplicates: Bool) -> String? {
+        guard eliminateDuplicates,
+              pathMode != .absolutePaths,
+              pathMode != .noPaths else {
+            return nil
+        }
+
+        return ArchiveItem.duplicateRootPrefixToStrip(for: items,
+                                                      destinationLeafName: destinationURL.lastPathComponent)
     }
 
     private func promptForFileOperationDestination(forMove move: Bool,

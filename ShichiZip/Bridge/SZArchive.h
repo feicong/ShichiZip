@@ -68,7 +68,8 @@ typedef NS_ENUM(NSInteger, SZOverwriteMode) {
     SZOverwriteModeAsk = 0,
     SZOverwriteModeSkip,
     SZOverwriteModeRename,
-    SZOverwriteModeOverwrite
+    SZOverwriteModeOverwrite,
+    SZOverwriteModeRenameExisting
 };
 
 /// Path mode for extraction
@@ -101,6 +102,7 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 @property (nonatomic) SZOverwriteMode overwriteMode;
 @property (nonatomic, copy, nullable) NSString *password;
 @property (nonatomic, copy, nullable) NSString *pathPrefixToStrip;
+@property (nonatomic) BOOL preserveNtSecurityInfo;
 @end
 
 /// Progress callback delegate

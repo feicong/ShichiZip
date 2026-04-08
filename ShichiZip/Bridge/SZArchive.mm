@@ -40,6 +40,7 @@
 - (instancetype)init {
     if ((self = [super init])) {
         _pathMode = SZPathModeFullPaths; _overwriteMode = SZOverwriteModeAsk;
+        _preserveNtSecurityInfo = NO;
     }
     return self;
 }
@@ -382,6 +383,7 @@ static NExtract::NOverwriteMode::EEnum MapOverwriteMode(SZOverwriteMode m) {
         case SZOverwriteModeOverwrite: return NExtract::NOverwriteMode::kOverwrite;
         case SZOverwriteModeSkip: return NExtract::NOverwriteMode::kSkip;
         case SZOverwriteModeRename: return NExtract::NOverwriteMode::kRename;
+        case SZOverwriteModeRenameExisting: return NExtract::NOverwriteMode::kRenameExisting;
         case SZOverwriteModeAsk: default: return NExtract::NOverwriteMode::kAsk;
     }
 }
@@ -455,6 +457,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
+    if (s.preserveNtSecurityInfo) {
+        ntOptions.NtSecurity.Def = true;
+        ntOptions.NtSecurity.Val = true;
+    }
     UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
     ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),
@@ -487,6 +493,10 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
+    if (s.preserveNtSecurityInfo) {
+        ntOptions.NtSecurity.Def = true;
+        ntOptions.NtSecurity.Val = true;
+    }
     UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
     ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),

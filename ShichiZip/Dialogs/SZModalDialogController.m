@@ -36,6 +36,17 @@
     SEL _action;
 }
 
+- (CGFloat)minimumContentWidth {
+    CGFloat minimumWidth = 440;
+    if (_accessoryView) {
+        const CGFloat accessoryWidth = _accessoryView.fittingSize.width + 86;
+        if (accessoryWidth > minimumWidth) {
+            minimumWidth = accessoryWidth;
+        }
+    }
+    return minimumWidth;
+}
+
 - (instancetype)initWithStyle:(SZDialogStyle)style
                         title:(NSString *)title
                       message:(NSString *)message
@@ -168,7 +179,7 @@
     accessoryHeight.priority = _accessoryView ? NSLayoutPriorityRequired : NSLayoutPriorityDefaultLow;
 
     [NSLayoutConstraint activateConstraints:@[
-        [container.widthAnchor constraintEqualToConstant:440],
+        [container.widthAnchor constraintGreaterThanOrEqualToConstant:[self minimumContentWidth]],
 
         [iconView.topAnchor constraintEqualToAnchor:container.topAnchor constant:20],
         [iconView.leadingAnchor constraintEqualToAnchor:container.leadingAnchor constant:20],
@@ -234,8 +245,9 @@
         [window.contentView layoutSubtreeIfNeeded];
 
         NSSize fittingSize = _contentController.view.fittingSize;
-        if (fittingSize.width < 440) {
-            fittingSize.width = 440;
+        const CGFloat minimumWidth = [_contentController minimumContentWidth];
+        if (fittingSize.width < minimumWidth) {
+            fittingSize.width = minimumWidth;
         }
         [window setContentSize:fittingSize];
     }

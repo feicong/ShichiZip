@@ -29,6 +29,10 @@ struct ArchiveItem {
         return String(trimmed[trimmed.index(after: lastSlash)...])
     }
 
+    private static func stringsMatch(_ lhs: String, _ rhs: String) -> Bool {
+        lhs.caseInsensitiveCompare(rhs) == .orderedSame
+    }
+
     /// Parent path (directory containing this item)
     var parentPath: String {
         guard pathParts.count > 1 else { return "" }
@@ -54,6 +58,42 @@ struct ArchiveItem {
 
     var formattedPackedSize: String {
         ByteCountFormatter.string(fromByteCount: Int64(packedSize), countStyle: .file)
+    }
+
+    static func duplicateRootPrefixToStrip(for items: [ArchiveItem],
+                                           destinationLeafName: String,
+                                           removingPrefix prefix: String? = nil) -> String? {
+        let trimmedLeafName = destinationLeafName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLeafName.isEmpty else { return nil }
+
+        let prefixComponents = prefix.map(Self.derivePathParts(from:)) ?? []
+        var sawRelativeItem = false
+
+        for item in items {
+            let components = item.pathParts.isEmpty ? Self.derivePathParts(from: item.path) : item.pathParts
+            guard components.count >= prefixComponents.count else { return nil }
+
+            for (prefixComponent, component) in zip(prefixComponents, components) {
+                guard stringsMatch(prefixComponent, component) else {
+                    return nil
+                }
+            }
+
+            let relativeComponents = Array(components.dropFirst(prefixComponents.count))
+            guard let firstComponent = relativeComponents.first else { continue }
+
+            sawRelativeItem = true
+            guard stringsMatch(firstComponent, trimmedLeafName) else {
+                return nil
+            }
+
+            if relativeComponents.count == 1 && !item.isDirectory {
+                return nil
+            }
+        }
+
+        guard sawRelativeItem else { return nil }
+        return (prefixComponents + [trimmedLeafName]).joined(separator: "/")
     }
 
     init(from entry: SZArchiveEntry) {

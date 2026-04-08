@@ -10,6 +10,7 @@
 		0E083C8C01751D167AA800E1 /* DialogPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2FF83FA1080A0CA38F27F5 /* DialogPresenter.swift */; };
 		1506FF719B49C353449C3276 /* FileSystemItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F199F3D5EFC006C978C935C8 /* FileSystemItem.swift */; };
 		1CE5457C544B20D5DF0D42F3 /* BenchmarkWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA525BE71BEC9ED6FA806C10 /* BenchmarkWindowController.swift */; };
+		1F4FA2F4EBF56D3C51E1ABA5 /* ExtractDialogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1063FC95805225AC501608 /* ExtractDialogController.swift */; };
 		2754EF55454FEC5CEE4E1E33 /* SZArchive.mm in Sources */ = {isa = PBXBuildFile; fileRef = FC8109FC18679384CCE1FCC9 /* SZArchive.mm */; };
 		27AAAB1352382FE609A3B393 /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECB3BDFC444E8A46BA05A746 /* MainMenu.swift */; };
 		3526B672AB9F2CEAFD0E549B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 937563A1E648A0013C4DD0C3 /* Assets.xcassets */; };
@@ -76,6 +77,7 @@
 		E86B7F4EB8AA8831BF2F6B97 /* ProgressDialogController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressDialogController.swift; sourceTree = "<group>"; };
 		EA525BE71BEC9ED6FA806C10 /* BenchmarkWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkWindowController.swift; sourceTree = "<group>"; };
 		ECB3BDFC444E8A46BA05A746 /* MainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenu.swift; sourceTree = "<group>"; };
+		EF1063FC95805225AC501608 /* ExtractDialogController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractDialogController.swift; sourceTree = "<group>"; };
 		EF12616F99B5BC0BECF7D3BD /* FileManagerDirectoryListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerDirectoryListing.swift; sourceTree = "<group>"; };
 		F199F3D5EFC006C978C935C8 /* FileSystemItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemItem.swift; sourceTree = "<group>"; };
 		F5287B22A45EB2C1D5DDAF5B /* FoldersHistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoldersHistoryWindowController.swift; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				EA525BE71BEC9ED6FA806C10 /* BenchmarkWindowController.swift */,
 				43EB37EA2DD031212A342F87 /* CompressDialogController.swift */,
 				FECEA4ECEDC8A862D8490673 /* DeleteTemporaryFilesWindowController.swift */,
+				EF1063FC95805225AC501608 /* ExtractDialogController.swift */,
 				F5287B22A45EB2C1D5DDAF5B /* FoldersHistoryWindowController.swift */,
 				E86B7F4EB8AA8831BF2F6B97 /* ProgressDialogController.swift */,
 				B9314451B0EB130E69FEDF7B /* SettingsWindowController.swift */,
@@ -312,6 +315,7 @@
 				92508A846730EC64177768C0 /* CompressDialogController.swift in Sources */,
 				E536B805338610B9325FDE45 /* DeleteTemporaryFilesWindowController.swift in Sources */,
 				0E083C8C01751D167AA800E1 /* DialogPresenter.swift in Sources */,
+				1F4FA2F4EBF56D3C51E1ABA5 /* ExtractDialogController.swift in Sources */,
 				5C20141C7403D014630B77AA /* FileManagerArchiveItemWorkflowService.swift in Sources */,
 				586E8349FFE035506C922697 /* FileManagerArchiveOpenService.swift in Sources */,
 				EFD6C6263E7F428FB8939A42 /* FileManagerDirectoryListing.swift in Sources */,
