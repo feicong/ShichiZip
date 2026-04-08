@@ -129,8 +129,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @IBAction func newArchive(_ sender: Any?) {
-        let dialog = CompressDialogController()
-        dialog.showAsStandaloneDialog()
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Add"
+        panel.message = "Select files and folders to compress"
+
+        guard panel.runModal() == .OK else { return }
+
+        let sourceURLs = panel.urls.map { $0.standardizedFileURL }
+        guard !sourceURLs.isEmpty else { return }
+
+        let parentWindow = NSApp.keyWindow ?? NSApp.mainWindow
+        let dialog = CompressDialogController(sourceURLs: sourceURLs)
+        guard let result = dialog.runModal(for: parentWindow) else { return }
+
+        Task { @MainActor in
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
+                                                     parentWindow: parentWindow) { session in
+                    try SZArchive.create(atPath: result.archiveURL.path,
+                                         fromPaths: sourceURLs.map(\.path),
+                                         settings: result.settings,
+                                         session: session)
+                }
+                NSWorkspace.shared.selectFile(result.archiveURL.path, inFileViewerRootedAtPath: "")
+            } catch {
+                szPresentError(error, for: parentWindow)
+            }
+        }
     }
 
     @IBAction func showBenchmark(_ sender: Any?) {

@@ -14,6 +14,8 @@
 #include "CPP/7zip/UI/Common/Bench.h"
 #include "CPP/7zip/UI/Common/HashCalc.h"
 #include "CPP/7zip/UI/Common/OpenArchive.h"
+#include "CPP/Common/MyString.h"
+#include "CPP/Common/StringToInt.h"
 #include "CPP/Common/Wildcard.h"
 #include "CPP/Windows/ErrorMsg.h"
 #include "7zVersion.h"
@@ -30,7 +32,12 @@
     if ((self = [super init])) {
         _format = SZArchiveFormat7z; _level = SZCompressionLevelNormal;
         _method = SZCompressionMethodLZMA2; _encryption = SZEncryptionMethodNone;
+        _updateMode = SZCompressionUpdateModeAdd;
+        _pathMode = SZCompressionPathModeRelativePaths;
+        _methodName = @"LZMA2";
         _solidMode = YES;
+        _openSharedFiles = NO;
+        _deleteAfterCompression = NO;
     }
     return self;
 }
@@ -541,6 +548,209 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return CheckExtractResult(faeSpec, r, error);
 }
 
+static UString SZCompressionMethodSpec(SZCompressionSettings *settings) {
+    if (settings.methodName.length > 0) {
+        return ToU(settings.methodName);
+    }
+
+    switch (settings.method) {
+        case SZCompressionMethodLZMA:
+            return UString(L"LZMA");
+        case SZCompressionMethodLZMA2:
+            return UString(L"LZMA2");
+        case SZCompressionMethodPPMd:
+            return UString(L"PPMd");
+        case SZCompressionMethodBZip2:
+            return UString(L"BZip2");
+        case SZCompressionMethodDeflate:
+            return UString(L"Deflate");
+        case SZCompressionMethodDeflate64:
+            return UString(L"Deflate64");
+        case SZCompressionMethodCopy:
+            return UString(L"Copy");
+    }
+}
+
+static bool SZCompressionMethodUsesOrderMode(const UString &methodSpec) {
+    return methodSpec.IsEqualTo_Ascii_NoCase("PPMd");
+}
+
+static UString SZCompressionEncryptionProperty(SZCompressionSettings *settings) {
+    if (settings.password.length == 0) {
+        return UString();
+    }
+
+    if (settings.format == SZArchiveFormatZip && settings.encryption == SZEncryptionMethodAES256) {
+        return UString(L"AES256");
+    }
+
+    return UString();
+}
+
+static const NUpdateArchive::CActionSet &SZCompressionActionSetForMode(SZCompressionUpdateMode mode) {
+    switch (mode) {
+        case SZCompressionUpdateModeUpdate:
+            return NUpdateArchive::k_ActionSet_Update;
+        case SZCompressionUpdateModeFresh:
+            return NUpdateArchive::k_ActionSet_Fresh;
+        case SZCompressionUpdateModeSync:
+            return NUpdateArchive::k_ActionSet_Sync;
+        case SZCompressionUpdateModeAdd:
+        default:
+            return NUpdateArchive::k_ActionSet_Add;
+    }
+}
+
+static NWildcard::ECensorPathMode SZMapCompressionPathMode(SZCompressionPathMode mode) {
+    switch (mode) {
+        case SZCompressionPathModeFullPaths:
+            return NWildcard::k_FullPath;
+        case SZCompressionPathModeAbsolutePaths:
+            return NWildcard::k_AbsPath;
+        case SZCompressionPathModeRelativePaths:
+        default:
+            return NWildcard::k_RelatPath;
+    }
+}
+
+static void SZAddCompressionProperty(CObjectVector<CProperty> &properties,
+                                     const wchar_t *name,
+                                     const UString &value) {
+    CProperty property;
+    property.Name = name;
+    property.Value = value;
+    properties.Add(property);
+}
+
+static void SZAddCompressionPropertyUInt32(CObjectVector<CProperty> &properties,
+                                           const wchar_t *name,
+                                           UInt32 value) {
+    UString text;
+    text.Add_UInt32(value);
+    SZAddCompressionProperty(properties, name, text);
+}
+
+static void SZAddCompressionPropertySize(CObjectVector<CProperty> &properties,
+                                         const wchar_t *name,
+                                         UInt64 value) {
+    UString text;
+    text.Add_UInt64(value);
+    text.Add_Char('b');
+    SZAddCompressionProperty(properties, name, text);
+}
+
+static void SZSplitOptionsToStrings(const UString &src, UStringVector &strings) {
+    SplitString(src, strings);
+    FOR_VECTOR (i, strings)
+    {
+        UString &option = strings[i];
+        if (option.Len() > 2
+            && option[0] == '-'
+            && MyCharLower_Ascii(option[1]) == 'm') {
+            option.DeleteFrontal(2);
+        }
+    }
+}
+
+static bool SZHasMethodOverride(bool is7z, const UStringVector &strings) {
+    FOR_VECTOR (i, strings)
+    {
+        const UString &option = strings[i];
+        if (is7z) {
+            const wchar_t *end = NULL;
+            const UInt64 number = ConvertStringToUInt64(option, &end);
+            if (number == 0 && *end == L'=') {
+                return true;
+            }
+        } else if (option.Len() > 1 && option[0] == L'm' && option[1] == L'=') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void SZParseAndAddCompressionProperties(CObjectVector<CProperty> &properties,
+                                               const UStringVector &strings) {
+    FOR_VECTOR (i, strings)
+    {
+        const UString &option = strings[i];
+        CProperty property;
+        const int separatorIndex = option.Find(L'=');
+        if (separatorIndex < 0) {
+            property.Name = option;
+        } else {
+            property.Name.SetFrom(option, (unsigned)separatorIndex);
+            property.Value = option.Ptr(separatorIndex + 1);
+        }
+        properties.Add(property);
+    }
+}
+
+static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &values) {
+    values.Clear();
+    bool previousTokenWasNumber = false;
+
+    for (unsigned index = 0; index < text.Len();) {
+        wchar_t character = text[index++];
+        if (character == L' ') {
+            continue;
+        }
+        if (character == L'-') {
+            return true;
+        }
+
+        if (previousTokenWasNumber) {
+            previousTokenWasNumber = false;
+            unsigned shiftBits = 0;
+            switch (MyCharLower_Ascii(character)) {
+                case 'b':
+                    continue;
+                case 'k':
+                    shiftBits = 10;
+                    break;
+                case 'm':
+                    shiftBits = 20;
+                    break;
+                case 'g':
+                    shiftBits = 30;
+                    break;
+                case 't':
+                    shiftBits = 40;
+                    break;
+            }
+
+            if (shiftBits != 0) {
+                UInt64 &value = values.Back();
+                if (value >= ((UInt64)1 << (64 - shiftBits))) {
+                    return false;
+                }
+                value <<= shiftBits;
+
+                for (; index < text.Len(); index++) {
+                    if (text[index] == L' ') {
+                        break;
+                    }
+                }
+                continue;
+            }
+        }
+
+        index--;
+        const wchar_t *start = text.Ptr(index);
+        const wchar_t *end = NULL;
+        const UInt64 value = ConvertStringToUInt64(start, &end);
+        if (start == end || value == 0) {
+            return false;
+        }
+        values.Add(value);
+        previousTokenWasNumber = true;
+        index += (unsigned)(end - start);
+    }
+
+    return true;
+}
+
 // MARK: - Create
 
 + (BOOL)createAtPath:(NSString *)archivePath fromPaths:(NSArray<NSString *> *)src settings:(SZCompressionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
@@ -559,7 +769,14 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     int fi = (int)s.format; if (fi < 0 || fi >= 8) fi = 0;
 
     CUpdateOptions options;
-    options.SetActionCommand_Add();
+    options.Commands.Clear();
+    CUpdateArchiveCommand command;
+    command.ActionSet = SZCompressionActionSetForMode(s.updateMode);
+    options.Commands.Add(command);
+    options.PathMode = SZMapCompressionPathMode(s.pathMode);
+    options.OpenShareForWrite = s.openSharedFiles;
+    options.DeleteAfterCompressing = s.deleteAfterCompression;
+    options.SfxMode = s.createSFX;
 
     UString fmtName;
     for (const char *c = fmts[fi]; *c; c++) fmtName += (wchar_t)(unsigned char)*c;
@@ -570,6 +787,18 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
     if (formatIndex < 0) { if (error) *error = SZMakeError(-8, @"Unsupported format"); return NO; }
     options.MethodMode.Type.FormatIndex = formatIndex;
+    options.MethodMode.Type_Defined = true;
+
+    const CArcInfoEx &formatInfo = codecs->Formats[(unsigned)formatIndex];
+    const bool is7z = formatInfo.Is_7z();
+    const UString methodSpec = SZCompressionMethodSpec(s);
+    const bool usesOrderMode = SZCompressionMethodUsesOrderMode(methodSpec);
+
+    UStringVector optionStrings;
+    if (s.parameters.length > 0) {
+        SZSplitOptionsToStrings(ToU(s.parameters), optionStrings);
+    }
+    const bool methodOverride = SZHasMethodOverride(is7z, optionStrings);
 
     // Set compression properties
     CProperty propLevel;
@@ -579,32 +808,74 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     propLevel.Value = levelBuf;
     options.MethodMode.Properties.Add(propLevel);
 
+    if (!methodSpec.IsEmpty() && !methodOverride) {
+        SZAddCompressionProperty(options.MethodMode.Properties,
+                                 is7z ? L"0" : L"m",
+                                 methodSpec);
+    }
+
+    if (s.dictionarySize > 0) {
+        const wchar_t *propertyName = usesOrderMode
+            ? (is7z ? L"0mem" : L"mem")
+            : (is7z ? L"0d" : L"d");
+        SZAddCompressionPropertySize(options.MethodMode.Properties,
+                                     propertyName,
+                                     (UInt64)s.dictionarySize);
+    }
+
+    if (s.wordSize > 0) {
+        const wchar_t *propertyName = usesOrderMode
+            ? (is7z ? L"0o" : L"o")
+            : (is7z ? L"0fb" : L"fb");
+        SZAddCompressionPropertyUInt32(options.MethodMode.Properties,
+                                       propertyName,
+                                       s.wordSize);
+    }
+
+    const UString encryptionProperty = SZCompressionEncryptionProperty(s);
+    if (!encryptionProperty.IsEmpty()) {
+        SZAddCompressionProperty(options.MethodMode.Properties,
+                                 L"em",
+                                 encryptionProperty);
+    }
+
     if (s.numThreads > 0) {
         CProperty p2; p2.Name = L"mt";
         wchar_t buf[16]; swprintf(buf, 16, L"%u", (unsigned)s.numThreads);
         p2.Value = buf;
         options.MethodMode.Properties.Add(p2);
     }
-    if (s.format == SZArchiveFormat7z && s.solidMode) {
+    if ((s.format == SZArchiveFormat7z || s.format == SZArchiveFormatXz) && s.solidMode) {
         CProperty p2; p2.Name = L"s"; p2.Value = L"on";
         options.MethodMode.Properties.Add(p2);
     }
-    if (s.encryptFileNames && s.format == SZArchiveFormat7z) {
+    if (s.encryptFileNames && s.format == SZArchiveFormat7z && s.password.length > 0) {
         CProperty p2; p2.Name = L"he"; p2.Value = L"on";
         options.MethodMode.Properties.Add(p2);
     }
 
+    if (optionStrings.Size() > 0) {
+        SZParseAndAddCompressionProperties(options.MethodMode.Properties, optionStrings);
+    }
+
+    if (s.splitVolumes.length > 0) {
+        if (!SZParseVolumeSizes(ToU(s.splitVolumes), options.VolumesSizes)) {
+            if (error) *error = SZMakeError(-1, @"Invalid split volume sizes.");
+            return NO;
+        }
+    } else if (s.splitVolumeSize > 0) {
+        options.VolumesSizes.Add(s.splitVolumeSize);
+    }
+
     NWildcard::CCensor censor;
     for (NSString *srcPath in src) {
-        NWildcard::CCensorPathProps pathProps;
-        pathProps.Recursive = true;
-        censor.AddItem(NWildcard::k_AbsPath, true, ToU(srcPath), pathProps);
+        censor.AddPreItem_NoWildcard(ToU(srcPath));
     }
 
     SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZUpdateCallbackUI callbackUI;
     callbackUI.Session = resolvedSession;
-    if (s.password && s.encryption != SZEncryptionMethodNone) {
+    if (s.password.length > 0) {
         callbackUI.PasswordIsDefined = true;
         callbackUI.Password = ToU(s.password);
     }

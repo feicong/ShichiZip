@@ -681,43 +681,26 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             return
         }
 
-        let selectedPaths = activePane.selectedFilePaths()
-        guard !selectedPaths.isEmpty else { return }
+        let selectedURLs = activePane.selectedFileURLs()
+        guard !selectedURLs.isEmpty else { return }
 
-        let compressDialog = CompressDialogController()
-        compressDialog.sourcePaths = selectedPaths
+        let compressDialog = CompressDialogController(sourceURLs: selectedURLs,
+                                                      baseDirectory: activePane.currentDirectoryURL)
+        guard let result = compressDialog.runModal(for: window) else { return }
 
-        let dialogWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 550, height: 500),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        dialogWindow.title = "Create Archive — ShichiZip"
-        dialogWindow.contentViewController = compressDialog
-
-        window?.beginSheet(dialogWindow) { _ in }
-
-        compressDialog.completionHandler = { [weak self] settings, archivePath in
-            self?.window?.endSheet(dialogWindow)
-            guard let settings = settings, let archivePath = archivePath else { return }
-
-            Task { @MainActor [weak self] in
-                guard let self, let parentWindow = self.window else { return }
-                do {
-                    try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
-                                                         parentWindow: parentWindow) { session in
-                        try SZArchive.create(
-                            atPath: archivePath,
-                            fromPaths: selectedPaths,
-                            settings: settings,
-                            session: session
-                        )
-                    }
-                    activePane.refresh()
-                } catch {
-                    self.showErrorAlert(error)
+        Task { @MainActor [weak self] in
+            guard let self, let parentWindow = self.window else { return }
+            do {
+                try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
+                                                     parentWindow: parentWindow) { session in
+                    try SZArchive.create(atPath: result.archiveURL.path,
+                                         fromPaths: selectedURLs.map(\.path),
+                                         settings: result.settings,
+                                         session: session)
                 }
+                activePane.refresh()
+            } catch {
+                self.showErrorAlert(error)
             }
         }
     }

@@ -56,6 +56,21 @@ typedef NS_ENUM(NSInteger, SZCompressionMethod) {
     SZCompressionMethodCopy
 };
 
+/// Update mode for archive creation
+typedef NS_ENUM(NSInteger, SZCompressionUpdateMode) {
+    SZCompressionUpdateModeAdd = 0,
+    SZCompressionUpdateModeUpdate,
+    SZCompressionUpdateModeFresh,
+    SZCompressionUpdateModeSync,
+};
+
+/// Path mode for archive creation
+typedef NS_ENUM(NSInteger, SZCompressionPathMode) {
+    SZCompressionPathModeRelativePaths = 0,
+    SZCompressionPathModeFullPaths,
+    SZCompressionPathModeAbsolutePaths,
+};
+
 /// Encryption method
 typedef NS_ENUM(NSInteger, SZEncryptionMethod) {
     SZEncryptionMethodNone = 0,
@@ -85,15 +100,22 @@ typedef NS_ENUM(NSInteger, SZPathMode) {
 @property (nonatomic) SZArchiveFormat format;
 @property (nonatomic) SZCompressionLevel level;
 @property (nonatomic) SZCompressionMethod method;
+@property (nonatomic) SZCompressionUpdateMode updateMode;
+@property (nonatomic) SZCompressionPathMode pathMode;
 @property (nonatomic) SZEncryptionMethod encryption;
 @property (nonatomic, copy, nullable) NSString *password;
+@property (nonatomic, copy, nullable) NSString *methodName;
+@property (nonatomic, copy, nullable) NSString *parameters;
+@property (nonatomic, copy, nullable) NSString *splitVolumes;
 @property (nonatomic) BOOL encryptFileNames;
 @property (nonatomic) BOOL solidMode;
-@property (nonatomic) uint32_t dictionarySize;   // in bytes, 0 = auto
+@property (nonatomic) uint64_t dictionarySize;   // in bytes, 0 = auto
 @property (nonatomic) uint32_t wordSize;          // 0 = auto
 @property (nonatomic) uint32_t numThreads;        // 0 = auto
 @property (nonatomic) uint64_t splitVolumeSize;   // 0 = no split
 @property (nonatomic) BOOL createSFX;
+@property (nonatomic) BOOL openSharedFiles;
+@property (nonatomic) BOOL deleteAfterCompression;
 @end
 
 /// Extraction settings

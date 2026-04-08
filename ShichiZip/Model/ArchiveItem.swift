@@ -96,10 +96,18 @@ struct ArchiveItem {
         return (prefixComponents + [trimmedLeafName]).joined(separator: "/")
     }
 
+    private static func normalizedPathParts(_ parts: [String]) -> [String] {
+        parts.filter { !$0.isEmpty }
+    }
+
     init(from entry: SZArchiveEntry) {
+        let normalizedEntryPathParts = Self.normalizedPathParts(entry.pathParts)
+        let preservesAbsoluteRoot = entry.path.isEmpty && entry.pathParts.first == ""
         self.index = Int(entry.index)
-        self.path = entry.path.isEmpty ? entry.pathParts.joined(separator: "/") : entry.path
-        self.pathParts = entry.pathParts.isEmpty ? Self.derivePathParts(from: self.path) : entry.pathParts
+        self.path = entry.path.isEmpty
+            ? (preservesAbsoluteRoot ? "/" : "") + normalizedEntryPathParts.joined(separator: "/")
+            : entry.path
+        self.pathParts = normalizedEntryPathParts.isEmpty ? Self.derivePathParts(from: self.path) : normalizedEntryPathParts
         self.name = self.pathParts.last ?? Self.deriveName(from: self.path)
         self.size = entry.size
         self.packedSize = entry.packedSize

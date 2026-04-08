@@ -133,8 +133,8 @@ public:
 
     // IUpdateCallbackUI2
     HRESULT OpenResult(const CCodecs *, const CArchiveLink &, const wchar_t *, HRESULT) override { return S_OK; }
-    HRESULT StartScanning() override { return S_OK; }
-    HRESULT FinishScanning(const CDirItemsStat &) override { return S_OK; }
+    HRESULT StartScanning() override;
+    HRESULT FinishScanning(const CDirItemsStat &) override;
     HRESULT StartOpenArchive(const wchar_t *) override { return S_OK; }
     HRESULT StartArchive(const wchar_t *, bool) override { return S_OK; }
     HRESULT FinishArchive(const CFinishArchiveStat &) override { return S_OK; }
@@ -146,5 +146,5 @@ public:
 
     // IDirItemsCallback
     HRESULT ScanError(const FString &, DWORD) override { return S_OK; }
-    HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override { return S_OK; }
+    HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override;
 };

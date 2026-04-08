@@ -222,6 +222,11 @@ Z7_COM7F_IMF(SZFolderExtractCallback::CryptoGetTextPassword(BSTR *pw)) {
 
 HRESULT SZUpdateCallbackUI::SetTotal(UInt64 total) {
     TotalSize = total;
+    SZOperationSession *session = Session;
+    if (session && total > 0) {
+        [session reportProgressFraction:0.0];
+        [session reportBytesCompleted:0 total:total];
+    }
     return S_OK;
 }
 
@@ -243,6 +248,27 @@ HRESULT SZUpdateCallbackUI::CheckBreak() {
     SZOperationSession *session = Session;
     if (session && [session shouldCancel]) return E_ABORT;
     return S_OK;
+}
+
+HRESULT SZUpdateCallbackUI::StartScanning() {
+    SZOperationSession *session = Session;
+    if (session) {
+        [session reportProgressFraction:0.0];
+        [session reportCurrentFileName:@"Scanning files..."];
+    }
+    return CheckBreak();
+}
+
+HRESULT SZUpdateCallbackUI::FinishScanning(const CDirItemsStat &) {
+    return CheckBreak();
+}
+
+HRESULT SZUpdateCallbackUI::ScanProgress(const CDirItemsStat &, const FString &path, bool) {
+    SZOperationSession *session = Session;
+    if (session && !path.IsEmpty()) {
+        [session reportCurrentFileName:ToNS(fs2us(path))];
+    }
+    return CheckBreak();
 }
 
 HRESULT SZUpdateCallbackUI::GetStream(const wchar_t *name, bool, bool, UInt32) {
