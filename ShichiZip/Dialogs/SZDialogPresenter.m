@@ -327,6 +327,18 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
 @implementation SZDialogPresenter
 
++ (SZDialogStyle)dialogStyleForPromptStyle:(SZOperationPromptStyle)promptStyle {
+    switch (promptStyle) {
+        case SZOperationPromptStyleWarning:
+            return SZDialogStyleWarning;
+        case SZOperationPromptStyleCritical:
+            return SZDialogStyleCritical;
+        case SZOperationPromptStyleInformational:
+        default:
+            return SZDialogStyleInformational;
+    }
+}
+
 + (NSString *)errorDetailsForError:(NSError *)error {
     NSMutableArray<NSString *> *parts = [NSMutableArray array];
 

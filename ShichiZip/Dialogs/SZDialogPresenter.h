@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 
 #import "SZModalDialogController.h"
+#import "../Bridge/SZOperationSession.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -14,6 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface SZDialogPresenter : NSObject
+
++ (SZDialogStyle)dialogStyleForPromptStyle:(SZOperationPromptStyle)promptStyle;
 
 + (void)presentError:(NSError *)error forWindow:(nullable NSWindow *)window;
 

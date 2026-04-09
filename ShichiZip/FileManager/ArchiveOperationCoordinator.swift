@@ -49,7 +49,7 @@ final class ArchiveOperationCoordinator {
             self?.prepareForPromptIfNeeded()
             return szRunChoiceDialog(title: title,
                                      message: message ?? "",
-                                     style: szDialogStyle(for: style),
+                                     style: SZDialogPresenter.dialogStyle(for: style),
                                      buttons: buttonTitles)
         }
     }

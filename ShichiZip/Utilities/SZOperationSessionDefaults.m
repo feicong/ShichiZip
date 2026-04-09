@@ -2,18 +2,6 @@
 
 #import "../Dialogs/SZDialogPresenter.h"
 
-static SZDialogStyle SZDialogStyleForPromptStyle(SZOperationPromptStyle style) {
-    switch (style) {
-        case SZOperationPromptStyleWarning:
-            return SZDialogStyleWarning;
-        case SZOperationPromptStyleCritical:
-            return SZDialogStyleCritical;
-        case SZOperationPromptStyleInformational:
-        default:
-            return SZDialogStyleInformational;
-    }
-}
-
 SZOperationSession *SZMakeDefaultOperationSession(id<SZProgressDelegate> progressDelegate) {
     SZOperationSession *session = [SZOperationSession new];
     session.progressDelegate = progressDelegate;
@@ -30,7 +18,7 @@ SZOperationSession *SZMakeDefaultOperationSession(id<SZProgressDelegate> progres
                                               NSString *title,
                                               NSString *message,
                                               NSArray<NSString *> *buttonTitles) {
-        return [SZDialogPresenter runMessageWithStyle:SZDialogStyleForPromptStyle(style)
+        return [SZDialogPresenter runMessageWithStyle:[SZDialogPresenter dialogStyleForPromptStyle:style]
                                                 title:title
                                               message:message
                                          buttonTitles:buttonTitles];
