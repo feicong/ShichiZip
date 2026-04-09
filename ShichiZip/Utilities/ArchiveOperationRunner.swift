@@ -13,27 +13,34 @@ enum ArchiveOperationRunner {
                                                      deferredDisplay: deferredDisplay)
         coordinator.start()
 
+        let resultLock = NSLock()
         var result: Result<T, Error>?
         let session = coordinator.session
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let value = try work(session)
-                DispatchQueue.main.async {
-                    result = .success(value)
-                }
+                resultLock.lock()
+                result = .success(value)
+                resultLock.unlock()
             } catch {
-                DispatchQueue.main.async {
-                    result = .failure(error)
-                }
+                resultLock.lock()
+                result = .failure(error)
+                resultLock.unlock()
             }
         }
 
-        while result == nil {
+        while true {
+            resultLock.lock()
+            let currentResult = result
+            resultLock.unlock()
+
+            if let currentResult {
+                coordinator.finish()
+                return try currentResult.get()
+            }
+
             RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
         }
-
-        coordinator.finish()
-        return try result!.get()
     }
 
     @MainActor
