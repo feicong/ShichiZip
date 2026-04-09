@@ -136,6 +136,8 @@ private final class FileManagerTableView: NSTableView {
 /// Single pane of the file manager — displays file system contents
 class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSTextFieldDelegate, NSMenuItemValidation {
 
+    // MARK: - Types
+
     private struct StatusSummary {
         let fileCount: Int
         let folderCount: Int
@@ -157,6 +159,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         let modifiedDate: Date?
         let createdDate: Date?
     }
+
+    // MARK: - Properties
 
     weak var delegate: FileManagerPaneDelegate?
 
@@ -213,6 +217,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return currentDirectory.path != currentDirectory.deletingLastPathComponent().path
     }
 
+    // MARK: - Lifecycle
+
     deinit {
         if let settingsObserver {
             NotificationCenter.default.removeObserver(settingsObserver)
@@ -229,6 +235,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         closeAllArchives()
         archiveItemWorkflowService.cleanupAll()
     }
+
+    // MARK: - View Setup
 
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 600))
@@ -537,6 +545,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.reloadData()
         updateStatusBar()
     }
+
+    // MARK: - Public Interface
 
     func refresh() {
         if isInsideArchive {
@@ -2249,6 +2259,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
     }
 
+    // MARK: - NSTableViewDataSource / NSTableViewDelegate
+
     func numberOfRows(in tableView: NSTableView) -> Int {
         let itemCount = isInsideArchive ? archiveDisplayItems.count : items.count
         return itemCount + (showsParentRow ? 1 : 0)
@@ -2373,6 +2385,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         listRowHeight
     }
 
+    // MARK: - Drag Source
+
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
         guard let paneItem = paneItem(at: row) else { return nil }
 
@@ -2399,7 +2413,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
     }
 
-    // MARK: - Drop destination (accept files dragged into this folder)
+    // MARK: - Drop Destination (accept files dragged into this folder)
 
     func tableView(_ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
         if isInsideArchive { return [] }
@@ -2721,7 +2735,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
     }
 
-    // MARK: - Sorting (matches PanelSort.cpp: folders first, natural sort for names)
+    // MARK: - Sorting (matches PanelSort.cpp)
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
         sortCurrentItems(by: tableView.sortDescriptors)
