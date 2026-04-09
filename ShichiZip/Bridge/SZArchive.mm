@@ -6,6 +6,7 @@
 #import "../Utilities/SZOperationSessionDefaults.h"
 
 #include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
+#include "CPP/7zip/UI/Agent/Agent.h"
 #include "CPP/7zip/UI/Common/Extract.h"
 #include "CPP/7zip/UI/Common/Update.h"
 #include "CPP/7zip/UI/Common/UpdateCallback.h"
@@ -687,6 +688,7 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
     CArchiveLink *_arcLink;
     BOOL _isOpen;
     NSString *_archivePath;
+    NSString *_openType;
     NSString *_cachedPassword;
     BOOL _cachedPasswordIsDefined;
 }
@@ -745,9 +747,10 @@ static NSString *SZOpenArchiveFailureReason(const CArcErrorInfo &errorInfo) {
     return messages.count > 0 ? [messages componentsJoinedByString:@"\n"] : nil;
 }
 
-static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
-                                             const CArcErrorInfo &errorInfo,
-                                             const SZOpenCallbackUI &callbackUI) {
+static NSError *SZOpenArchiveErrorFromPasswordContext(HRESULT result,
+                                                      const CArcErrorInfo &errorInfo,
+                                                      BOOL passwordWasAsked,
+                                                      BOOL passwordIsDefined) {
     if (result == E_ABORT) {
         return SZMakeError(SZArchiveErrorCodeUserCancelled, @"Operation was cancelled");
     }
@@ -758,13 +761,13 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     }
 
     const UInt32 errorFlags = errorInfo.GetErrorFlags();
-    const BOOL hadPasswordContext = callbackUI.PasswordWasAsked || callbackUI.PasswordIsDefined;
+    const BOOL hadPasswordContext = passwordWasAsked || passwordIsDefined;
     const BOOL wrongPassword = (hadPasswordContext &&
                                 (errorFlags & (kpv_ErrorFlags_HeadersError |
                                                kpv_ErrorFlags_EncryptedHeadersError |
                                                kpv_ErrorFlags_DataError |
                                                kpv_ErrorFlags_CrcError)) != 0)
-        || (callbackUI.PasswordWasAsked && !errorInfo.ErrorFlags_Defined)
+        || (passwordWasAsked && !errorInfo.ErrorFlags_Defined)
         || SZOpenErrorFlagsIndicateWrongPassword(errorFlags);
     if (wrongPassword) {
         return SZMakeError(SZArchiveErrorCodeWrongPassword,
@@ -780,6 +783,175 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     return SZMakeDetailedError(SZArchiveErrorCodeInvalidArchive,
                                @"Cannot open archive",
                                SZOpenArchiveFailureReason(errorInfo));
+}
+
+static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
+                                             const CArcErrorInfo &errorInfo,
+                                             const SZOpenCallbackUI &callbackUI) {
+    return SZOpenArchiveErrorFromPasswordContext(result,
+                                                 errorInfo,
+                                                 callbackUI.PasswordWasAsked,
+                                                 callbackUI.PasswordIsDefined);
+}
+
+static NSString *SZNormalizeArchiveRelativePath(NSString *path) {
+    NSString *normalized = [path copy] ?: @"";
+    while (normalized.length > 0 && [normalized hasSuffix:@"/"]) {
+        normalized = [normalized substringToIndex:normalized.length - 1];
+    }
+    return normalized;
+}
+
+static NSArray<NSString *> *SZArchivePathComponents(NSString *path) {
+    NSString *normalized = SZNormalizeArchiveRelativePath(path);
+    if (normalized.length == 0) {
+        return @[];
+    }
+
+    NSMutableArray<NSString *> *components = [NSMutableArray array];
+    for (NSString *component in [normalized componentsSeparatedByString:@"/"]) {
+        if (component.length > 0) {
+            [components addObject:component];
+        }
+    }
+    return components;
+}
+
+static NSString *SZArchiveParentPath(NSString *path) {
+    NSArray<NSString *> *components = SZArchivePathComponents(path);
+    if (components.count <= 1) {
+        return @"";
+    }
+    return [[components subarrayWithRange:NSMakeRange(0, components.count - 1)] componentsJoinedByString:@"/"];
+}
+
+static NSString *SZArchiveLeafName(NSString *path) {
+    return SZArchivePathComponents(path).lastObject ?: @"";
+}
+
+static NSString *SZFolderItemName(IFolderFolder *folder, UInt32 index) {
+    NWindows::NCOM::CPropVariant value;
+    if (folder->GetProperty(index, kpidName, &value) != S_OK) {
+        return nil;
+    }
+    if (value.vt == VT_BSTR && value.bstrVal) {
+        return ToNS(UString(value.bstrVal));
+    }
+    return nil;
+}
+
+static HRESULT SZBindFolderToArchiveSubdir(IFolderFolder *rootFolder,
+                                           NSString *archiveSubdir,
+                                           IFolderFolder **resultFolder) {
+    CMyComPtr<IFolderFolder> currentFolder = rootFolder;
+    for (NSString *component in SZArchivePathComponents(archiveSubdir)) {
+        CMyComPtr<IFolderFolder> nextFolder;
+        RINOK(currentFolder->BindToFolder(ToU(component), &nextFolder))
+        if (!nextFolder) {
+            return E_INVALIDARG;
+        }
+        currentFolder = nextFolder;
+    }
+
+    *resultFolder = currentFolder.Detach();
+    return S_OK;
+}
+
+static HRESULT SZResolveFolderItemIndices(IFolderFolder *folder,
+                                          NSArray<NSString *> *itemPaths,
+                                          NSString *archiveSubdir,
+                                          std::vector<UInt32> &indices) {
+    indices.clear();
+
+    NSString *normalizedSubdir = SZNormalizeArchiveRelativePath(archiveSubdir);
+    UInt32 numItems = 0;
+    RINOK(folder->GetNumberOfItems(&numItems))
+
+    for (NSString *itemPath in itemPaths) {
+        NSString *normalizedPath = SZNormalizeArchiveRelativePath(itemPath);
+        if (![SZArchiveParentPath(normalizedPath) isEqualToString:normalizedSubdir]) {
+            return E_INVALIDARG;
+        }
+
+        NSString *expectedName = SZArchiveLeafName(normalizedPath);
+        if (expectedName.length == 0) {
+            return E_INVALIDARG;
+        }
+
+        BOOL found = NO;
+        for (UInt32 index = 0; index < numItems; index++) {
+            NSString *itemName = SZFolderItemName(folder, index);
+            if (![itemName isEqualToString:expectedName]) {
+                continue;
+            }
+            indices.push_back(index);
+            found = YES;
+            break;
+        }
+
+        if (!found) {
+            return E_INVALIDARG;
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT SZOpenAgentFolder(NSString *archivePath,
+                                 NSString *openType,
+                                 SZAgentUpdateCallback *callback,
+                                 NSString *archiveSubdir,
+                                 CMyComPtr<IInFolderArchive> &agentOut,
+                                 CAgent *&agentSpecOut,
+                                 CMyComPtr<IFolderFolder> &folderOut) {
+    CAgent *agentSpec = new CAgent();
+    agentOut = agentSpec;
+    agentSpecOut = agentSpec;
+
+    UString openTypeText = openType.length > 0 ? ToU(openType) : UString();
+    const wchar_t *arcFormat = openTypeText.IsEmpty() ? L"" : openTypeText.Ptr();
+    RINOK(agentOut->Open(NULL, ToU(archivePath), arcFormat, NULL, callback))
+
+    CMyComPtr<IFolderFolder> rootFolder;
+    RINOK(agentOut->BindToRootFolder(&rootFolder))
+
+    if (archiveSubdir.length == 0) {
+        folderOut = rootFolder;
+        return S_OK;
+    }
+
+    return SZBindFolderToArchiveSubdir(rootFolder, archiveSubdir, &folderOut);
+}
+
+static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
+                                               NSString *fallbackDescription,
+                                               const UString &errorMessage) {
+    if (result == E_ABORT) {
+        return SZMakeError(SZArchiveErrorCodeUserCancelled, @"Operation was cancelled");
+    }
+
+    if (result == E_NOTIMPL) {
+        return SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                           @"This archive does not support that in-place update operation.");
+    }
+
+    if (result == E_INVALIDARG) {
+        return SZMakeError(result, @"Invalid archive item selection.");
+    }
+
+    if (result == (HRESULT)ERROR_ALREADY_EXISTS || result == HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)) {
+        return SZMakeError(result, @"An item with the same name already exists in the archive.");
+    }
+
+    NSString *details = ToNS(errorMessage);
+    if (details.length > 0) {
+        return SZMakeDetailedError(result, fallbackDescription, details);
+    }
+
+    return SZMakeError(result,
+                       [NSString stringWithFormat:@"%@ (0x%08X)",
+                                                  fallbackDescription,
+                                                  (unsigned)result]);
 }
 
 @implementation SZArchive
@@ -894,6 +1066,25 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     }
 }
 
+- (BOOL)reopenAfterExternalMutationWithSession:(SZOperationSession *)session error:(NSError **)error {
+    NSString *archivePath = [_archivePath copy];
+    NSString *openType = [_openType copy];
+    NSString *password = _cachedPasswordIsDefined ? [_cachedPassword copy] : nil;
+    if (archivePath.length == 0) {
+        if (error) {
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        }
+        return NO;
+    }
+
+    [self close];
+    return [self openAtPath:archivePath
+                   openType:openType
+                   password:password
+                    session:session
+                      error:error];
+}
+
 - (instancetype)init {
     if ((self = [super init])) {
         _arcLink = new CArchiveLink;
@@ -985,6 +1176,7 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     if (callbackUI.PasswordIsDefined) {
         [self storeCachedPassword:callbackUI.Password defined:true];
     }
+    _openType = [openType copy];
     _isOpen = YES;
     return YES;
 }
@@ -992,6 +1184,7 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
 - (void)close {
     if (_isOpen) _arcLink->Close();
     _isOpen = NO;
+    _openType = nil;
     [self clearCachedPassword];
 }
 
@@ -1265,6 +1458,352 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 1, ec);
     [self updateCachedPasswordFromExtractCallback:faeSpec result:r];
     return CheckExtractResult(faeSpec, r, error);
+}
+
+- (BOOL)createFolderNamed:(NSString *)folderName inArchiveSubdir:(NSString *)archiveSubdir session:(SZOperationSession *)session error:(NSError **)error {
+    if (!_isOpen) {
+        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
+    updateSpec->Session = resolvedSession;
+    updateSpec->ArchivePath = ToU(_archivePath ?: @"");
+    if (_cachedPasswordIsDefined) {
+        updateSpec->PasswordIsDefined = true;
+        updateSpec->Password = ToU(_cachedPassword ?: @"");
+    }
+
+    CMyComPtr<IInFolderArchive> agent;
+    CAgent *agentSpec = NULL;
+    CMyComPtr<IFolderFolder> folder;
+    HRESULT result = SZOpenAgentFolder(_archivePath,
+                                       _openType,
+                                       updateSpec,
+                                       archiveSubdir,
+                                       agent,
+                                       agentSpec,
+                                       folder);
+    if (result != S_OK) {
+        if (error) {
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(result,
+                                                           errorInfo,
+                                                           updateSpec->PasswordWasAsked,
+                                                           updateSpec->PasswordIsDefined);
+        }
+        return NO;
+    }
+
+    CMyComPtr<IFolderOperations> folderOperations;
+    folder.QueryInterface(IID_IFolderOperations, &folderOperations);
+    if (!folderOperations) {
+        if (error) {
+            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                                 @"This archive does not support in-place updates.");
+        }
+        return NO;
+    }
+
+    result = folderOperations->CreateFolder(ToU(folderName), updateCallback);
+
+    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
+        [self storeCachedPassword:updateSpec->Password defined:true];
+    }
+
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
+        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+        return NO;
+    }
+
+    if (result != S_OK) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(result,
+                                                    @"Cannot create folder in archive",
+                                                    updateSpec->LastErrorMessage);
+        }
+        return NO;
+    }
+
+    return YES;
+}
+
+- (BOOL)renameItemAtPath:(NSString *)itemPath inArchiveSubdir:(NSString *)archiveSubdir newName:(NSString *)newName session:(SZOperationSession *)session error:(NSError **)error {
+    if (!_isOpen) {
+        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
+    updateSpec->Session = resolvedSession;
+    updateSpec->ArchivePath = ToU(_archivePath ?: @"");
+    if (_cachedPasswordIsDefined) {
+        updateSpec->PasswordIsDefined = true;
+        updateSpec->Password = ToU(_cachedPassword ?: @"");
+    }
+
+    CMyComPtr<IInFolderArchive> agent;
+    CAgent *agentSpec = NULL;
+    CMyComPtr<IFolderFolder> folder;
+    HRESULT result = SZOpenAgentFolder(_archivePath,
+                                       _openType,
+                                       updateSpec,
+                                       archiveSubdir,
+                                       agent,
+                                       agentSpec,
+                                       folder);
+    if (result != S_OK) {
+        if (error) {
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(result,
+                                                           errorInfo,
+                                                           updateSpec->PasswordWasAsked,
+                                                           updateSpec->PasswordIsDefined);
+        }
+        return NO;
+    }
+
+    std::vector<UInt32> indices;
+    result = SZResolveFolderItemIndices(folder, @[itemPath], archiveSubdir, indices);
+    if (result != S_OK || indices.size() != 1) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(E_INVALIDARG,
+                                                    @"Cannot rename item in archive",
+                                                    UString());
+        }
+        return NO;
+    }
+
+    CMyComPtr<IFolderOperations> folderOperations;
+    folder.QueryInterface(IID_IFolderOperations, &folderOperations);
+    if (!folderOperations) {
+        if (error) {
+            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                                 @"This archive does not support in-place updates.");
+        }
+        return NO;
+    }
+
+    result = folderOperations->Rename(indices[0], ToU(newName), updateCallback);
+
+    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
+        [self storeCachedPassword:updateSpec->Password defined:true];
+    }
+
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
+        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+        return NO;
+    }
+
+    if (result != S_OK) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(result,
+                                                    @"Cannot rename item in archive",
+                                                    updateSpec->LastErrorMessage);
+        }
+        return NO;
+    }
+
+    return YES;
+}
+
+- (BOOL)deleteItemsAtPaths:(NSArray<NSString *> *)itemPaths inArchiveSubdir:(NSString *)archiveSubdir session:(SZOperationSession *)session error:(NSError **)error {
+    if (!_isOpen) {
+        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
+    updateSpec->Session = resolvedSession;
+    updateSpec->ArchivePath = ToU(_archivePath ?: @"");
+    if (_cachedPasswordIsDefined) {
+        updateSpec->PasswordIsDefined = true;
+        updateSpec->Password = ToU(_cachedPassword ?: @"");
+    }
+
+    CMyComPtr<IInFolderArchive> agent;
+    CAgent *agentSpec = NULL;
+    CMyComPtr<IFolderFolder> folder;
+    HRESULT result = SZOpenAgentFolder(_archivePath,
+                                       _openType,
+                                       updateSpec,
+                                       archiveSubdir,
+                                       agent,
+                                       agentSpec,
+                                       folder);
+    if (result != S_OK) {
+        if (error) {
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(result,
+                                                           errorInfo,
+                                                           updateSpec->PasswordWasAsked,
+                                                           updateSpec->PasswordIsDefined);
+        }
+        return NO;
+    }
+
+    std::vector<UInt32> indices;
+    result = SZResolveFolderItemIndices(folder, itemPaths, archiveSubdir, indices);
+    if (result != S_OK || indices.empty()) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(E_INVALIDARG,
+                                                    @"Cannot delete items from archive",
+                                                    UString());
+        }
+        return NO;
+    }
+
+    CMyComPtr<IFolderOperations> folderOperations;
+    folder.QueryInterface(IID_IFolderOperations, &folderOperations);
+    if (!folderOperations) {
+        if (error) {
+            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                                 @"This archive does not support in-place updates.");
+        }
+        return NO;
+    }
+
+    result = folderOperations->Delete(indices.data(), (UInt32)indices.size(), updateCallback);
+
+    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
+        [self storeCachedPassword:updateSpec->Password defined:true];
+    }
+
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
+        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+        return NO;
+    }
+
+    if (result != S_OK) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(result,
+                                                    @"Cannot delete items from archive",
+                                                    updateSpec->LastErrorMessage);
+        }
+        return NO;
+    }
+
+    return YES;
+}
+
+- (BOOL)addPaths:(NSArray<NSString *> *)sourcePaths toArchiveSubdir:(NSString *)archiveSubdir moveMode:(BOOL)moveMode session:(SZOperationSession *)session error:(NSError **)error {
+    if (!_isOpen) {
+        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+
+    if (sourcePaths.count == 0) {
+        return YES;
+    }
+
+    NSMutableArray<NSString *> *normalizedPaths = [NSMutableArray arrayWithCapacity:sourcePaths.count];
+    NSString *folderPrefix = nil;
+    std::vector<UString> pathStorage;
+    pathStorage.reserve(sourcePaths.count);
+
+    for (NSString *sourcePath in sourcePaths) {
+        NSString *standardizedPath = [NSURL fileURLWithPath:sourcePath].standardizedURL.path;
+        NSString *parentPath = [standardizedPath stringByDeletingLastPathComponent];
+        NSString *leafName = [standardizedPath lastPathComponent];
+        if (leafName.length == 0) {
+            if (error) {
+                *error = SZMakeError(E_INVALIDARG, @"Invalid source path.");
+            }
+            return NO;
+        }
+
+        if (!folderPrefix) {
+            folderPrefix = parentPath;
+        } else if (![folderPrefix isEqualToString:parentPath]) {
+            if (error) {
+                *error = SZMakeError(E_INVALIDARG,
+                                     @"All items added to an open archive must come from the same folder.");
+            }
+            return NO;
+        }
+
+        [normalizedPaths addObject:standardizedPath];
+        pathStorage.push_back(ToU(leafName));
+    }
+
+    std::vector<const wchar_t *> pathPointers;
+    pathPointers.reserve(pathStorage.size());
+    for (const UString &path : pathStorage) {
+        pathPointers.push_back(path.Ptr());
+    }
+
+    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
+    updateSpec->Session = resolvedSession;
+    updateSpec->ArchivePath = ToU(_archivePath ?: @"");
+    if (_cachedPasswordIsDefined) {
+        updateSpec->PasswordIsDefined = true;
+        updateSpec->Password = ToU(_cachedPassword ?: @"");
+    }
+
+    CMyComPtr<IInFolderArchive> agent;
+    CAgent *agentSpec = NULL;
+    CMyComPtr<IFolderFolder> folder;
+    HRESULT result = SZOpenAgentFolder(_archivePath,
+                                       _openType,
+                                       updateSpec,
+                                       archiveSubdir,
+                                       agent,
+                                       agentSpec,
+                                       folder);
+    if (result != S_OK) {
+        if (error) {
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(result,
+                                                           errorInfo,
+                                                           updateSpec->PasswordWasAsked,
+                                                           updateSpec->PasswordIsDefined);
+        }
+        return NO;
+    }
+
+    CMyComPtr<IFolderOperations> folderOperations;
+    folder.QueryInterface(IID_IFolderOperations, &folderOperations);
+    if (!folderOperations) {
+        if (error) {
+            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                                 @"This archive does not support in-place updates.");
+        }
+        return NO;
+    }
+
+    result = folderOperations->CopyFrom(moveMode ? 1 : 0,
+                                        ToU(folderPrefix ?: @"").Ptr(),
+                                        pathPointers.data(),
+                                        (UInt32)pathPointers.size(),
+                                        updateCallback);
+
+    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
+        [self storeCachedPassword:updateSpec->Password defined:true];
+    }
+
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
+        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+        return NO;
+    }
+
+    if (result != S_OK) {
+        if (error) {
+            *error = SZArchiveUpdateErrorFromResult(result,
+                                                    @"Cannot update archive contents",
+                                                    updateSpec->LastErrorMessage);
+        }
+        return NO;
+    }
+
+    return YES;
 }
 
 static UString SZCompressionMethodSpec(SZCompressionSettings *settings) {

@@ -123,6 +123,9 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             self.isWaitingForProgress = true
             self.startTime = nil
             self.lastMetricsUpdateTime = 0
+            self.cancelled = false
+            self.cancelButton.isEnabled = true
+            self.cancelButton.title = "Cancel"
             self.progressBar.stopAnimation(nil)
             self.progressBar.isIndeterminate = false
             self.progressBar.doubleValue = 0
@@ -281,6 +284,12 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
 
     @objc func progressPrepareForUserInteraction() {
         showNowIfNeeded()
+    }
+
+    @objc func progressResetCancellationRequest() {
+        cancelled = false
+        cancelButton.isEnabled = false
+        cancelButton.title = "Finalizing..."
     }
 
     @objc func progressDidUpdateSpeed(_ bytesPerSecond: Double) {

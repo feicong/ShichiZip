@@ -163,6 +163,7 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 - (BOOL)progressShouldCancel;
 @optional
 - (void)progressPrepareForUserInteraction;
+- (void)progressResetCancellationRequest;
 - (void)progressDidUpdateSpeed:(double)bytesPerSecond;
 - (void)progressDidUpdateCompressionRatio:(double)ratio;
 @end
@@ -316,6 +317,32 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 /// Test archive integrity with an explicit operation session
 - (BOOL)testWithSession:(nullable SZOperationSession *)session
                                     error:(NSError **)error;
+
+/// Create a folder inside the currently open archive.
+- (BOOL)createFolderNamed:(NSString *)folderName
+                     inArchiveSubdir:(NSString *)archiveSubdir
+                                     session:(nullable SZOperationSession *)session
+                                         error:(NSError **)error;
+
+/// Rename one item in the currently open archive.
+- (BOOL)renameItemAtPath:(NSString *)itemPath
+                    inArchiveSubdir:(NSString *)archiveSubdir
+                                    newName:(NSString *)newName
+                                    session:(nullable SZOperationSession *)session
+                                        error:(NSError **)error;
+
+/// Delete one or more items from the currently open archive.
+- (BOOL)deleteItemsAtPaths:(NSArray<NSString *> *)itemPaths
+                        inArchiveSubdir:(NSString *)archiveSubdir
+                                        session:(nullable SZOperationSession *)session
+                                            error:(NSError **)error;
+
+/// Add files or folders from disk into the currently open archive.
+- (BOOL)addPaths:(NSArray<NSString *> *)sourcePaths
+    toArchiveSubdir:(NSString *)archiveSubdir
+                 moveMode:(BOOL)moveMode
+                    session:(nullable SZOperationSession *)session
+                        error:(NSError **)error;
 
 /// Create a new archive from files
 + (BOOL)createAtPath:(NSString *)archivePath

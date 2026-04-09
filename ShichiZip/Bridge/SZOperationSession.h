@@ -54,6 +54,7 @@ typedef NSInteger (^SZOperationChoiceRequestHandler)(SZOperationPromptStyle styl
 - (void)reportFilesCompleted:(uint64_t)count;
 - (BOOL)shouldCancel;
 - (void)requestCancel;
+- (void)clearCancellationRequest;
 - (void)prepareForUserInteraction;
 - (void)finishUserInteraction;
 - (SZOperationSnapshot *)snapshot;

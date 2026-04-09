@@ -1352,6 +1352,18 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let pane = activePane
 
         if pane.isVirtualLocation {
+            if let sourcePane = inactiveFileSystemSourcePaneForActiveArchiveMutation(),
+               let target = pane.currentArchiveMutationTarget(),
+               (move || !pane.canCopySelection()) {
+                let sourceURLs = sourcePane.selectedFileURLs()
+                pane.beginConfirmedArchiveTransfer(sourceURLs,
+                                                   to: target,
+                                                   operation: move ? .move : .copy,
+                                                   sourcePane: sourcePane,
+                                                   parentWindow: window)
+                return
+            }
+
             if move {
                 showUnsupportedOperationAlert("Moving items from an open archive is not implemented yet. Use Copy to extract them out first.")
                 return
@@ -1380,6 +1392,21 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let sourceURLs = pane.selectedFileURLs()
         guard !sourceURLs.isEmpty else { return }
 
+        if let destinationPane = inactivePane,
+           destinationPane.isVirtualLocation {
+            guard let target = destinationPane.currentArchiveMutationTarget() else {
+                showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to copy or move files into it.")
+                return
+            }
+
+            destinationPane.beginConfirmedArchiveTransfer(sourceURLs,
+                                                          to: target,
+                                                          operation: move ? .move : .copy,
+                                                          sourcePane: pane,
+                                                          parentWindow: window)
+            return
+        }
+
         guard let destURL = promptForFileOperationDestination(forMove: move, sourcePane: pane) else { return }
         guard validateTransferDestination(destURL, for: pane, move: move) else { return }
 
@@ -1404,9 +1431,27 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
+    private func inactiveFileSystemSourcePaneForActiveArchiveMutation() -> FileManagerPaneController? {
+        guard activePane.isVirtualLocation,
+              activePane.supportsInPlaceArchiveMutation,
+              let pane = inactivePane,
+              !pane.isVirtualLocation,
+              !pane.selectedFileURLs().isEmpty else {
+            return nil
+        }
+
+        return pane
+    }
+
+    private func canImportInactivePaneSelectionIntoActiveArchive() -> Bool {
+        inactiveFileSystemSourcePaneForActiveArchiveMutation() != nil
+    }
+
     @objc func createFolder(_ sender: Any?) {
         guard activePane.canCreateFolderHere() else {
-            showUnsupportedOperationAlert("Creating folders inside an open archive is not implemented yet.")
+            if activePane.isVirtualLocation {
+                showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to create folders inside it.")
+            }
             return
         }
 
@@ -1440,27 +1485,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     @objc func deleteFiles(_ sender: Any?) {
         let activePane = self.activePane
-        guard activePane.canDeleteSelection() else {
-            if activePane.isVirtualLocation {
-                showUnsupportedOperationAlert("Deleting items from inside an open archive is not implemented yet.")
-            }
-            return
-        }
-
-        let paths = activePane.selectedFilePaths()
-        guard !paths.isEmpty else { return }
-
-        guard let window else { return }
-        szBeginConfirmation(on: window,
-                            title: "Delete \(paths.count) item(s)?",
-                            message: "Items will be moved to Trash.",
-                            confirmTitle: "Move to Trash") { confirmed in
-            guard confirmed else { return }
-            for path in paths {
-                try? FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
-            }
-            activePane.refresh()
-        }
+        guard activePane.canDeleteSelection() else { return }
+        activePane.deleteSelection()
     }
 
     private func presentSelectionHash(_ algorithm: FileManagerHashAlgorithm) {
@@ -1518,8 +1544,14 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         case #selector(testArchive(_:)):
             return activePane.canTestArchiveSelection()
         case #selector(copyFiles(_:)):
+            if activePane.isVirtualLocation {
+                return activePane.canCopySelection() || canImportInactivePaneSelectionIntoActiveArchive()
+            }
             return activePane.canCopySelection()
         case #selector(moveFiles(_:)):
+            if activePane.isVirtualLocation {
+                return canImportInactivePaneSelectionIntoActiveArchive()
+            }
             return activePane.canMoveSelection()
         case #selector(renameSelection(_:)):
             return activePane.canRenameSelection()

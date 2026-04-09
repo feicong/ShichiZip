@@ -4,6 +4,7 @@ enum FileManagerTemporaryDirectorySupport {
     static let openArchivePrefix = "7zO"
     static let dragPrefix = "7zE"
     static let quickLookPrefix = "7zQ"
+    static let stagingPrefix = "7zS"
 
     private static let managedRootPrefixes = ["7zE", "7zO", "7zQ", "7zS"]
     private static let legacyRootPrefixes = ["ShichiZip-drag-"]

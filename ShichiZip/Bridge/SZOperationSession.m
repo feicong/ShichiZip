@@ -245,6 +245,21 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
     }
 }
 
+- (void)clearCancellationRequest {
+    @synchronized (self) {
+        _cancellationRequested = NO;
+    }
+
+    id<SZProgressDelegate> delegate = self.progressDelegate;
+    if (!delegate || ![delegate respondsToSelector:@selector(progressResetCancellationRequest)]) {
+        return;
+    }
+
+    SZDispatchSyncOnMain(^{
+        [delegate progressResetCancellationRequest];
+    });
+}
+
 - (void)prepareForUserInteraction {
     @synchronized (self) {
         _waitingForUserInteraction = YES;

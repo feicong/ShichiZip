@@ -125,6 +125,38 @@ static void SZBuildExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar
     }
 }
 
+void SetExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s) {
+    SZBuildExtractErrorMessage(opRes, encrypted, fileName, s);
+}
+
+static inline HRESULT SZAgentCheckBreak(SZOperationSession *session) {
+    return (session && [session shouldCancel]) ? E_ABORT : S_OK;
+}
+
+static void SZReportAgentCurrentPath(SZOperationSession *session,
+                                     NSString *prefix,
+                                     const wchar_t *path) {
+    if (!session) {
+        return;
+    }
+
+    NSString *pathText = (path && path[0] != 0) ? ToNS(UString(path)) : @"";
+    if (prefix.length > 0 && pathText.length > 0) {
+        [session reportCurrentFileName:[NSString stringWithFormat:@"%@: %@", prefix, pathText]];
+        return;
+    }
+
+    [session reportCurrentFileName:(pathText.length > 0 ? pathText : (prefix ?: @""))];
+}
+
+static void SZAppendHRESULTMessage(UString &storage, const wchar_t *path, HRESULT errorCode) {
+    NSString *pathText = (path && path[0] != 0) ? ToNS(UString(path)) : nil;
+    NSString *message = pathText.length > 0
+        ? [NSString stringWithFormat:@"%@: 0x%08X", pathText, (unsigned)errorCode]
+        : [NSString stringWithFormat:@"Operation failed (0x%08X)", (unsigned)errorCode];
+    SZAppendErrorMessage(storage, message);
+}
+
 // ============================================================
 // SZOpenCallbackUI implementation
 // ============================================================
@@ -580,4 +612,221 @@ HRESULT SZUpdateCallbackUI::CryptoGetTextPassword2(Int32 *passwordIsDefined, BST
 HRESULT SZUpdateCallbackUI::CryptoGetTextPassword(BSTR *password) {
     if (!PasswordIsDefined) return E_ABORT;
     return StringToBstr(Password, password);
+}
+
+// ============================================================
+// SZAgentUpdateCallback implementation
+// ============================================================
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetNumFiles(UInt64 /* numFiles */)) {
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetTotal(UInt64 total)) {
+    TotalSize = total;
+    SZOperationSession *session = Session;
+    if (session && total > 0) {
+        [session reportProgressFraction:0.0];
+        [session reportBytesCompleted:0 total:total];
+    }
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetCompleted(const UInt64 *completed)) {
+    if (completed && TotalSize > 0) {
+        const UInt64 current = MIN(*completed, TotalSize);
+        const double fraction = (double)current / (double)TotalSize;
+        SZOperationSession *session = Session;
+        if (session) {
+            [session reportProgressFraction:fraction];
+            [session reportBytesCompleted:current total:TotalSize];
+        }
+    }
+    return SZAgentCheckBreak(Session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetRatioInfo(const UInt64 * /* inSize */, const UInt64 * /* outSize */)) {
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::CompressOperation(const wchar_t *name)) {
+    SZReportAgentCurrentPath(Session, @"Updating", name);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::DeleteOperation(const wchar_t *name)) {
+    SZReportAgentCurrentPath(Session, @"Deleting", name);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::OperationResult(Int32 /* opRes */)) {
+    SZOperationSession *session = Session;
+    if (session) {
+        [session reportFilesCompleted:++NumFilesCompleted];
+    }
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::UpdateErrorMessage(const wchar_t *message)) {
+    SZAppendErrorMessage(LastErrorMessage, UString(message ? message : L""));
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::OpenFileError(const wchar_t *path, HRESULT errorCode)) {
+    SZAppendHRESULTMessage(LastErrorMessage, path, errorCode);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::ReadingFileError(const wchar_t *path, HRESULT errorCode)) {
+    SZAppendHRESULTMessage(LastErrorMessage, path, errorCode);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::ReportExtractResult(Int32 opRes, Int32 isEncrypted, const wchar_t *path)) {
+    if (opRes != NArchive::NExtract::NOperationResult::kOK) {
+        UString message;
+        SetExtractErrorMessage(opRes, isEncrypted, path, message);
+        SZAppendErrorMessage(LastErrorMessage, message);
+    }
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::ReportUpdateOperation(UInt32 /* notifyOp */, const wchar_t *path, Int32 /* isDir */)) {
+    SZReportAgentCurrentPath(Session, @"Updating", path);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::ScanError(const wchar_t *path, HRESULT errorCode)) {
+    SZAppendHRESULTMessage(LastErrorMessage, path, errorCode);
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::ScanProgress(UInt64 /* numFolders */, UInt64 /* numFiles */, UInt64 /* totalSize */, const wchar_t *path, Int32 /* isDir */)) {
+    SZReportAgentCurrentPath(Session, @"Scanning", path);
+    return SZAgentCheckBreak(Session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::CryptoGetTextPassword2(Int32 *passwordIsDefined, BSTR *password)) {
+    *password = NULL;
+    if (passwordIsDefined) {
+        *passwordIsDefined = BoolToInt(PasswordIsDefined);
+    }
+    if (!PasswordIsDefined) {
+        return S_OK;
+    }
+    return StringToBstr(Password, password);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::CryptoGetTextPassword(BSTR *password)) {
+    *password = NULL;
+    if (!PasswordIsDefined) {
+        PasswordWasAsked = true;
+        HRESULT hr = SZRequestOperationPassword(Session,
+                                                Password,
+                                                PasswordIsDefined,
+                                                ToNS(ArchivePath));
+        if (hr != S_OK) {
+            return hr;
+        }
+    }
+
+    if (!PasswordIsDefined) {
+        return E_ABORT;
+    }
+    return StringToBstr(Password, password);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetTotal(const UInt64 *files, const UInt64 *bytes)) {
+    if (bytes && *bytes > 0) {
+        OpenTotalValue = *bytes;
+        HasOpenTotalValue = true;
+        UsesBytesProgress = true;
+    } else if (files && *files > 0) {
+        OpenTotalValue = *files;
+        HasOpenTotalValue = true;
+        UsesBytesProgress = false;
+    } else {
+        OpenTotalValue = 0;
+        HasOpenTotalValue = false;
+        UsesBytesProgress = false;
+    }
+
+    SZOperationSession *session = Session;
+    if (session && HasOpenTotalValue) {
+        [session reportProgressFraction:0.0];
+        if (UsesBytesProgress) {
+            [session reportBytesCompleted:0 total:OpenTotalValue];
+        }
+    }
+
+    return SZAgentCheckBreak(session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::SetCompleted(const UInt64 *files, const UInt64 *bytes)) {
+    if (!HasOpenTotalValue || OpenTotalValue == 0) {
+        return SZAgentCheckBreak(Session);
+    }
+
+    UInt64 completed = 0;
+    if (UsesBytesProgress && bytes) {
+        completed = *bytes;
+    } else if (!UsesBytesProgress && files) {
+        completed = *files;
+    }
+
+    if (completed > OpenTotalValue) {
+        completed = OpenTotalValue;
+    }
+
+    SZOperationSession *session = Session;
+    if (session) {
+        [session reportProgressFraction:(double)completed / (double)OpenTotalValue];
+        if (UsesBytesProgress) {
+            [session reportBytesCompleted:completed total:OpenTotalValue];
+        }
+    }
+
+    return SZAgentCheckBreak(session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::MoveArc_Start(const wchar_t * /* srcTempPath */, const wchar_t *destFinalPath, UInt64 size, Int32 /* updateMode */)) {
+    TotalSize = size;
+    ArchiveWasReplaced = false;
+    SZReportAgentCurrentPath(Session, @"Replacing archive", destFinalPath);
+    SZOperationSession *session = Session;
+    if (session && size > 0) {
+        [session reportProgressFraction:0.0];
+        [session reportBytesCompleted:0 total:size];
+    }
+    return S_OK;
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::MoveArc_Progress(UInt64 totalSize, UInt64 currentSize)) {
+    if (totalSize > 0) {
+        const UInt64 completed = MIN(currentSize, totalSize);
+        SZOperationSession *session = Session;
+        if (session) {
+            [session reportProgressFraction:(double)completed / (double)totalSize];
+            [session reportBytesCompleted:completed total:totalSize];
+        }
+    }
+    return SZAgentCheckBreak(Session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::MoveArc_Finish()) {
+    ArchiveWasReplaced = true;
+    SZOperationSession *session = Session;
+    if (session && TotalSize > 0) {
+        [session reportProgressFraction:1.0];
+        [session reportBytesCompleted:TotalSize total:TotalSize];
+    }
+    return SZAgentCheckBreak(session);
+}
+
+Z7_COM7F_IMF(SZAgentUpdateCallback::Before_ArcReopen()) {
+    SZOperationSession *session = Session;
+    if (session) {
+        [session clearCancellationRequest];
+    }
+    return S_OK;
 }

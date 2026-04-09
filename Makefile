@@ -355,17 +355,29 @@ UI_COMMON_SRCS = \
 	$(CPP_ROOT)/7zip/UI/Common/SetProperties.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/SortUtils.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/TempFiles.cpp \
+	$(CPP_ROOT)/7zip/UI/Common/WorkDir.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/Update.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/UpdateAction.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/UpdateCallback.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/UpdatePair.cpp \
 	$(CPP_ROOT)/7zip/UI/Common/UpdateProduce.cpp
 
+# === UI/Agent (archive-backed folder operations) ===
+AGENT_SRCS = \
+	$(CPP_ROOT)/7zip/UI/Agent/Agent.cpp \
+	$(CPP_ROOT)/7zip/UI/Agent/AgentOut.cpp \
+	$(CPP_ROOT)/7zip/UI/Agent/AgentProxy.cpp \
+	$(CPP_ROOT)/7zip/UI/Agent/ArchiveFolder.cpp \
+	$(CPP_ROOT)/7zip/UI/Agent/ArchiveFolderOut.cpp \
+	$(CPP_ROOT)/7zip/UI/Agent/UpdateCallbackAgent.cpp
+
 # === All sources ===
 ALL_CPP_SRCS = $(COMMON_SRCS) $(WIN_SRCS) $(SEVENZIP_COMMON_SRCS) \
 	$(ARCHIVE_SRCS) $(ARCHIVE_SUB_SRCS) $(COMPRESS_SRCS) $(CRYPTO_SRCS) \
-	$(UI_COMMON_SRCS)
-SHICHIZIP_VENDOR_MM_SRCS = vendor/SZEncodingDetector.mm
+	$(UI_COMMON_SRCS) $(AGENT_SRCS)
+SHICHIZIP_VENDOR_MM_SRCS = \
+	vendor/SZEncodingDetector.mm \
+	vendor/SZAgentCompat.mm
 
 # Generate object file paths
 C_OBJS = $(patsubst $(SEVENZ_ROOT)/%.c,$(O)/%.o,$(C_SRCS))

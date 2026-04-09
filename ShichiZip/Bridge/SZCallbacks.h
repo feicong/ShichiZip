@@ -3,6 +3,7 @@
 #pragma once
 #include "SZBridgeCommon.h"
 #include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
+#include "CPP/7zip/UI/Agent/IFolderArchive.h"
 #include "CPP/7zip/UI/Common/Update.h"
 #include "CPP/7zip/UI/Common/UpdateCallback.h"
 #include "CPP/7zip/UI/Common/EnumDirItems.h"
@@ -159,4 +160,69 @@ public:
     // IDirItemsCallback
     HRESULT ScanError(const FString &, DWORD) override { return S_OK; }
     HRESULT ScanProgress(const CDirItemsStat &, const FString &, bool) override;
+};
+
+// ============================================================
+// IFolderArchiveUpdateCallback* — UI callback for in-place archive updates
+// ============================================================
+class SZAgentUpdateCallback final :
+    public IFolderArchiveUpdateCallback,
+    public IFolderArchiveUpdateCallback2,
+    public IFolderArchiveUpdateCallback_MoveArc,
+    public IFolderScanProgress,
+    public ICryptoGetTextPassword2,
+    public ICryptoGetTextPassword,
+    public IArchiveOpenCallback,
+    public ICompressProgressInfo,
+    public CMyUnknownImp
+{
+public:
+    UString Password;
+    bool PasswordIsDefined;
+    bool PasswordWasAsked;
+    UInt64 TotalSize;
+    UInt64 OpenTotalValue;
+    bool HasOpenTotalValue;
+    bool UsesBytesProgress;
+    UInt64 NumFilesCompleted;
+    bool ArchiveWasReplaced;
+    __unsafe_unretained SZOperationSession *Session;
+    UString ArchivePath;
+    UString LastErrorMessage;
+
+    SZAgentUpdateCallback() : PasswordIsDefined(false), PasswordWasAsked(false), TotalSize(0),
+        OpenTotalValue(0), HasOpenTotalValue(false), UsesBytesProgress(false),
+        NumFilesCompleted(0), ArchiveWasReplaced(false), Session(nil) {}
+
+    Z7_COM_UNKNOWN_IMP_8(IFolderArchiveUpdateCallback,
+                        IFolderArchiveUpdateCallback2,
+                        IFolderArchiveUpdateCallback_MoveArc,
+                        IFolderScanProgress,
+                        ICryptoGetTextPassword2,
+                        ICryptoGetTextPassword,
+                        IArchiveOpenCallback,
+                        ICompressProgressInfo)
+
+    STDMETHOD(SetNumFiles)(UInt64 numFiles) override;
+    STDMETHOD(SetTotal)(UInt64 total) override;
+    STDMETHOD(SetCompleted)(const UInt64 *completed) override;
+    STDMETHOD(SetRatioInfo)(const UInt64 *inSize, const UInt64 *outSize) override;
+    STDMETHOD(CompressOperation)(const wchar_t *name) override;
+    STDMETHOD(DeleteOperation)(const wchar_t *name) override;
+    STDMETHOD(OperationResult)(Int32 opRes) override;
+    STDMETHOD(UpdateErrorMessage)(const wchar_t *message) override;
+    STDMETHOD(OpenFileError)(const wchar_t *path, HRESULT errorCode) override;
+    STDMETHOD(ReadingFileError)(const wchar_t *path, HRESULT errorCode) override;
+    STDMETHOD(ReportExtractResult)(Int32 opRes, Int32 isEncrypted, const wchar_t *path) override;
+    STDMETHOD(ReportUpdateOperation)(UInt32 notifyOp, const wchar_t *path, Int32 isDir) override;
+    STDMETHOD(ScanError)(const wchar_t *path, HRESULT errorCode) override;
+    STDMETHOD(ScanProgress)(UInt64 numFolders, UInt64 numFiles, UInt64 totalSize, const wchar_t *path, Int32 isDir) override;
+    STDMETHOD(CryptoGetTextPassword2)(Int32 *passwordIsDefined, BSTR *password) override;
+    STDMETHOD(CryptoGetTextPassword)(BSTR *password) override;
+    STDMETHOD(SetTotal)(const UInt64 *files, const UInt64 *bytes) override;
+    STDMETHOD(SetCompleted)(const UInt64 *files, const UInt64 *bytes) override;
+    STDMETHOD(MoveArc_Start)(const wchar_t *srcTempPath, const wchar_t *destFinalPath, UInt64 size, Int32 updateMode) override;
+    STDMETHOD(MoveArc_Progress)(UInt64 totalSize, UInt64 currentSize) override;
+    STDMETHOD(MoveArc_Finish)(void) override;
+    STDMETHOD(Before_ArcReopen)(void) override;
 };
