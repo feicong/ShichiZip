@@ -8,6 +8,11 @@ struct FileManagerArchiveItemWorkflowContext {
     let displayPathPrefix: String
 }
 
+struct FileManagerArchiveQuickLookPreview {
+    let temporaryDirectory: URL
+    let fileURLs: [URL]
+}
+
 enum FileManagerArchiveItemOpenStrategy {
     case automatic
     case forceInternal(FileManagerArchiveOpenMode)
@@ -211,6 +216,43 @@ final class FileManagerArchiveItemWorkflowService {
 
         try moveItemPreservingMetadata(from: stagedItem.fileURL,
                                        to: standardizedDestinationURL)
+    }
+
+    func stageQuickLookItems(_ items: [ArchiveItem],
+                             context: FileManagerArchiveItemWorkflowContext,
+                             session: SZOperationSession?) throws -> FileManagerArchiveQuickLookPreview {
+        guard !items.isEmpty else {
+            throw extractionPreparationError()
+        }
+
+        let temporaryDirectory = try createTemporaryDirectory(prefix: FileManagerTemporaryDirectorySupport.quickLookPrefix)
+
+        do {
+            let settings = stagingExtractionSettings()
+            let indices = items.map { NSNumber(value: $0.index) }
+            if let session {
+                try context.archive.extractEntries(indices,
+                                                  toPath: temporaryDirectory.path,
+                                                  settings: settings,
+                                                  session: session)
+            } else {
+                try context.archive.extractEntries(indices,
+                                                  toPath: temporaryDirectory.path,
+                                                  settings: settings,
+                                                  progress: nil)
+            }
+
+            let fileURLs = items.map { temporaryDirectory.appendingPathComponent($0.path) }
+            guard fileURLs.allSatisfy({ fileManager.fileExists(atPath: $0.path) }) else {
+                throw extractionPreparationError()
+            }
+
+            return FileManagerArchiveQuickLookPreview(temporaryDirectory: temporaryDirectory,
+                                                      fileURLs: fileURLs)
+        } catch {
+            cleanup(temporaryDirectory)
+            throw error
+        }
     }
 
     private func stage(item: ArchiveItem,

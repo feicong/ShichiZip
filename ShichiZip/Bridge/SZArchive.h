@@ -271,6 +271,12 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 /// Get the detected format name
 @property (nonatomic, readonly, nullable) NSString *formatName;
 
+/// Get the physical size of the archive file in bytes when available
+@property (nonatomic, readonly) uint64_t archivePhysicalSize;
+
+/// Get whether the archive uses solid compression when available
+@property (nonatomic, readonly, getter=isSolidArchive) BOOL solidArchive;
+
 /// Get the number of entries
 @property (nonatomic, readonly) NSUInteger entryCount;
 

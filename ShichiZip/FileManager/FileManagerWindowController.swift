@@ -1,7 +1,28 @@
 import Cocoa
+import QuickLookUI
 
 extension Notification.Name {
     static let fileManagerViewPreferencesDidChange = Notification.Name("FileManagerViewPreferencesDidChange")
+}
+
+private final class FileManagerQuickLookItem: NSObject, QLPreviewItem {
+    let previewItemURL: URL?
+    let previewItemTitle: String?
+    let sourceFrameOnScreen: NSRect
+    let transitionImage: NSImage?
+    let transitionContentRect: NSRect
+
+    init(url: URL,
+         title: String?,
+         sourceFrameOnScreen: NSRect,
+         transitionImage: NSImage?,
+         transitionContentRect: NSRect) {
+        self.previewItemURL = url
+        self.previewItemTitle = title
+        self.sourceFrameOnScreen = sourceFrameOnScreen
+        self.transitionImage = transitionImage
+        self.transitionContentRect = transitionContentRect
+    }
 }
 
 private final class FileOperationDestinationPicker: NSObject {
@@ -286,6 +307,10 @@ private enum FileManagerHashAlgorithm {
 /// Dual-pane file manager window replicating 7-Zip File Manager
 class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserInterfaceValidations, NSMenuItemValidation {
 
+    private static let maxArchiveQuickLookItemSize: UInt64 = 128 * 1024 * 1024
+    private static let maxArchiveQuickLookCombinedSize: UInt64 = 256 * 1024 * 1024
+    private static let maxSolidArchiveQuickLookSize: UInt64 = 512 * 1024 * 1024
+
     private enum PanePreferences {
         private static let defaults = UserDefaults.standard
         private static let dualPaneKey = "FileManager.IsDualPane"
@@ -376,6 +401,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private var autoRefreshTimer: Timer?
     private var foldersHistoryWindowController: FoldersHistoryWindowController?
     private var pendingEvenSplitLayout = false
+    private var quickLookPreviewItems: [FileManagerQuickLookItem] = []
+    private var quickLookPreviewTemporaryDirectories: [URL] = []
+    private weak var quickLookPreviewSourcePane: FileManagerPaneController?
+    private var quickLookPreviewTask: Task<Void, Never>?
+    private var quickLookPreviewGeneration: UInt64 = 0
+    private var quickLookPanelKeyObserver: NSObjectProtocol?
 
     var onWindowWillClose: ((FileManagerWindowController) -> Void)?
 
@@ -408,7 +439,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         if let viewPreferencesObserver {
             NotificationCenter.default.removeObserver(viewPreferencesObserver)
         }
+        if let quickLookPanelKeyObserver {
+            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
+        }
         autoRefreshTimer?.invalidate()
+        quickLookPreviewTask?.cancel()
+        clearQuickLookPreviewResources()
     }
 
     override func showWindow(_ sender: Any?) {
@@ -424,6 +460,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
         autoRefreshTimer?.invalidate()
         autoRefreshTimer = nil
+        closeQuickLookPreview()
         onWindowWillClose?(self)
     }
 
@@ -615,6 +652,153 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         default:
             return event
         }
+    }
+
+    private var isQuickLookVisible: Bool {
+        guard QLPreviewPanel.sharedPreviewPanelExists() else { return false }
+        return QLPreviewPanel.shared()?.isVisible == true
+    }
+
+    private func nextQuickLookGeneration() -> UInt64 {
+        quickLookPreviewGeneration &+= 1
+        return quickLookPreviewGeneration
+    }
+
+    private func toggleQuickLookPreview(for pane: FileManagerPaneController) {
+        if isQuickLookVisible,
+           quickLookPreviewSourcePane === pane {
+            closeQuickLookPreview()
+            return
+        }
+
+        requestQuickLookPreview(for: pane,
+                                userInitiated: true)
+    }
+
+    private func openQuickLookPreview(for pane: FileManagerPaneController) {
+        requestQuickLookPreview(for: pane,
+                                userInitiated: true)
+    }
+
+    private func requestQuickLookPreview(for pane: FileManagerPaneController,
+                                         userInitiated: Bool) {
+        let shouldPresentPanel = userInitiated || isQuickLookVisible
+        guard pane.canQuickLookSelection else {
+            if !userInitiated {
+                closeQuickLookPreview()
+            }
+            return
+        }
+
+        let generation = nextQuickLookGeneration()
+        quickLookPreviewTask?.cancel()
+        quickLookPreviewTask = Task { @MainActor [weak self, weak pane] in
+            guard let self, let pane else { return }
+
+            do {
+                let preview = try await pane.prepareQuickLookPreview(maxArchiveItemSize: Self.maxArchiveQuickLookItemSize,
+                                                                     maxArchiveCombinedSize: Self.maxArchiveQuickLookCombinedSize,
+                                                                     maxSolidArchiveSize: Self.maxSolidArchiveQuickLookSize)
+                guard generation == self.quickLookPreviewGeneration else {
+                    pane.cleanupQuickLookTemporaryDirectories(preview.temporaryDirectories)
+                    return
+                }
+
+                self.applyQuickLookPreview(preview,
+                                           sourcePane: pane,
+                                           shouldPresentPanel: shouldPresentPanel)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard generation == self.quickLookPreviewGeneration else { return }
+                self.closeQuickLookPreview()
+                if userInitiated {
+                    self.showErrorAlert(error)
+                }
+            }
+        }
+    }
+
+    private func applyQuickLookPreview(_ preview: FileManagerQuickLookPreparedPreview,
+                                       sourcePane: FileManagerPaneController,
+                                       shouldPresentPanel: Bool) {
+        clearQuickLookPreviewResources()
+        quickLookPreviewSourcePane = sourcePane
+        quickLookPreviewTemporaryDirectories = preview.temporaryDirectories
+        quickLookPreviewItems = preview.items.map { FileManagerQuickLookItem(url: $0.url,
+                                                                             title: $0.title,
+                                                                             sourceFrameOnScreen: $0.sourceFrameOnScreen,
+                                                                             transitionImage: $0.transitionImage,
+                                                                             transitionContentRect: $0.transitionContentRect) }
+
+        guard shouldPresentPanel,
+              let panel = QLPreviewPanel.shared() else { return }
+
+        panel.becomesKeyOnlyIfNeeded = true
+        installQuickLookPanelKeyObserver(for: panel,
+                                         sourcePane: sourcePane)
+        panel.updateController()
+        panel.orderFront(nil)
+        if panel.currentController as AnyObject? === self {
+            panel.reloadData()
+        }
+
+        DispatchQueue.main.async { [weak self, weak sourcePane] in
+            guard let self, let sourcePane else { return }
+            guard self.quickLookPreviewSourcePane === sourcePane else { return }
+            self.window?.makeKey()
+            sourcePane.focusFileList()
+        }
+    }
+
+    private func installQuickLookPanelKeyObserver(for panel: QLPreviewPanel,
+                                                  sourcePane: FileManagerPaneController) {
+        if let quickLookPanelKeyObserver {
+            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
+            self.quickLookPanelKeyObserver = nil
+        }
+
+        quickLookPanelKeyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: panel,
+            queue: .main
+        ) { [weak self, weak sourcePane] _ in
+            guard let self, let sourcePane else { return }
+            guard self.quickLookPreviewSourcePane === sourcePane else { return }
+            DispatchQueue.main.async {
+                guard self.quickLookPreviewSourcePane === sourcePane else { return }
+                self.window?.makeKeyAndOrderFront(nil)
+                sourcePane.focusFileList()
+            }
+        }
+    }
+
+    private func closeQuickLookPreview() {
+        quickLookPreviewTask?.cancel()
+        quickLookPreviewTask = nil
+        _ = nextQuickLookGeneration()
+
+        if QLPreviewPanel.sharedPreviewPanelExists() {
+            if let panel = QLPreviewPanel.shared(),
+               panel.isVisible {
+                panel.orderOut(nil)
+            }
+        }
+
+        clearQuickLookPreviewResources()
+    }
+
+    private func clearQuickLookPreviewResources() {
+        if let quickLookPanelKeyObserver {
+            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
+            self.quickLookPanelKeyObserver = nil
+        }
+        if let pane = quickLookPreviewSourcePane {
+            pane.cleanupQuickLookTemporaryDirectories(quickLookPreviewTemporaryDirectories)
+        }
+        quickLookPreviewTemporaryDirectories.removeAll()
+        quickLookPreviewItems.removeAll()
+        quickLookPreviewSourcePane = nil
     }
 
     // MARK: - Actions
@@ -1734,6 +1918,9 @@ extension FileManagerWindowController: NSToolbarDelegate {
 protocol FileManagerPaneDelegate: AnyObject {
     func paneDidRequestOpenArchiveInNewWindow(_ url: URL)
     func paneDidBecomeActive(_ pane: FileManagerPaneController)
+    func paneSelectionDidChange(_ pane: FileManagerPaneController)
+    func paneDidRequestToggleQuickLook(_ pane: FileManagerPaneController)
+    func paneDidRequestQuickLook(_ pane: FileManagerPaneController)
 }
 
 extension FileManagerWindowController: FileManagerPaneDelegate {
@@ -1743,5 +1930,82 @@ extension FileManagerWindowController: FileManagerPaneDelegate {
 
     func paneDidBecomeActive(_ pane: FileManagerPaneController) {
         setActivePane(pane)
+        if isQuickLookVisible,
+           quickLookPreviewSourcePane !== pane {
+            requestQuickLookPreview(for: pane,
+                                    userInitiated: false)
+        }
+    }
+
+    func paneSelectionDidChange(_ pane: FileManagerPaneController) {
+        guard isQuickLookVisible else { return }
+        requestQuickLookPreview(for: pane,
+                                userInitiated: false)
+    }
+
+    func paneDidRequestToggleQuickLook(_ pane: FileManagerPaneController) {
+        toggleQuickLookPreview(for: pane)
+    }
+
+    func paneDidRequestQuickLook(_ pane: FileManagerPaneController) {
+        openQuickLookPreview(for: pane)
+    }
+}
+
+extension FileManagerWindowController: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        !quickLookPreviewItems.isEmpty
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = self
+        panel.delegate = self
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        if panel.dataSource as AnyObject? === self {
+            panel.dataSource = nil
+        }
+        if panel.delegate as AnyObject? === self {
+            panel.delegate = nil
+        }
+        clearQuickLookPreviewResources()
+    }
+
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        quickLookPreviewItems.count
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        guard quickLookPreviewItems.indices.contains(index) else { return nil }
+        return quickLookPreviewItems[index]
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+        guard let event,
+              event.type == .keyDown else {
+            return false
+        }
+
+        if event.keyCode == 49 {
+            closeQuickLookPreview()
+            return true
+        }
+
+        guard let pane = quickLookPreviewSourcePane else {
+            return false
+        }
+        return pane.handleQuickLookEvent(event)
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: any QLPreviewItem) -> NSRect {
+        guard let item = item as? FileManagerQuickLookItem else { return .zero }
+        return item.sourceFrameOnScreen
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: any QLPreviewItem, contentRect: UnsafeMutablePointer<NSRect>) -> Any! {
+        guard let item = item as? FileManagerQuickLookItem else { return nil }
+        contentRect.pointee = item.transitionContentRect
+        return item.transitionImage
     }
 }

@@ -1,6 +1,19 @@
 import Cocoa
 import UniformTypeIdentifiers
 
+struct FileManagerQuickLookPreparedItem {
+    let url: URL
+    let title: String?
+    let sourceFrameOnScreen: NSRect
+    let transitionImage: NSImage?
+    let transitionContentRect: NSRect
+}
+
+struct FileManagerQuickLookPreparedPreview {
+    let items: [FileManagerQuickLookPreparedItem]
+    let temporaryDirectories: [URL]
+}
+
 private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate {
     private let item: ArchiveItem
     private let context: FileManagerArchiveItemWorkflowContext
@@ -67,6 +80,9 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
 
 private final class FileManagerTableView: NSTableView {
     var contextMenuPreparationHandler: ((Int) -> Void)?
+    var quickLookToggleHandler: (() -> Void)?
+    var quickLookPreviewHandler: (() -> Void)?
+    private var deepClickTriggered = false
 
     override func canDragRows(with rowIndexes: IndexSet, at mouseDownPoint: NSPoint) -> Bool {
         let clickedColumn = column(at: mouseDownPoint)
@@ -87,6 +103,33 @@ private final class FileManagerTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         contextMenuPreparationHandler?(row(at: point))
         return super.menu(for: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 49 {
+            quickLookToggleHandler?()
+            return
+        }
+
+        super.keyDown(with: event)
+    }
+
+    override func pressureChange(with event: NSEvent) {
+        if event.stage < 2 {
+            deepClickTriggered = false
+        } else if !deepClickTriggered {
+            deepClickTriggered = true
+            let point = convert(event.locationInWindow, from: nil)
+            let clickedRow = row(at: point)
+            if clickedRow >= 0 {
+                if !selectedRowIndexes.contains(clickedRow) {
+                    selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
+                }
+                quickLookPreviewHandler?()
+            }
+        }
+
+        super.pressureChange(with: event)
     }
 }
 
@@ -232,6 +275,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         fileTableView.contextMenuPreparationHandler = { [weak self] clickedRow in
             self?.prepareContextMenu(forClickedRow: clickedRow)
         }
+        fileTableView.quickLookToggleHandler = { [weak self] in
+            guard let self else { return }
+            self.delegate?.paneDidRequestToggleQuickLook(self)
+        }
+        fileTableView.quickLookPreviewHandler = { [weak self] in
+            guard let self else { return }
+            self.delegate?.paneDidRequestQuickLook(self)
+        }
+        fileTableView.pressureConfiguration = NSPressureConfiguration(pressureBehavior: .primaryDeepClick)
         tableView = fileTableView
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsMultipleSelection = true
@@ -522,6 +574,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     var isVirtualLocation: Bool { isInsideArchive }
+
+    var canQuickLookSelection: Bool {
+        !selectedRealPaneItems().isEmpty
+    }
 
     func canAddSelectedItemsToArchive() -> Bool {
         !isInsideArchive && !selectedFileSystemItems().isEmpty
@@ -886,6 +942,115 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
     }
 
+    @MainActor
+    func prepareQuickLookPreview(maxArchiveItemSize: UInt64,
+                                 maxArchiveCombinedSize: UInt64,
+                                 maxSolidArchiveSize: UInt64) async throws -> FileManagerQuickLookPreparedPreview {
+        let selectedEntries = selectedQuickLookRowsAndItems()
+        guard !selectedEntries.isEmpty else {
+            throw quickLookPreparationError("Select one or more items to preview.")
+        }
+
+        if !isInsideArchive {
+            let previewItems = selectedEntries.compactMap { entry -> FileManagerQuickLookPreparedItem? in
+                guard case let .filesystem(item) = entry.item else { return nil }
+                let source = quickLookSourceInfo(forRow: entry.row, paneItem: entry.item)
+                return FileManagerQuickLookPreparedItem(url: item.url.standardizedFileURL,
+                                                        title: item.name,
+                                                        sourceFrameOnScreen: source.frameOnScreen,
+                                                        transitionImage: source.transitionImage,
+                                                        transitionContentRect: source.transitionContentRect)
+            }
+            guard !previewItems.isEmpty else {
+                throw quickLookPreparationError("The current selection cannot be previewed.")
+            }
+            return FileManagerQuickLookPreparedPreview(items: previewItems,
+                                                       temporaryDirectories: [])
+        }
+
+        guard let context = currentArchiveItemWorkflowContext(),
+              let level = archiveStack.last else {
+            throw quickLookPreparationError("The current archive selection cannot be previewed.")
+        }
+
+        let archiveSelection = selectedEntries.compactMap { entry -> (row: Int, item: ArchiveItem)? in
+            guard case let .archive(item) = entry.item else { return nil }
+            return (entry.row, item)
+        }
+        let archiveItems = archiveSelection.map(\.item)
+        guard !archiveItems.isEmpty else {
+            throw quickLookPreparationError("Select one or more files in the archive to preview.")
+        }
+
+        if archiveItems.contains(where: { $0.isDirectory }) {
+            throw quickLookPreparationError("Quick Look can preview files from an archive, but not folders.")
+        }
+
+        if let oversizedItem = archiveItems.first(where: { $0.size > maxArchiveItemSize }) {
+            throw quickLookPreparationError("Quick Look previews from archives are limited to \(formattedByteCount(maxArchiveItemSize)) per file. \"\(oversizedItem.name)\" is \(formattedByteCount(oversizedItem.size)).")
+        }
+
+        let combinedSize = archiveItems.reduce(into: UInt64.zero) { partial, item in
+            let (sum, overflow) = partial.addingReportingOverflow(item.size)
+            partial = overflow ? .max : sum
+        }
+        if combinedSize > maxArchiveCombinedSize {
+            throw quickLookPreparationError("Quick Look previews from archives are limited to \(formattedByteCount(maxArchiveCombinedSize)) for the current selection. The selected files total \(formattedByteCount(combinedSize)).")
+        }
+
+        if level.archive.isSolidArchive {
+            let archiveSize = archivePhysicalSize(for: level)
+            if archiveSize > maxSolidArchiveSize {
+                throw quickLookPreparationError("Quick Look previews from solid archives are limited to archives up to \(formattedByteCount(maxSolidArchiveSize)). This archive is \(formattedByteCount(archiveSize)).")
+            }
+        }
+
+        let stagedPreview = try await ArchiveOperationRunner.run(operationTitle: "Preparing Preview...",
+                                                                 initialFileName: archiveItems.count == 1 ? archiveItems[0].path : nil,
+                                                                 parentWindow: view.window,
+                                                                 deferredDisplay: true) { session in
+            try self.archiveItemWorkflowService.stageQuickLookItems(archiveItems,
+                                                                   context: context,
+                                                                   session: session)
+        }
+
+        let previewItems = zip(archiveSelection, stagedPreview.fileURLs).map { selection, url in
+            let source = quickLookSourceInfo(forRow: selection.row, paneItem: .archive(selection.item))
+            return FileManagerQuickLookPreparedItem(url: url,
+                                                    title: selection.item.name,
+                                                    sourceFrameOnScreen: source.frameOnScreen,
+                                                    transitionImage: source.transitionImage,
+                                                    transitionContentRect: source.transitionContentRect)
+        }
+        return FileManagerQuickLookPreparedPreview(items: previewItems,
+                                                   temporaryDirectories: [stagedPreview.temporaryDirectory])
+    }
+
+    func cleanupQuickLookTemporaryDirectories(_ temporaryDirectories: [URL]) {
+        for url in temporaryDirectories {
+            archiveItemWorkflowService.cleanup(url)
+        }
+    }
+
+    func handleQuickLookEvent(_ event: NSEvent) -> Bool {
+        if !event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
+            return false
+        }
+
+        delegate?.paneDidBecomeActive(self)
+
+        switch event.keyCode {
+        case 36, 76:
+            doubleClickRow(nil)
+        case 51:
+            goUp()
+        default:
+            tableView.keyDown(with: event)
+        }
+
+        return true
+    }
+
     func selectedFilePaths() -> [String] {
         selectedFileSystemItems().map { $0.url.path }
     }
@@ -1172,6 +1337,62 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         tableView.reloadData()
         updateStatusBar()
+    }
+
+    private func quickLookSourceInfo(forRow row: Int,
+                                     paneItem: PaneItem) -> (frameOnScreen: NSRect, transitionImage: NSImage?, transitionContentRect: NSRect) {
+        let transitionImage = makeQuickLookTransitionImage(for: paneItem)
+        let transitionContentRect = transitionImage.map { NSRect(origin: .zero, size: $0.size) } ?? .zero
+        return (quickLookSourceFrameOnScreen(forRow: row), transitionImage, transitionContentRect)
+    }
+
+    private func quickLookSourceFrameOnScreen(forRow row: Int) -> NSRect {
+        let identifier = NSUserInterfaceItemIdentifier("name")
+        let column = tableView.column(withIdentifier: identifier)
+        guard column >= 0,
+              let window = view.window else {
+            return .zero
+        }
+
+        if let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
+           let imageView = cellView.imageView {
+            let rectInWindow = imageView.convert(imageView.bounds, to: nil)
+            return window.convertToScreen(rectInWindow)
+        }
+
+        let cellRect = tableView.frameOfCell(atColumn: column, row: row)
+        let iconRect = NSRect(x: cellRect.minX + 4,
+                              y: cellRect.midY - (iconSize.height / 2),
+                              width: iconSize.width,
+                              height: iconSize.height)
+        let rectInWindow = tableView.convert(iconRect, to: nil)
+        return window.convertToScreen(rectInWindow)
+    }
+
+    private func makeQuickLookTransitionImage(for paneItem: PaneItem) -> NSImage? {
+        let itemName: String
+        let isDirectory: Bool
+        let iconPath: String
+
+        switch paneItem {
+        case .parent:
+            return nil
+        case let .filesystem(item):
+            itemName = item.name
+            isDirectory = item.isDirectory
+            iconPath = item.url.path
+        case let .archive(item):
+            itemName = item.name
+            isDirectory = item.isDirectory
+            iconPath = item.path
+        }
+
+        guard let image = iconImage(for: paneItem, isDirectory: isDirectory, iconPath: iconPath)?.copy() as? NSImage else {
+            return nil
+        }
+        image.size = iconSize
+        image.accessibilityDescription = itemName
+        return image
     }
 
     private func iconImage(for paneItem: PaneItem, isDirectory: Bool, iconPath: String) -> NSImage? {
@@ -1466,6 +1687,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.selectedRowIndexes.compactMap { paneItem(at: $0) }
     }
 
+    private func selectedQuickLookRowsAndItems() -> [(row: Int, item: PaneItem)] {
+        tableView.selectedRowIndexes.compactMap { row in
+            guard let item = paneItem(at: row) else { return nil }
+            if case .parent = item {
+                return nil
+            }
+            return (row, item)
+        }
+    }
+
     private func selectedRealPaneItems() -> [PaneItem] {
         selectedPaneItems().filter {
             if case .parent = $0 {
@@ -1752,6 +1983,30 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     private func showErrorAlert(_ error: Error) {
         szPresentError(error, for: view.window)
+    }
+
+    private func quickLookPreparationError(_ message: String) -> NSError {
+        NSError(domain: NSCocoaErrorDomain,
+                code: CocoaError.fileReadUnknown.rawValue,
+                userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    private func formattedByteCount(_ bytes: UInt64) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(clamping: bytes), countStyle: .file)
+    }
+
+    private func archivePhysicalSize(for level: ArchiveLevel) -> UInt64 {
+        let bridgedSize = level.archive.archivePhysicalSize
+        if bridgedSize > 0 {
+            return bridgedSize
+        }
+
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: level.archivePath),
+           let size = attributes[.size] as? NSNumber {
+            return size.uint64Value
+        }
+
+        return 0
     }
 
     private func showUnsupportedArchiveOperationAlert(action: String) {
@@ -2253,6 +2508,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     func tableViewSelectionDidChange(_ notification: Notification) {
         updateStatusBar()
         delegate?.paneDidBecomeActive(self)
+        delegate?.paneSelectionDidChange(self)
     }
 
     private func resolvedDropOperation(for info: any NSDraggingInfo,

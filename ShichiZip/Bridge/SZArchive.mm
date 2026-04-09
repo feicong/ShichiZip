@@ -1009,6 +1009,44 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     return ToNS(c->Formats[arc.FormatIndex].Name);
 }
 
+- (uint64_t)archivePhysicalSize {
+    if (!_isOpen) return 0;
+    IInArchive *archive = _arcLink->GetArchive();
+    if (!archive) return 0;
+
+    NWindows::NCOM::CPropVariant value;
+    if (archive->GetArchiveProperty(kpidPhySize, &value) != S_OK)
+        return 0;
+
+    if (value.vt == VT_UI8)
+        return (uint64_t)value.uhVal.QuadPart;
+    if (value.vt == VT_UI4)
+        return (uint64_t)value.ulVal;
+    if (value.vt == VT_I8)
+        return value.hVal.QuadPart < 0 ? 0 : (uint64_t)value.hVal.QuadPart;
+    if (value.vt == VT_I4)
+        return value.lVal < 0 ? 0 : (uint64_t)value.lVal;
+    return 0;
+}
+
+- (BOOL)isSolidArchive {
+    if (!_isOpen) return NO;
+    IInArchive *archive = _arcLink->GetArchive();
+    if (!archive) return NO;
+
+    NWindows::NCOM::CPropVariant value;
+    if (archive->GetArchiveProperty(kpidSolid, &value) != S_OK)
+        return NO;
+
+    if (value.vt == VT_BOOL)
+        return value.boolVal != VARIANT_FALSE;
+    if (value.vt == VT_UI4)
+        return value.ulVal != 0;
+    if (value.vt == VT_I4)
+        return value.lVal != 0;
+    return NO;
+}
+
 - (NSUInteger)entryCount {
     if (!_isOpen) return 0;
     IInArchive *archive = _arcLink->GetArchive();
