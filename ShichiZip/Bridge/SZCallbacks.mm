@@ -308,8 +308,27 @@ Z7_COM7F_IMF(SZFolderExtractCallback::PrepareOperation(const wchar_t *name, Int3
         CurrentFilePath = name;
         SZOperationSession *session = Session;
         if (session) {
+            NSString *prefix;
+            switch (askExtractMode) {
+                case NArchive::NExtract::NAskMode::kTest:
+                    prefix = @"Testing";
+                    break;
+                case NArchive::NExtract::NAskMode::kSkip:
+                    prefix = @"Skipping";
+                    break;
+                case NArchive::NExtract::NAskMode::kReadExternal:
+                    prefix = @"Reading";
+                    break;
+                default:
+                    prefix = nil;
+                    break;
+            }
             NSString *n = ToNS(UString(name));
-            [session reportCurrentFileName:n];
+            if (prefix) {
+                [session reportCurrentFileName:[NSString stringWithFormat:@"%@: %@", prefix, n]];
+            } else {
+                [session reportCurrentFileName:n];
+            }
         }
     }
     return S_OK;
