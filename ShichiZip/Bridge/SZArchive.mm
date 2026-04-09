@@ -112,8 +112,21 @@ static const UInt32 kSZCompressionEstimateLzmaMaxDictSize = (UInt32)15 << 28;
 
 struct SZCompressionEstimateRamInfo {
     bool IsDefined;
+    UInt64 RamSizeReduced;
     UInt64 UsageAuto;
 };
+
+static bool SZCompressionEstimateMethodSupportsSFX(int methodID) {
+    switch (methodID) {
+        case kSZCompressionEstimateCopy:
+        case kSZCompressionEstimateLZMA:
+        case kSZCompressionEstimateLZMA2:
+        case kSZCompressionEstimatePPMd:
+            return true;
+        default:
+            return false;
+    }
+}
 
 static bool SZCompressionEstimateFormatSupportsFilters(SZArchiveFormat format) {
     return format == SZArchiveFormat7z;
@@ -238,8 +251,78 @@ static SZCompressionEstimateRamInfo SZCompressionEstimateGetRamInfo() {
 
     SZCompressionEstimateRamInfo info;
     info.IsDefined = isDefined;
+    info.RamSizeReduced = size;
     info.UsageAuto = Calc_From_Val_Percents(size, 80);
     return info;
+}
+
+static bool SZCompressionEstimateGetMemoryUsageLimit(SZCompressionSettings *settings,
+                                                     const SZCompressionEstimateRamInfo &ramInfo,
+                                                     UInt64 &memoryUsageLimit) {
+    memoryUsageLimit = ramInfo.UsageAuto;
+    bool isDefined = ramInfo.IsDefined;
+
+    if (settings.memoryUsage.length > 0) {
+        NSString *spec = [[settings.memoryUsage
+            stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
+            lowercaseString];
+        if (spec.length > 0) {
+            UInt64 parsedLimit = 0;
+            bool parsed = false;
+
+            if ([spec hasSuffix:@"%"] && spec.length > 1) {
+                NSString *valueText = [spec substringToIndex:spec.length - 1];
+                unsigned long long percentValue = 0;
+                NSScanner *scanner = [NSScanner scannerWithString:valueText];
+                parsed = [scanner scanUnsignedLongLong:&percentValue] && scanner.isAtEnd;
+                if (parsed) {
+                    parsedLimit = Calc_From_Val_Percents(ramInfo.RamSizeReduced,
+                                                         (UInt64)percentValue);
+                }
+            } else {
+                NSString *valueText = spec;
+                if ([valueText hasSuffix:@"b"] && valueText.length > 1) {
+                    valueText = [valueText substringToIndex:valueText.length - 1];
+                }
+
+                unsigned shift = 0;
+                if (valueText.length > 1) {
+                    const unichar suffix = [valueText characterAtIndex:valueText.length - 1];
+                    switch (suffix) {
+                        case 'k': shift = 10; break;
+                        case 'm': shift = 20; break;
+                        case 'g': shift = 30; break;
+                        case 't': shift = 40; break;
+                        default: break;
+                    }
+                    if (shift != 0) {
+                        valueText = [valueText substringToIndex:valueText.length - 1];
+                    }
+                }
+
+                unsigned long long baseValue = 0;
+                NSScanner *scanner = [NSScanner scannerWithString:valueText];
+                parsed = [scanner scanUnsignedLongLong:&baseValue] && scanner.isAtEnd;
+                if (parsed) {
+                    parsedLimit = (UInt64)baseValue;
+                    if (shift != 0) {
+                        if (parsedLimit >= ((UInt64)1 << (64 - shift))) {
+                            parsed = false;
+                        } else {
+                            parsedLimit <<= shift;
+                        }
+                    }
+                }
+            }
+
+            if (parsed) {
+                memoryUsageLimit = parsedLimit;
+                isDefined = true;
+            }
+        }
+    }
+
+    return isDefined;
 }
 
 static void SZCompressionEstimateGetCpuThreadCounts(UInt32 &numCPUs,
@@ -316,6 +399,58 @@ static UInt64 SZCompressionEstimateDictionary(SZCompressionSettings *settings,
         return settings.dictionarySize;
     }
     return SZCompressionEstimateAutoDictionary(methodID, level);
+}
+
+static bool SZCompressionEstimateAutoWordSize(int methodID,
+                                              UInt32 level,
+                                              UInt32 &wordSize) {
+    switch (methodID) {
+        case kSZCompressionEstimateLZMA:
+        case kSZCompressionEstimateLZMA2:
+            wordSize = (level < 7 ? 32u : 64u);
+            return true;
+
+        case kSZCompressionEstimateDeflate:
+        case kSZCompressionEstimateDeflate64:
+            if (level >= 9) {
+                wordSize = 128;
+            } else if (level >= 7) {
+                wordSize = 64;
+            } else {
+                wordSize = 32;
+            }
+            return true;
+
+        case kSZCompressionEstimatePPMd:
+            if (level >= 9) {
+                wordSize = 32;
+            } else if (level >= 7) {
+                wordSize = 16;
+            } else if (level >= 5) {
+                wordSize = 6;
+            } else {
+                wordSize = 4;
+            }
+            return true;
+
+        case kSZCompressionEstimatePPMdZip:
+            wordSize = level + 3;
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+static bool SZCompressionEstimateWordSize(SZCompressionSettings *settings,
+                                          int methodID,
+                                          UInt32 level,
+                                          UInt32 &wordSize) {
+    if (settings.wordSize > 0) {
+        wordSize = settings.wordSize;
+        return true;
+    }
+    return SZCompressionEstimateAutoWordSize(methodID, level, wordSize);
 }
 
 static UInt64 SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(SZArchiveFormat format,
@@ -466,7 +601,8 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
                                                int methodID,
                                                UInt32 level,
                                                UInt64 dict64,
-                                               const SZCompressionEstimateRamInfo &ramInfo) {
+                                               UInt64 memoryUsageLimit,
+                                               bool memoryUsageLimitIsDefined) {
     if (!SZCompressionEstimateFormatSupportsThreads(settings.format)) {
         return 1;
     }
@@ -508,7 +644,7 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
         autoThreads = numAlgoThreadsMax;
     }
 
-    if (ramInfo.IsDefined && autoThreads > 1) {
+    if (memoryUsageLimitIsDefined && autoThreads > 1) {
         if (SZCompressionEstimateIsZipFormat(settings.format)) {
             for (; autoThreads > 1; autoThreads--) {
                 UInt64 decompressMemory;
@@ -518,7 +654,7 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
                                                                                             autoThreads,
                                                                                             dict64,
                                                                                             decompressMemory);
-                if (usage <= ramInfo.UsageAuto) {
+                if (usage <= memoryUsageLimit) {
                     break;
                 }
             }
@@ -534,7 +670,7 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
                                                                                             autoThreads,
                                                                                             dict64,
                                                                                             decompressMemory);
-                if (usage <= ramInfo.UsageAuto) {
+                if (usage <= memoryUsageLimit) {
                     break;
                 }
             }
@@ -654,7 +790,7 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
 
 + (SZCompressionResourceInfo *)compressionResourceEstimateForSettings:(SZCompressionSettings *)settings {
     SZCompressionResourceInfo *info = [SZCompressionResourceInfo new];
-    if (!settings || !SZCompressionEstimateFormatSupportsMemoryUse(settings.format)) {
+    if (!settings) {
         return info;
     }
 
@@ -665,13 +801,41 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
 
     const UInt32 level = SZCompressionEstimateLevel(settings);
     const UInt64 dict64 = SZCompressionEstimateDictionary(settings, methodID, level);
+    if (dict64 != (UInt64)-1) {
+        info.resolvedDictionarySizeIsDefined = YES;
+        info.resolvedDictionarySize = dict64;
+    }
+
+    UInt32 wordSize = 0;
+    if (SZCompressionEstimateWordSize(settings, methodID, level, wordSize)) {
+        info.resolvedWordSizeIsDefined = YES;
+        info.resolvedWordSize = wordSize;
+    }
+
     const SZCompressionEstimateRamInfo ramInfo = SZCompressionEstimateGetRamInfo();
+    UInt64 memoryUsageLimit = ramInfo.UsageAuto;
+    const bool memoryUsageLimitIsDefined = SZCompressionEstimateGetMemoryUsageLimit(settings,
+                                                                                    ramInfo,
+                                                                                    memoryUsageLimit);
 
     UInt32 numThreads = settings.numThreads;
     if (!SZCompressionEstimateFormatSupportsThreads(settings.format)) {
         numThreads = 1;
     } else if (numThreads == 0) {
-        numThreads = SZCompressionEstimateAutoThreads(settings, methodID, level, dict64, ramInfo);
+        numThreads = SZCompressionEstimateAutoThreads(settings,
+                                                     methodID,
+                                                     level,
+                                                     dict64,
+                                                     memoryUsageLimit,
+                                                     memoryUsageLimitIsDefined);
+    }
+    if (SZCompressionEstimateFormatSupportsThreads(settings.format)) {
+        info.resolvedNumThreadsIsDefined = YES;
+        info.resolvedNumThreads = numThreads;
+    }
+
+    if (!SZCompressionEstimateFormatSupportsMemoryUse(settings.format)) {
+        return info;
     }
 
     UInt64 decompressionMemory;
@@ -688,6 +852,10 @@ static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
     if (decompressionMemory != (UInt64)-1) {
         info.decompressionMemoryIsDefined = YES;
         info.decompressionMemory = decompressionMemory;
+    }
+    if (memoryUsageLimitIsDefined) {
+        info.memoryUsageLimitIsDefined = YES;
+        info.memoryUsageLimit = memoryUsageLimit;
     }
     return info;
 }
@@ -1161,6 +1329,16 @@ static CBoolPair SZCompressionBoolPair(SZCompressionBoolSetting setting) {
     return pair;
 }
 
+static bool SZLocateBundledWindowsSfxModule(FString &sfxModule) {
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"7z" ofType:@"sfx"];
+    if (path.length == 0) {
+        return false;
+    }
+
+    sfxModule = us2fs(ToU(path));
+    return true;
+}
+
 static void SZSplitOptionsToStrings(const UString &src, UStringVector &strings) {
     SplitString(src, strings);
     FOR_VECTOR (i, strings)
@@ -1299,6 +1477,19 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
     options.OpenShareForWrite = s.openSharedFiles;
     options.DeleteAfterCompressing = s.deleteAfterCompression;
     options.SfxMode = s.createSFX;
+
+    if (s.createSFX) {
+        const int sfxMethodID = SZCompressionEstimateMethodID(s);
+        if (s.format != SZArchiveFormat7z || !SZCompressionEstimateMethodSupportsSFX(sfxMethodID)) {
+            if (error) *error = SZMakeError(-8, @"The selected compression method does not support Windows SFX archives.");
+            return NO;
+        }
+        if (!SZLocateBundledWindowsSfxModule(options.SfxModule)) {
+            if (error) *error = SZMakeError(-1, @"The Windows SFX module is missing from the application bundle.");
+            return NO;
+        }
+    }
+
     options.SymLinks = SZCompressionBoolPair(s.storeSymbolicLinks);
     options.HardLinks = SZCompressionBoolPair(s.storeHardLinks);
     options.AltStreams = SZCompressionBoolPair(s.storeAlternateDataStreams);
@@ -1406,6 +1597,11 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
                                        L"tp",
                                        (UInt32)s.timePrecision);
     }
+    if (s.memoryUsage.length > 0) {
+        SZAddCompressionProperty(options.MethodMode.Properties,
+                                 L"memuse",
+                                 ToU(s.memoryUsage));
+    }
 
     if (optionStrings.Size() > 0) {
         SZParseAndAddCompressionProperties(options.MethodMode.Properties, optionStrings);
@@ -1418,6 +1614,11 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
         }
     } else if (s.splitVolumeSize > 0) {
         options.VolumesSizes.Add(s.splitVolumeSize);
+    }
+
+    if (s.createSFX && options.VolumesSizes.Size() > 0) {
+        if (error) *error = SZMakeError(-1, @"Windows SFX archives cannot be split into volumes.");
+        return NO;
     }
 
     NWildcard::CCensor censor;

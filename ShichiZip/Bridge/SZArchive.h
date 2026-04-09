@@ -122,6 +122,7 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 @property (nonatomic, copy, nullable) NSString *password;
 @property (nonatomic, copy, nullable) NSString *methodName;
 @property (nonatomic, copy, nullable) NSString *parameters;
+@property (nonatomic, copy, nullable) NSString *memoryUsage;
 @property (nonatomic, copy, nullable) NSString *splitVolumes;
 @property (nonatomic) BOOL encryptFileNames;
 @property (nonatomic) BOOL solidMode;
@@ -213,6 +214,14 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 @property (nonatomic) uint64_t compressionMemory;
 @property (nonatomic) BOOL decompressionMemoryIsDefined;
 @property (nonatomic) uint64_t decompressionMemory;
+@property (nonatomic) BOOL memoryUsageLimitIsDefined;
+@property (nonatomic) uint64_t memoryUsageLimit;
+@property (nonatomic) BOOL resolvedDictionarySizeIsDefined;
+@property (nonatomic) uint64_t resolvedDictionarySize;
+@property (nonatomic) BOOL resolvedWordSizeIsDefined;
+@property (nonatomic) uint32_t resolvedWordSize;
+@property (nonatomic) BOOL resolvedNumThreadsIsDefined;
+@property (nonatomic) uint32_t resolvedNumThreads;
 @end
 
 /// Main archive interface — wraps 7-Zip C++ core

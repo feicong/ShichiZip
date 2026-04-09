@@ -33,6 +33,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let supportsThreads: Bool
         let encryptionOptions: [Option<SZEncryptionMethod>]
         let supportsEncryptFileNames: Bool
+        let keepsName: Bool
     }
 
     private struct AdvancedBoolPairState: Equatable {
@@ -81,6 +82,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private struct CompressionResourceEstimate {
         let compressionMemory: UInt64?
         let decompressionMemory: UInt64?
+        let memoryUsageLimit: UInt64?
+        let resolvedDictionarySize: UInt64?
+        let resolvedWordSize: UInt32?
+        let resolvedNumThreads: UInt32?
+    }
+
+    private enum MemoryUsageSelection: Equatable {
+        case auto
+        case percent(UInt64)
+        case bytes(UInt64)
     }
 
     private enum ArchivePathHistory {
@@ -112,6 +123,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         private static let deleteAfterKey = "FileManager.CompressDeleteAfter"
         private static let encryptNamesKey = "FileManager.CompressEncryptNames"
         private static let showPasswordKey = "FileManager.CompressShowPassword"
+        private static let memoryUsageKey = "FileManager.CompressMemoryUsage"
         private static let storeSymbolicLinksKey = "FileManager.CompressStoreSymbolicLinks"
         private static let storeHardLinksKey = "FileManager.CompressStoreHardLinks"
         private static let storeAlternateDataStreamsKey = "FileManager.CompressStoreAlternateDataStreams"
@@ -167,6 +179,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         static func showPassword() -> Bool {
             defaults.bool(forKey: showPasswordKey)
+        }
+
+        static func memoryUsage() -> String {
+            defaults.string(forKey: memoryUsageKey) ?? ""
         }
 
         static func hasStoredAdvancedOptions() -> Bool {
@@ -288,7 +304,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                            openSharedFiles: Bool,
                            deleteAfterCompression: Bool,
                            encryptNames: Bool,
-                           showPassword: Bool) {
+                           showPassword: Bool,
+                           memoryUsage: String) {
             defaults.set(format, forKey: formatKey)
             defaults.set(updateMode.rawValue, forKey: updateModeKey)
             defaults.set(pathMode.rawValue, forKey: pathModeKey)
@@ -296,6 +313,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             defaults.set(deleteAfterCompression, forKey: deleteAfterKey)
             defaults.set(encryptNames, forKey: encryptNamesKey)
             defaults.set(showPassword, forKey: showPasswordKey)
+            defaults.set(memoryUsage, forKey: memoryUsageKey)
         }
     }
 
@@ -386,7 +404,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
     }
 
-    private static let knownArchiveExtensions: Set<String> = ["7z", "zip", "tar", "gz", "gzip", "bz2", "bzip2", "xz", "wim", "zst", "zstd"]
+    private static let knownArchiveExtensions: Set<String> = ["7z", "zip", "tar", "gz", "gzip", "bz2", "bzip2", "xz", "wim", "zst", "zstd", "exe"]
+    private static let defaultMemoryUsagePercent: UInt64 = 80
     private static let knownTimePrecisionValues: [SZCompressionTimePrecision] = [
         SZCompressionTimePrecision(rawValue: 0)!,
         SZCompressionTimePrecision(rawValue: 1)!,
@@ -527,14 +546,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     ]
 
     private static let formatCatalog: [FormatOption] = [
-        FormatOption(title: "7z", codecName: "7z", format: .format7z, defaultExtension: "7z", levelOptions: levelOptions, methods: sevenZipMethods, supportsSolid: true, supportsThreads: true, encryptionOptions: [Option(title: "AES-256", value: .AES256)], supportsEncryptFileNames: true),
-        FormatOption(title: "zip", codecName: "zip", format: .formatZip, defaultExtension: "zip", levelOptions: levelOptions, methods: zipMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [Option(title: "ZipCrypto", value: .zipCrypto), Option(title: "AES-256", value: .AES256)], supportsEncryptFileNames: false),
-        FormatOption(title: "tar", codecName: "tar", format: .formatTar, defaultExtension: "tar", levelOptions: storeOnlyLevelOptions, methods: tarMethods, supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false),
-        FormatOption(title: "gzip", codecName: "gzip", format: .formatGZip, defaultExtension: "gz", levelOptions: levelOptions, methods: gzipMethods, supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false),
-        FormatOption(title: "bzip2", codecName: "bzip2", format: .formatBZip2, defaultExtension: "bz2", levelOptions: levelOptions, methods: bzip2Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false),
-        FormatOption(title: "xz", codecName: "xz", format: .formatXz, defaultExtension: "xz", levelOptions: levelOptions, methods: xzMethods, supportsSolid: true, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false),
-        FormatOption(title: "wim", codecName: "wim", format: .formatWim, defaultExtension: "wim", levelOptions: storeOnlyLevelOptions, methods: [], supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false),
-        FormatOption(title: "zstd", codecName: "zstd", format: .formatZstd, defaultExtension: "zst", levelOptions: levelOptions, methods: zstdMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false),
+        FormatOption(title: "7z", codecName: "7z", format: .format7z, defaultExtension: "7z", levelOptions: levelOptions, methods: sevenZipMethods, supportsSolid: true, supportsThreads: true, encryptionOptions: [Option(title: "AES-256", value: .AES256)], supportsEncryptFileNames: true, keepsName: false),
+        FormatOption(title: "zip", codecName: "zip", format: .formatZip, defaultExtension: "zip", levelOptions: levelOptions, methods: zipMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [Option(title: "ZipCrypto", value: .zipCrypto), Option(title: "AES-256", value: .AES256)], supportsEncryptFileNames: false, keepsName: false),
+        FormatOption(title: "tar", codecName: "tar", format: .formatTar, defaultExtension: "tar", levelOptions: storeOnlyLevelOptions, methods: tarMethods, supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: false),
+        FormatOption(title: "gzip", codecName: "gzip", format: .formatGZip, defaultExtension: "gz", levelOptions: levelOptions, methods: gzipMethods, supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+        FormatOption(title: "bzip2", codecName: "bzip2", format: .formatBZip2, defaultExtension: "bz2", levelOptions: levelOptions, methods: bzip2Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+        FormatOption(title: "xz", codecName: "xz", format: .formatXz, defaultExtension: "xz", levelOptions: levelOptions, methods: xzMethods, supportsSolid: true, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+        FormatOption(title: "wim", codecName: "wim", format: .formatWim, defaultExtension: "wim", levelOptions: storeOnlyLevelOptions, methods: [], supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: false),
+        FormatOption(title: "zstd", codecName: "zstd", format: .formatZstd, defaultExtension: "zst", levelOptions: levelOptions, methods: zstdMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
     ]
 
     private let sourceURLs: [URL]
@@ -555,12 +574,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private weak var wordPopup: NSPopUpButton?
     private weak var solidPopup: NSPopUpButton?
     private weak var threadField: NSComboBox?
+    private weak var memoryUsagePopup: NSPopUpButton?
     private weak var splitVolumesField: NSComboBox?
     private weak var parametersField: NSTextField?
     private weak var updateModePopup: NSPopUpButton?
     private weak var pathModePopup: NSPopUpButton?
     private weak var encryptionPopup: NSPopUpButton?
     private weak var encryptNamesCheckbox: NSButton?
+    private weak var createSFXCheckbox: NSButton?
     private weak var openSharedCheckbox: NSButton?
     private weak var deleteAfterCheckbox: NSButton?
     private weak var dictionaryLabel: NSTextField?
@@ -568,6 +589,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private weak var threadInfoLabel: NSTextField?
     private weak var compressionMemoryLabel: NSTextField?
     private weak var decompressionMemoryLabel: NSTextField?
+    private weak var memoryUsageRow: NSView?
     private weak var compressionMemoryRow: NSView?
     private weak var decompressionMemoryRow: NSView?
     private weak var securePasswordField: NSSecureTextField?
@@ -605,7 +627,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         self.suggestedBaseName = Self.suggestedArchiveBaseName(for: normalizedSourceURLs,
                                                                baseDirectory: resolvedBaseDirectory)
         self.supportedFormatInfoByName = supportedFormatInfoByName
-        self.availableFormats = Self.makeAvailableFormats(supportedFormatInfoByName: supportedFormatInfoByName)
+        self.availableFormats = Self.makeAvailableFormats(supportedFormatInfoByName: supportedFormatInfoByName,
+                                  sourceURLs: normalizedSourceURLs)
         self.hasStoredAdvancedPreferences = DialogPreferences.hasStoredAdvancedOptions()
         self.messageText = message ?? Self.defaultMessage(for: normalizedSourceURLs,
                                                           baseDirectory: resolvedBaseDirectory)
@@ -638,11 +661,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         var selectedWordSize: UInt32 = 0
         var selectedSolidMode = true
         var selectedThreadText = "Auto"
+        var selectedMemoryUsageSpec = DialogPreferences.memoryUsage()
         var selectedSplitVolumes = ""
         var selectedParameters = ""
         var selectedPassword = ""
         var selectedConfirmation = ""
         var selectedEncryption = defaultEncryption(for: selectedFormatName)
+        var createSFX = false
         var advancedOptions = DialogPreferences.advancedOptions(
             defaults: defaultAdvancedOptionsState(for: formatOption(named: selectedFormatName) ?? availableFormats[0],
                                                  methodName: selectedMethodName)
@@ -703,6 +728,19 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             threadControl.alignment = .centerY
             threadControl.spacing = 6
 
+            let memoryUsageOptions = Self.makeMemoryUsageOptions(preferredSpec: selectedMemoryUsageSpec)
+            let memoryUsagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+            Self.populateMemoryUsagePopup(memoryUsagePopup,
+                                          with: memoryUsageOptions,
+                                          selectedSpec: selectedMemoryUsageSpec)
+            memoryUsagePopup.target = self
+            memoryUsagePopup.action = #selector(compressionSettingsChanged(_:))
+            memoryUsagePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
+
+            let memoryUsageRow = makeFormRow(label: "Memory usage:",
+                                             control: memoryUsagePopup,
+                                             labelWidth: 152)
+
             let compressionMemoryLabel = makeInfoLabel(minWidth: 132)
             let decompressionMemoryLabel = makeInfoLabel(minWidth: 132)
             let compressionMemoryRow = makeFormRow(label: "Compressing memory:",
@@ -739,6 +777,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             openSharedCheckbox.state = openSharedFiles ? .on : .off
             let deleteAfterCheckbox = NSButton(checkboxWithTitle: "Delete files after compression", target: nil, action: nil)
             deleteAfterCheckbox.state = deleteAfterCompression ? .on : .off
+            let createSFXCheckbox = NSButton(checkboxWithTitle: "Create Windows SFX archive",
+                                             target: self,
+                                             action: #selector(createSFXToggled(_:)))
+            createSFXCheckbox.state = createSFX ? .on : .off
 
             let advancedOptionsButton = NSButton(title: "Options",
                                                  target: self,
@@ -813,6 +855,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                 makeFormRow(labelField: wordLabel, control: wordPopup),
                 makeFormRow(label: "Solid block size:", control: solidPopup),
                 makeFormRow(label: "CPU threads:", control: threadControl),
+                memoryUsageRow,
                 compressionMemoryRow,
                 decompressionMemoryRow,
                 makeFormRow(label: "Split to volumes:", control: splitVolumesField),
@@ -820,6 +863,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             ])
 
             let optionsColumn = makeTitledSection(title: "Options", rows: [
+                createSFXCheckbox,
                 openSharedCheckbox,
                 deleteAfterCheckbox,
                 advancedOptionsRow,
@@ -874,17 +918,20 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             self.wordPopup = wordPopup
             self.solidPopup = solidPopup
             self.threadField = threadField
+            self.memoryUsagePopup = memoryUsagePopup
             self.splitVolumesField = splitVolumesField
             self.parametersField = parametersField
             self.updateModePopup = updateModePopup
             self.pathModePopup = pathModePopup
             self.encryptionPopup = encryptionPopup
             self.encryptNamesCheckbox = encryptNamesCheckbox
+            self.createSFXCheckbox = createSFXCheckbox
             self.openSharedCheckbox = openSharedCheckbox
             self.deleteAfterCheckbox = deleteAfterCheckbox
             self.dictionaryLabel = dictionaryLabel
             self.wordLabel = wordLabel
             self.threadInfoLabel = threadInfoLabel
+            self.memoryUsageRow = memoryUsageRow
             self.compressionMemoryLabel = compressionMemoryLabel
             self.decompressionMemoryLabel = decompressionMemoryLabel
             self.compressionMemoryRow = compressionMemoryRow
@@ -927,17 +974,20 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                 self.wordPopup = nil
                 self.solidPopup = nil
                 self.threadField = nil
+                self.memoryUsagePopup = nil
                 self.splitVolumesField = nil
                 self.parametersField = nil
                 self.updateModePopup = nil
                 self.pathModePopup = nil
                 self.encryptionPopup = nil
                 self.encryptNamesCheckbox = nil
+                self.createSFXCheckbox = nil
                 self.openSharedCheckbox = nil
                 self.deleteAfterCheckbox = nil
                 self.dictionaryLabel = nil
                 self.wordLabel = nil
                 self.threadInfoLabel = nil
+                self.memoryUsageRow = nil
                 self.compressionMemoryLabel = nil
                 self.decompressionMemoryLabel = nil
                 self.compressionMemoryRow = nil
@@ -962,7 +1012,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             selectedDictionarySize = selectedDictionaryOption()?.value ?? 0
             selectedWordSize = selectedWordOption()?.value ?? 0
             selectedSolidMode = selectedSolidOption()?.value ?? selectedSolidMode
-            selectedThreadText = threadField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            selectedThreadText = Self.normalizedThreadText(threadField.stringValue)
+            selectedMemoryUsageSpec = selectedMemoryUsageSpecValue()
             selectedSplitVolumes = splitVolumesField.stringValue
             selectedParameters = parametersField.stringValue
             selectedPassword = currentPasswordValue()
@@ -972,6 +1023,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             selectedPathMode = selectedPathModeOption()?.value ?? selectedPathMode
             selectedEncryption = selectedEncryptionOption()?.value ?? .none
             encryptNames = encryptNamesCheckbox.state == .on
+            createSFX = createSFXCheckbox.state == .on
             openSharedFiles = openSharedCheckbox.state == .on
             deleteAfterCompression = deleteAfterCheckbox.state == .on
             advancedOptions = advancedOptionsState
@@ -994,6 +1046,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                              password: selectedPassword,
                                              confirmation: selectedConfirmation,
                                              encryptNames: encryptNames,
+                                             createSFX: createSFX,
+                                             memoryUsageSpec: selectedMemoryUsageSpec,
                                              openSharedFiles: openSharedFiles,
                                              deleteAfterCompression: deleteAfterCompression,
                                              advancedOptions: advancedOptions)
@@ -1004,7 +1058,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                          openSharedFiles: openSharedFiles,
                                          deleteAfterCompression: deleteAfterCompression,
                                          encryptNames: encryptNames,
-                                         showPassword: showPassword)
+                                         showPassword: showPassword,
+                                         memoryUsage: selectedMemoryUsageSpec)
                 DialogPreferences.recordAdvancedOptions(advancedOptions)
                 return result
             } catch {
@@ -1014,6 +1069,12 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     func controlTextDidChange(_ obj: Notification) {
+        if let comboBox = obj.object as? NSComboBox,
+           comboBox === threadField {
+            refreshOptionAvailability()
+            return
+        }
+
         guard let field = obj.object as? NSTextField else { return }
 
         if field === securePasswordField || field === plainPasswordField {
@@ -1027,19 +1088,24 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         refreshOptionAvailability()
     }
 
-    @objc private func formatChanged(_ sender: Any?) {
-        let preferredLevel = selectedLevelOption()?.value
-        let preferredMethodName = selectedMethodOption()?.methodName
-        let preferredDictionarySize = selectedDictionaryOption()?.value
-        let preferredWordSize = selectedWordOption()?.value
-        let preferredEncryption = selectedEncryptionOption()?.value
+    func comboBoxSelectionDidChange(_ notification: Notification) {
+        guard let comboBox = notification.object as? NSComboBox else {
+            return
+        }
 
+        if comboBox === threadField {
+            refreshOptionAvailability()
+        }
+    }
+
+    @objc private func formatChanged(_ sender: Any?) {
         updateArchivePathExtension()
-        reloadFormatDependentControls(preferredLevel: preferredLevel,
-                                      preferredMethodName: preferredMethodName,
-                                      preferredDictionarySize: preferredDictionarySize,
-                                      preferredWordSize: preferredWordSize,
-                                      preferredEncryption: preferredEncryption)
+        reloadFormatDependentControls(preferredLevel: nil,
+                                      preferredMethodName: nil,
+                                      preferredDictionarySize: nil,
+                                      preferredWordSize: nil,
+                                      preferredEncryption: nil)
+        parametersField?.stringValue = defaultParameters(for: selectedFormatOption())
 
         if !advancedOptionsWereCustomized,
            !hasStoredAdvancedPreferences,
@@ -1072,6 +1138,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     @objc private func compressionSettingsChanged(_ sender: Any?) {
+        refreshOptionAvailability()
+    }
+
+    @objc private func createSFXToggled(_ sender: Any?) {
+        updateArchivePathExtension()
         refreshOptionAvailability()
     }
 
@@ -1479,10 +1550,30 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func refreshOptionAvailability() {
         guard let format = selectedFormatOption() else { return }
 
+        let method = selectedMethodOption()
+        let level = selectedLevelOption()?.value ?? defaultLevel(for: format.codecName)
+        let selectedDictionarySize = selectedDictionaryOption()?.value ?? 0
+        let selectedWordSize = selectedWordOption()?.value ?? 0
+        let currentThreadText = threadField?.stringValue ?? "Auto"
+        let memoryUsageSpec = selectedMemoryUsageSpecValue()
+        let estimate = compressionResourceEstimate(for: format,
+                                                   method: method,
+                                                   level: level,
+                                                   dictionarySize: selectedDictionarySize,
+                                                   threadText: currentThreadText,
+                                                   memoryUsageSpec: memoryUsageSpec)
+
+        refreshDynamicCompressionControlTitles(for: format,
+                                              method: method,
+                                              selectedDictionarySize: selectedDictionarySize,
+                                              selectedWordSize: selectedWordSize,
+                                              currentThreadText: currentThreadText,
+                                              estimate: estimate)
+
         levelPopup?.isEnabled = format.levelOptions.count > 1
         methodPopup?.isEnabled = !format.methods.isEmpty
-        dictionaryPopup?.isEnabled = !(selectedMethodOption()?.dictionaryOptions.isEmpty ?? true)
-        wordPopup?.isEnabled = !(selectedMethodOption()?.wordOptions.isEmpty ?? true)
+        dictionaryPopup?.isEnabled = !(method?.dictionaryOptions.isEmpty ?? true)
+        wordPopup?.isEnabled = !(method?.wordOptions.isEmpty ?? true)
         solidPopup?.isEnabled = format.supportsSolid
         threadField?.isEnabled = format.supportsThreads
 
@@ -1491,6 +1582,25 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
         if !format.supportsThreads {
             threadField?.stringValue = "Auto"
+        }
+
+        let createSFXWasEnabled = createSFXCheckbox?.state == .on
+        let canCreateSFX = supportsSFX(for: format,
+                                       method: method)
+        createSFXCheckbox?.isEnabled = canCreateSFX
+        if !canCreateSFX {
+            createSFXCheckbox?.state = .off
+        }
+
+        let createSFX = effectiveCreateSFXState(for: format,
+                                                method: method)
+        splitVolumesField?.isEnabled = !createSFX
+        if createSFX {
+            splitVolumesField?.stringValue = ""
+        }
+
+        if createSFXWasEnabled != createSFX {
+            updateArchivePathExtension()
         }
 
         let encryptionAvailable = !format.encryptionOptions.isEmpty
@@ -1507,31 +1617,33 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             encryptNamesCheckbox?.state = .off
         }
 
-        refreshCompressionResourceSummary()
+        refreshCompressionResourceSummary(for: format, estimate: estimate)
         refreshAdvancedOptionsSummary()
     }
 
-    private func refreshCompressionResourceSummary() {
-        guard let format = selectedFormatOption() else {
-            threadInfoLabel?.stringValue = ""
-            compressionMemoryRow?.isHidden = true
-            decompressionMemoryRow?.isHidden = true
-            return
-        }
-
+    private func refreshCompressionResourceSummary(for format: FormatOption,
+                                                   estimate: CompressionResourceEstimate) {
         threadInfoLabel?.stringValue = Self.cpuThreadSummary(forThreadedFormat: format.supportsThreads)
         threadInfoLabel?.isHidden = !format.supportsThreads
+        let showsMemoryUsageControl = estimate.memoryUsageLimit != nil
+        memoryUsageRow?.isHidden = !showsMemoryUsageControl
+        memoryUsagePopup?.isEnabled = showsMemoryUsageControl && (memoryUsagePopup?.numberOfItems ?? 0) > 1
 
-        let estimate = compressionResourceEstimate(for: format,
-                                                   method: selectedMethodOption(),
-                                                   level: selectedLevelOption()?.value ?? defaultLevel(for: format.codecName),
-                                                   dictionarySize: selectedDictionaryOption()?.value ?? 0,
-                                                   threadText: threadField?.stringValue)
         let showsMemoryUsage = estimate.compressionMemory != nil || estimate.decompressionMemory != nil
         compressionMemoryRow?.isHidden = !showsMemoryUsage
         decompressionMemoryRow?.isHidden = !showsMemoryUsage
         compressionMemoryLabel?.stringValue = estimate.compressionMemory.map(Self.memoryUsageText(for:)) ?? "?"
         decompressionMemoryLabel?.stringValue = estimate.decompressionMemory.map(Self.memoryUsageText(for:)) ?? "?"
+
+        let exceedsMemoryLimit = {
+            guard let compressionMemory = estimate.compressionMemory,
+                  let memoryUsageLimit = estimate.memoryUsageLimit else {
+                return false
+            }
+            return compressionMemory > memoryUsageLimit
+        }()
+        compressionMemoryLabel?.textColor = exceedsMemoryLimit ? .systemRed : .secondaryLabelColor
+        decompressionMemoryLabel?.textColor = .secondaryLabelColor
     }
 
     private func buildResult(archivePath: String,
@@ -1550,10 +1662,29 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                              password: String,
                              confirmation: String,
                              encryptNames: Bool,
+                             createSFX: Bool,
+                             memoryUsageSpec: String,
                              openSharedFiles: Bool,
                              deleteAfterCompression: Bool,
                              advancedOptions: AdvancedOptionsState) throws -> CompressDialogResult {
-        let archiveURL = try resolveArchiveURL(from: archivePath, format: format)
+        let effectiveCreateSFX = createSFX && supportsSFX(for: format, method: method)
+        if createSFX && !effectiveCreateSFX {
+            throw NSError(domain: NSCocoaErrorDomain,
+                          code: NSUserCancelledError,
+                          userInfo: [NSLocalizedDescriptionKey: "Windows SFX is only available for 7z archives using Copy, LZMA, LZMA2, or PPMd, and requires the bundled 7z.sfx module."])
+        }
+
+        let trimmedSplitVolumes = splitVolumes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if effectiveCreateSFX && !trimmedSplitVolumes.isEmpty {
+            throw NSError(domain: NSCocoaErrorDomain,
+                          code: NSUserCancelledError,
+                          userInfo: [NSLocalizedDescriptionKey: "Windows SFX archives cannot be split into volumes."])
+        }
+
+        let normalizedMemoryUsageSpec = memoryUsageSpec.trimmingCharacters(in: .whitespacesAndNewlines)
+        let archiveURL = try resolveArchiveURL(from: archivePath,
+                                               format: format,
+                                               createSFX: effectiveCreateSFX)
         let threadCount = try parseThreadCount(threadText)
         let normalizedPassword = try validatePassword(password,
                                                       confirmation: confirmation,
@@ -1569,13 +1700,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         settings.encryption = normalizedPassword == nil ? .none : encryption
         settings.password = normalizedPassword
         settings.encryptFileNames = normalizedPassword != nil && format.supportsEncryptFileNames && encryptNames
+        settings.createSFX = effectiveCreateSFX
         settings.solidMode = format.supportsSolid && solidMode
         settings.dictionarySize = dictionarySize
         settings.wordSize = wordSize
         settings.numThreads = threadCount
-
-        let trimmedSplitVolumes = splitVolumes.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.splitVolumes = trimmedSplitVolumes.isEmpty ? nil : trimmedSplitVolumes
+        settings.memoryUsage = normalizedMemoryUsageSpec.isEmpty ? nil : normalizedMemoryUsageSpec
 
         let trimmedParameters = parameters.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.parameters = trimmedParameters.isEmpty ? nil : trimmedParameters
@@ -1589,6 +1720,20 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         applyAdvancedOptions(effectiveAdvancedOptions.state,
                              capabilities: effectiveAdvancedOptions.capabilities,
                              to: settings)
+
+        let estimate = compressionResourceEstimate(for: format,
+                                                   method: method,
+                                                   level: level,
+                                                   dictionarySize: dictionarySize,
+                                                   threadText: threadText,
+                                                   memoryUsageSpec: normalizedMemoryUsageSpec)
+        if let compressionMemory = estimate.compressionMemory,
+           let memoryUsageLimit = estimate.memoryUsageLimit,
+           compressionMemory > memoryUsageLimit {
+            throw NSError(domain: NSCocoaErrorDomain,
+                          code: NSUserCancelledError,
+                          userInfo: [NSLocalizedDescriptionKey: "Compression requires \(Self.memoryUsageText(for: compressionMemory)), which exceeds the selected memory usage limit of \(Self.memoryUsageText(for: memoryUsageLimit))."])
+        }
 
         return CompressDialogResult(settings: settings, archiveURL: archiveURL)
     }
@@ -1626,7 +1771,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func parseThreadCount(_ text: String) throws -> UInt32 {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.caseInsensitiveCompare("Auto") != .orderedSame else {
+        guard !Self.isAutomaticThreadText(trimmed) else {
             return 0
         }
 
@@ -1640,9 +1785,12 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func resolveArchiveURL(from archivePath: String,
-                                   format: FormatOption) throws -> URL {
+                                   format: FormatOption,
+                                   createSFX: Bool) throws -> URL {
         let trimmedPath = archivePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedPath = normalizedArchivePath(from: trimmedPath, format: format)
+        let normalizedPath = normalizedArchivePath(from: trimmedPath,
+                                                   format: format,
+                                                   createSFX: createSFX)
         let expandedPath = NSString(string: normalizedPath).expandingTildeInPath
         let archiveURL: URL
         if NSString(string: expandedPath).isAbsolutePath {
@@ -1678,24 +1826,28 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func normalizedArchivePath(from archivePath: String,
-                                       format: FormatOption) -> String {
-        let trimmedPath = archivePath.isEmpty ? defaultArchiveURL(for: format.codecName).path : archivePath
+                                       format: FormatOption,
+                                       createSFX: Bool) -> String {
+        let trimmedPath = archivePath.isEmpty
+            ? defaultArchiveURL(for: format.codecName, createSFX: createSFX).path
+            : archivePath
         let pathNSString = NSString(string: trimmedPath)
         let existingExtension = pathNSString.pathExtension.lowercased()
+        let targetExtension = archiveExtension(for: format, createSFX: createSFX)
 
         if existingExtension.isEmpty {
-            return trimmedPath + ".\(format.defaultExtension)"
+            return trimmedPath + ".\(targetExtension)"
         }
 
-        if existingExtension == format.defaultExtension.lowercased() {
+        if existingExtension == targetExtension.lowercased() {
             return trimmedPath
         }
 
         if Self.knownArchiveExtensions.contains(existingExtension) {
-            return pathNSString.deletingPathExtension + ".\(format.defaultExtension)"
+            return pathNSString.deletingPathExtension + ".\(targetExtension)"
         }
 
-        return trimmedPath + ".\(format.defaultExtension)"
+        return trimmedPath + ".\(targetExtension)"
     }
 
     private func updateArchivePathExtension() {
@@ -1705,7 +1857,9 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         archivePathField.stringValue = normalizedArchivePath(from: archivePathField.stringValue,
-                                                             format: format)
+                                                             format: format,
+                                                             createSFX: effectiveCreateSFXState(for: format,
+                                                                                                method: selectedMethodOption()))
     }
 
     private func updatePasswordVisibilityUI(moveFocus: Bool) {
@@ -1851,14 +2005,63 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         return format.encryptionOptions[index]
     }
 
-    private func defaultArchiveURL(for formatName: String) -> URL {
+    private func selectedMemoryUsageSpecValue() -> String {
+        guard let selectedItem = memoryUsagePopup?.selectedItem,
+              let spec = selectedItem.representedObject as? String else {
+            return ""
+        }
+        return Self.normalizedMemoryUsageSpec(spec)
+    }
+
+    private func supportsSFX(for format: FormatOption?,
+                             method: MethodOption?) -> Bool {
+        guard let format else {
+            return false
+        }
+        guard format.codecName.caseInsensitiveCompare("7z") == .orderedSame,
+              Self.hasBundledWindowsSfxModule() else {
+            return false
+        }
+
+        guard let method else {
+            return true
+        }
+
+        switch method.enumValue {
+        case .copy?, .LZMA?, .LZMA2?, .ppMd?:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func effectiveCreateSFXState(for format: FormatOption? = nil,
+                                         method: MethodOption? = nil) -> Bool {
+        guard createSFXCheckbox?.state == .on else {
+            return false
+        }
+        return supportsSFX(for: format ?? selectedFormatOption(),
+                           method: method ?? selectedMethodOption())
+    }
+
+    private func archiveExtension(for format: FormatOption,
+                                  createSFX: Bool) -> String {
+        createSFX ? "exe" : format.defaultExtension
+    }
+
+    private func defaultArchiveURL(for formatName: String,
+                                   createSFX: Bool = false) -> URL {
         let format = formatOption(named: formatName) ?? availableFormats[0]
-        return baseDirectory.appendingPathComponent("\(suggestedBaseName).\(format.defaultExtension)")
+        let extensionName = archiveExtension(for: format, createSFX: createSFX)
+        return baseDirectory.appendingPathComponent("\(suggestedBaseName).\(extensionName)")
     }
 
     private func suggestedArchiveFileName() -> String {
         let format = selectedFormatOption() ?? availableFormats[0]
-        return "\(suggestedBaseName).\(format.defaultExtension)"
+        let extensionName = archiveExtension(for: format,
+                                             createSFX: effectiveCreateSFXState(for: format,
+                                                                                method: selectedMethodOption()))
+        return "\(suggestedBaseName).\(extensionName)"
     }
 
     private func formatOption(named formatName: String) -> FormatOption? {
@@ -1881,6 +2084,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         (formatOption(named: formatName) ?? availableFormats[0]).methods.first?.methodName ?? ""
     }
 
+    private func defaultParameters(for format: FormatOption?) -> String {
+        _ = format
+        return ""
+    }
+
     private func defaultEncryption(for formatName: String) -> SZEncryptionMethod {
         (formatOption(named: formatName) ?? availableFormats[0]).encryptionOptions.first?.value ?? .none
     }
@@ -1888,6 +2096,189 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func populate(_ popup: NSPopUpButton?, with titles: [String]) {
         popup?.removeAllItems()
         popup?.addItems(withTitles: titles)
+    }
+
+    private static func populateMemoryUsagePopup(_ popup: NSPopUpButton,
+                                                 with options: [Option<String>],
+                                                 selectedSpec: String) {
+        popup.removeAllItems()
+
+        let normalizedSelectedSpec = normalizedMemoryUsageSpec(selectedSpec)
+        for option in options {
+            popup.addItem(withTitle: option.title)
+            popup.lastItem?.representedObject = option.value
+        }
+
+        if let selectedIndex = options.firstIndex(where: { $0.value == normalizedSelectedSpec }) {
+            popup.selectItem(at: selectedIndex)
+        } else {
+            popup.selectItem(at: 0)
+        }
+    }
+
+    private static func makeMemoryUsageOptions(preferredSpec: String) -> [Option<String>] {
+        let normalizedPreferredSpec = normalizedMemoryUsageSpec(preferredSpec)
+        let preferredSelection = parseMemoryUsageSelection(normalizedPreferredSpec)
+
+        var options: [Option<String>] = [
+            Option(title: memoryUsageOptionTitle(for: .auto), value: "")
+        ]
+
+        let percentChoices = stride(from: 10, through: 100, by: 10).map(UInt64.init)
+        if case let .percent(preferredPercent) = preferredSelection {
+            var insertedPreferred = false
+            for percent in percentChoices {
+                if !insertedPreferred && preferredPercent <= percent {
+                    if preferredPercent != percent {
+                        options.append(Option(title: memoryUsageOptionTitle(for: .percent(preferredPercent)),
+                                              value: normalizedPreferredSpec))
+                    }
+                    insertedPreferred = true
+                }
+                options.append(Option(title: memoryUsageOptionTitle(for: .percent(percent)),
+                                      value: "\(percent)%"))
+            }
+            if !insertedPreferred {
+                options.append(Option(title: memoryUsageOptionTitle(for: .percent(preferredPercent)),
+                                      value: normalizedPreferredSpec))
+            }
+        } else {
+            percentChoices.forEach {
+                options.append(Option(title: memoryUsageOptionTitle(for: .percent($0)),
+                                      value: "\($0)%"))
+            }
+        }
+
+        let byteChoices = standardMemoryUsageByteChoices()
+        if case let .bytes(preferredBytes) = preferredSelection {
+            var insertedPreferred = false
+            for bytes in byteChoices {
+                if !insertedPreferred && preferredBytes <= bytes {
+                    if preferredBytes != bytes {
+                        options.append(Option(title: memoryUsageOptionTitle(for: .bytes(preferredBytes)),
+                                              value: normalizedPreferredSpec))
+                    }
+                    insertedPreferred = true
+                }
+                options.append(Option(title: memoryUsageOptionTitle(for: .bytes(bytes)),
+                                      value: normalizedMemoryUsageSpec(forBytes: bytes)))
+            }
+            if !insertedPreferred {
+                options.append(Option(title: memoryUsageOptionTitle(for: .bytes(preferredBytes)),
+                                      value: normalizedPreferredSpec))
+            }
+        } else {
+            byteChoices.forEach {
+                options.append(Option(title: memoryUsageOptionTitle(for: .bytes($0)),
+                                      value: normalizedMemoryUsageSpec(forBytes: $0)))
+            }
+        }
+
+        return options
+    }
+
+    private static func parseMemoryUsageSelection(_ spec: String) -> MemoryUsageSelection? {
+        let normalizedSpec = spec.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalizedSpec.isEmpty {
+            return .auto
+        }
+
+        if normalizedSpec.hasSuffix("%") {
+            let valueText = String(normalizedSpec.dropLast())
+            guard let percent = UInt64(valueText) else {
+                return nil
+            }
+            return .percent(percent)
+        }
+
+        var valueText = normalizedSpec
+        if valueText.hasSuffix("b") {
+            valueText.removeLast()
+        }
+
+        var shift = 0
+        if let suffix = valueText.last {
+            switch suffix {
+            case "k":
+                shift = 10
+                valueText.removeLast()
+            case "m":
+                shift = 20
+                valueText.removeLast()
+            case "g":
+                shift = 30
+                valueText.removeLast()
+            case "t":
+                shift = 40
+                valueText.removeLast()
+            default:
+                break
+            }
+        }
+
+        guard let baseValue = UInt64(valueText) else {
+            return nil
+        }
+        return .bytes(baseValue << shift)
+    }
+
+    private static func normalizedMemoryUsageSpec(_ spec: String) -> String {
+        switch parseMemoryUsageSelection(spec) {
+        case .auto:
+            return ""
+        case let .percent(percent):
+            return "\(percent)%"
+        case let .bytes(bytes):
+            return normalizedMemoryUsageSpec(forBytes: bytes)
+        case nil:
+            return ""
+        }
+    }
+
+    private static func normalizedMemoryUsageSpec(forBytes bytes: UInt64) -> String {
+        let units: [(suffix: String, shift: UInt64)] = [
+            ("t", 40),
+            ("g", 30),
+            ("m", 20),
+            ("k", 10),
+        ]
+
+        for unit in units {
+            let divisor = UInt64(1) << unit.shift
+            if bytes.isMultiple(of: divisor) {
+                return "\(bytes / divisor)\(unit.suffix)"
+            }
+        }
+
+        return "\(bytes)"
+    }
+
+    private static func memoryUsageOptionTitle(for selection: MemoryUsageSelection) -> String {
+        switch selection {
+        case .auto:
+            return "Auto: \(defaultMemoryUsagePercent)%"
+        case let .percent(percent):
+            return "\(percent)%"
+        case let .bytes(bytes):
+            return memoryUsageText(for: bytes)
+        }
+    }
+
+    private static func standardMemoryUsageByteChoices() -> [UInt64] {
+        let maxIndex = (20 + MemoryLayout<Int>.size * 3 - 1) * 2
+        var choices: [UInt64] = []
+        choices.reserveCapacity(max(0, maxIndex - (27 * 2) + 1))
+
+        for index in (27 * 2)...maxIndex {
+            let base = UInt64(2 + (index & 1))
+            let shift = index / 2
+            choices.append(base << shift)
+        }
+        return choices
+    }
+
+    private static func hasBundledWindowsSfxModule() -> Bool {
+        Bundle.main.url(forResource: "7z", withExtension: "sfx") != nil
     }
 
     private func selectOption<Value>(_ options: [Option<Value>],
@@ -2260,13 +2651,15 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                              method: MethodOption?,
                                              level: SZCompressionLevel,
                                              dictionarySize: UInt64,
-                                             threadText: String?) -> CompressionResourceEstimate {
+                                             threadText: String?,
+                                             memoryUsageSpec: String) -> CompressionResourceEstimate {
         let settings = SZCompressionSettings()
         settings.format = format.format
         settings.level = level
         settings.method = method?.enumValue ?? .LZMA2
         settings.methodName = method?.methodName
         settings.dictionarySize = dictionarySize
+        settings.memoryUsage = memoryUsageSpec.isEmpty ? nil : Self.normalizedMemoryUsageSpec(memoryUsageSpec)
 
         if let threadText,
            let explicitThreadCount = try? parseThreadCount(threadText),
@@ -2279,7 +2672,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let estimate = SZArchive.compressionResourceEstimate(for: settings)
         return CompressionResourceEstimate(
             compressionMemory: estimate.compressionMemoryIsDefined ? estimate.compressionMemory : nil,
-            decompressionMemory: estimate.decompressionMemoryIsDefined ? estimate.decompressionMemory : nil
+            decompressionMemory: estimate.decompressionMemoryIsDefined ? estimate.decompressionMemory : nil,
+            memoryUsageLimit: estimate.memoryUsageLimitIsDefined ? estimate.memoryUsageLimit : nil,
+            resolvedDictionarySize: estimate.resolvedDictionarySizeIsDefined ? estimate.resolvedDictionarySize : nil,
+            resolvedWordSize: estimate.resolvedWordSizeIsDefined ? estimate.resolvedWordSize : nil,
+            resolvedNumThreads: estimate.resolvedNumThreadsIsDefined ? estimate.resolvedNumThreads : nil
         )
     }
 
@@ -2304,6 +2701,134 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func memoryUsageText(for bytes: UInt64) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(min(bytes, UInt64(Int64.max))),
                                   countStyle: .memory)
+    }
+
+    private func refreshDynamicCompressionControlTitles(for format: FormatOption,
+                                                        method: MethodOption?,
+                                                        selectedDictionarySize: UInt64,
+                                                        selectedWordSize: UInt32,
+                                                        currentThreadText: String,
+                                                        estimate: CompressionResourceEstimate) {
+        if let dictionaryPopup {
+            if let method, !method.dictionaryOptions.isEmpty {
+                let titles = method.dictionaryOptions.enumerated().map { index, option in
+                    if index == 0 {
+                        return Self.autoDictionaryTitle(for: estimate.resolvedDictionarySize,
+                                                        fallback: option.title)
+                    }
+                    return option.title
+                }
+                updatePopupTitlesIfNeeded(dictionaryPopup, titles: titles)
+                selectOption(method.dictionaryOptions,
+                             selectedValue: selectedDictionarySize,
+                             on: dictionaryPopup)
+            } else {
+                updatePopupTitlesIfNeeded(dictionaryPopup, titles: ["Auto"])
+                dictionaryPopup.selectItem(at: 0)
+            }
+        }
+
+        if let wordPopup {
+            if let method, !method.wordOptions.isEmpty {
+                let titles = method.wordOptions.enumerated().map { index, option in
+                    if index == 0 {
+                        return Self.autoWordTitle(for: estimate.resolvedWordSize,
+                                                  fallback: option.title)
+                    }
+                    return option.title
+                }
+                updatePopupTitlesIfNeeded(wordPopup, titles: titles)
+                selectOption(method.wordOptions,
+                             selectedValue: selectedWordSize,
+                             on: wordPopup)
+            } else {
+                updatePopupTitlesIfNeeded(wordPopup, titles: ["Auto"])
+                wordPopup.selectItem(at: 0)
+            }
+        }
+
+        guard format.supportsThreads,
+              let threadField else {
+            return
+        }
+
+        let items = [Self.autoThreadTitle(for: estimate.resolvedNumThreads)] + Self.threadChoices()
+        updateComboBoxItemsIfNeeded(threadField, items: items)
+
+        let normalizedThreadText = Self.normalizedThreadText(currentThreadText)
+        if Self.isAutomaticThreadText(normalizedThreadText) {
+            if threadField.indexOfSelectedItem != 0 {
+                threadField.selectItem(at: 0)
+            }
+            let autoTitle = items[0]
+            if threadField.stringValue != autoTitle {
+                threadField.stringValue = autoTitle
+            }
+        } else if let itemIndex = items.firstIndex(of: normalizedThreadText) {
+            if threadField.indexOfSelectedItem != itemIndex {
+                threadField.selectItem(at: itemIndex)
+            }
+            if threadField.stringValue != normalizedThreadText {
+                threadField.stringValue = normalizedThreadText
+            }
+        } else if threadField.stringValue != normalizedThreadText {
+            threadField.stringValue = normalizedThreadText
+        }
+    }
+
+    private func updatePopupTitlesIfNeeded(_ popup: NSPopUpButton,
+                                           titles: [String]) {
+        if popup.itemTitles != titles {
+            populate(popup, with: titles)
+        }
+    }
+
+    private func updateComboBoxItemsIfNeeded(_ comboBox: NSComboBox,
+                                             items: [String]) {
+        if Self.comboBoxItems(from: comboBox) != items {
+            comboBox.removeAllItems()
+            comboBox.addItems(withObjectValues: items)
+        }
+    }
+
+    private static func comboBoxItems(from comboBox: NSComboBox) -> [String] {
+        (0..<comboBox.numberOfItems).compactMap { comboBox.itemObjectValue(at: $0) as? String }
+    }
+
+    private static func isAutomaticThreadText(_ text: String) -> Bool {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            return true
+        }
+        return normalized.lowercased().hasPrefix("auto")
+    }
+
+    private static func normalizedThreadText(_ text: String) -> String {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return isAutomaticThreadText(normalized) ? "Auto" : normalized
+    }
+
+    private static func autoDictionaryTitle(for bytes: UInt64?,
+                                            fallback: String) -> String {
+        guard let bytes, bytes > 0 else {
+            return fallback
+        }
+        return "Auto: \(memoryUsageText(for: bytes))"
+    }
+
+    private static func autoWordTitle(for value: UInt32?,
+                                      fallback: String) -> String {
+        guard let value, value > 0 else {
+            return fallback
+        }
+        return "Auto: \(value)"
+    }
+
+    private static func autoThreadTitle(for value: UInt32?) -> String {
+        guard let value, value > 0 else {
+            return "Auto"
+        }
+        return "Auto: \(value)"
     }
 
     private func makePasswordContainer(secureField: NSSecureTextField,
@@ -2337,16 +2862,37 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
     }
 
-    private static func makeAvailableFormats(supportedFormatInfoByName: [String: SZFormatInfo]) -> [FormatOption] {
+    private static func makeAvailableFormats(supportedFormatInfoByName: [String: SZFormatInfo],
+                                             sourceURLs: [URL]) -> [FormatOption] {
+        let isSingleFile = isSingleFileSource(sourceURLs)
         let supportedNames = Set(
             supportedFormatInfoByName.values
                 .filter(\.canWrite)
                 .map { $0.name.lowercased() }
         )
         let filteredFormats = formatCatalog.filter {
-            supportedNames.isEmpty || supportedNames.contains($0.codecName.lowercased())
+            guard supportedNames.isEmpty || supportedNames.contains($0.codecName.lowercased()) else {
+                return false
+            }
+
+            let keepsName = supportedFormatInfoByName[$0.codecName.lowercased()]?.keepsName ?? $0.keepsName
+            return isSingleFile || !keepsName
         }
-        return filteredFormats.isEmpty ? formatCatalog : filteredFormats
+        if !filteredFormats.isEmpty {
+            return filteredFormats
+        }
+
+        return formatCatalog.filter { isSingleFile || !$0.keepsName }
+    }
+
+    private static func isSingleFileSource(_ sourceURLs: [URL]) -> Bool {
+        guard sourceURLs.count == 1,
+              let sourceURL = sourceURLs.first else {
+            return false
+        }
+
+        let resourceValues = try? sourceURL.resourceValues(forKeys: [.isDirectoryKey])
+        return resourceValues?.isDirectory == false
     }
 
     private static func suggestedBaseDirectory(for sourceURLs: [URL]) -> URL {

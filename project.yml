@@ -21,6 +21,8 @@ targets:
           short_hash="$(git -C "${SRCROOT}" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
           license_source="${SRCROOT}/vendor/7zip/DOC/License.txt"
           license_dest="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt"
+          sfx_source="${SRCROOT}/vendor/7z.sfx"
+          sfx_dest="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7z.sfx"
 
           set_plist_value() {
             local key="$1"
@@ -39,6 +41,10 @@ targets:
 
           mkdir -p "$(dirname "${license_dest}")"
           cp "${license_source}" "${license_dest}"
+
+          if [ -f "${sfx_source}" ]; then
+            cp "${sfx_source}" "${sfx_dest}"
+          fi
     sources:
       - path: ShichiZip
         excludes:
