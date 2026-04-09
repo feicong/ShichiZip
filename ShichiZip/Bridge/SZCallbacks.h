@@ -87,6 +87,7 @@ public:
     bool RememberMemoryDecision;
     bool SkipMemoryArchive;
     UString ArchivePath;
+    UString CurrentFilePath;
     UString LastErrorMessage;
 
     SZFolderExtractCallback() : PasswordIsDefined(false), PasswordWasAsked(false), TotalSize(0),

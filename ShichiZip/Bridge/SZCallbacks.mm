@@ -54,6 +54,60 @@ static NSString *SZBuildMemoryLimitFailureReason(uint32_t requiredGB,
 }
 
 // ============================================================
+// Extract error message builder (mirrors ExtractCallback.cpp SetExtractErrorMessage)
+// ============================================================
+
+static void SZBuildExtractErrorMessage(Int32 opRes, Int32 encrypted, const wchar_t *fileName, UString &s) {
+    s.Empty();
+
+    if (opRes == NArchive::NExtract::NOperationResult::kOK)
+        return;
+
+    switch (opRes) {
+        case NArchive::NExtract::NOperationResult::kUnsupportedMethod:
+            s += "Unsupported compression method";
+            break;
+        case NArchive::NExtract::NOperationResult::kDataError:
+            s += "Data error";
+            break;
+        case NArchive::NExtract::NOperationResult::kCRCError:
+            s += "CRC failed";
+            break;
+        case NArchive::NExtract::NOperationResult::kUnavailable:
+            s += "Unavailable data";
+            break;
+        case NArchive::NExtract::NOperationResult::kUnexpectedEnd:
+            s += "Unexpected end of data";
+            break;
+        case NArchive::NExtract::NOperationResult::kDataAfterEnd:
+            s += "There are some data after the end of the payload data";
+            break;
+        case NArchive::NExtract::NOperationResult::kIsNotArc:
+            s += "Is not archive";
+            break;
+        case NArchive::NExtract::NOperationResult::kHeadersError:
+            s += "Headers Error";
+            break;
+        case NArchive::NExtract::NOperationResult::kWrongPassword:
+            s += "Wrong password";
+            break;
+        default:
+            s += "Error #";
+            s.Add_UInt32((UInt32)opRes);
+            break;
+    }
+
+    if (encrypted && opRes != NArchive::NExtract::NOperationResult::kWrongPassword) {
+        s += " : Wrong password?";
+    }
+
+    if (fileName && fileName[0] != 0) {
+        s += " : ";
+        s += fileName;
+    }
+}
+
+// ============================================================
 // SZOpenCallbackUI implementation
 // ============================================================
 
@@ -222,7 +276,9 @@ Z7_COM7F_IMF(SZFolderExtractCallback::AskOverwrite(
 }
 
 Z7_COM7F_IMF(SZFolderExtractCallback::PrepareOperation(const wchar_t *name, Int32 isFolder, Int32 askExtractMode, const UInt64 *position)) {
+    CurrentFilePath.Empty();
     if (name) {
+        CurrentFilePath = name;
         SZOperationSession *session = Session;
         if (session) {
             NSString *n = ToNS(UString(name));
@@ -245,6 +301,11 @@ Z7_COM7F_IMF(SZFolderExtractCallback::MessageError(const wchar_t *message)) {
 Z7_COM7F_IMF(SZFolderExtractCallback::SetOperationResult(Int32 opRes, Int32 encrypted)) {
     if (opRes != NArchive::NExtract::NOperationResult::kOK) {
         NumErrors++;
+
+        UString errorMessage;
+        SZBuildExtractErrorMessage(opRes, encrypted, CurrentFilePath, errorMessage);
+        SZAppendErrorMessage(LastErrorMessage, errorMessage);
+
         if (opRes == NArchive::NExtract::NOperationResult::kWrongPassword ||
             (encrypted && opRes == NArchive::NExtract::NOperationResult::kCRCError) ||
             (encrypted && opRes == NArchive::NExtract::NOperationResult::kDataError)) {
@@ -253,10 +314,17 @@ Z7_COM7F_IMF(SZFolderExtractCallback::SetOperationResult(Int32 opRes, Int32 encr
             Password.Empty();
         }
     }
+    CurrentFilePath.Empty();
     return S_OK;
 }
 
 Z7_COM7F_IMF(SZFolderExtractCallback::ReportExtractResult(Int32 opRes, Int32 encrypted, const wchar_t *name)) {
+    if (opRes != NArchive::NExtract::NOperationResult::kOK) {
+        NumErrors++;
+        UString errorMessage;
+        SZBuildExtractErrorMessage(opRes, encrypted, name, errorMessage);
+        SZAppendErrorMessage(LastErrorMessage, errorMessage);
+    }
     return S_OK;
 }
 
