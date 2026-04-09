@@ -6,9 +6,11 @@ class SettingsWindowController: NSWindowController {
 
     private var tabView: NSTabView!
 
+    private static let finderQuickActionsSettingsURL = URL(string: "x-apple.systempreferences:com.apple.ExtensionsPreferences?extensionPointIdentifier=com.apple.services")
+
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 400),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -38,10 +40,15 @@ class SettingsWindowController: NSWindowController {
         foldersTab.view = createFoldersPage()
         tabView.addTabViewItem(foldersTab)
 
+        let integrationTab = NSTabViewItem(identifier: "integration")
+        integrationTab.label = "Integration"
+        integrationTab.view = createIntegrationPage()
+        tabView.addTabViewItem(integrationTab)
+
         contentView.addSubview(tabView)
 
         // Segmented control for tab switching
-        let segmented = NSSegmentedControl(labels: ["Settings", "Folders"],
+        let segmented = NSSegmentedControl(labels: ["Settings", "Folders", "Integration"],
                                            trackingMode: .selectOne,
                                            target: self,
                                            action: #selector(tabSegmentChanged(_:)))
@@ -169,6 +176,43 @@ class SettingsWindowController: NSWindowController {
         let label = NSTextField(labelWithString: title)
         label.font = .boldSystemFont(ofSize: 12)
         return label
+    }
+
+    // MARK: - Integration Page
+
+    private func createIntegrationPage() -> NSView {
+        let view = NSView()
+        let stack = NSStackView()
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+
+        stack.addArrangedSubview(makeSectionLabel("Finder Quick Actions"))
+
+        let descriptionLabel = NSTextField(wrappingLabelWithString: "Open the Finder Quick Actions page in System Settings and review whether ShichiZip's Quick Actions are currently enabled.")
+        descriptionLabel.textColor = .secondaryLabelColor
+        descriptionLabel.maximumNumberOfLines = 0
+        descriptionLabel.preferredMaxLayoutWidth = 440
+        stack.addArrangedSubview(descriptionLabel)
+
+        let openSettingsButton = NSButton(title: "Open Finder Quick Actions Settings", target: self, action: #selector(openFinderQuickActionsSettings(_:)))
+        stack.addArrangedSubview(openSettingsButton)
+
+        let noteLabel = NSTextField(wrappingLabelWithString: "Finder Quick Action enablement is managed by macOS in System Settings.")
+        noteLabel.textColor = .secondaryLabelColor
+        noteLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        noteLabel.maximumNumberOfLines = 0
+        noteLabel.preferredMaxLayoutWidth = 440
+        stack.addArrangedSubview(noteLabel)
+
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+        ])
+        return view
     }
 
     // MARK: - Folders Page (FoldersPage.cpp)
@@ -303,5 +347,16 @@ class SettingsWindowController: NSWindowController {
 
     @objc private func removableOnlyChanged(_ sender: NSButton) {
         SZSettings.set(sender.state == .on, for: .workDirRemovableOnly)
+    }
+
+    @objc private func openFinderQuickActionsSettings(_ sender: Any?) {
+        guard let url = Self.finderQuickActionsSettingsURL,
+              NSWorkspace.shared.open(url) else {
+            let alert = NSAlert()
+            alert.messageText = "Unable to open Finder Quick Actions settings."
+            alert.informativeText = "Open System Settings and go to Extensions > Finder to manage ShichiZip's Quick Actions."
+            alert.runModal()
+            return
+        }
     }
 }
