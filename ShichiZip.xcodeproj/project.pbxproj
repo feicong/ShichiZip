@@ -20,6 +20,7 @@
 		34D1F242A66E0994C0F50FCD /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		3526B672AB9F2CEAFD0E549B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 937563A1E648A0013C4DD0C3 /* Assets.xcassets */; };
 		3EB1A6D4145C14DAED1F6FFF /* ArchiveItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B2D1040171A178E5575D88 /* ArchiveItem.swift */; };
+		47A974D49EB2F91F92DD6456 /* SZSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */; };
 		523834239F9A009DC22B0C0C /* QuickActionCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D093FFF06B68EDC421CEDF26 /* QuickActionCore.swift */; };
 		5544DF4679FC2E8A56B9C8C5 /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		586E8349FFE035506C922697 /* FileManagerArchiveOpenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F978AA77CB7237708162BD /* FileManagerArchiveOpenService.swift */; };
@@ -117,6 +118,7 @@
 		59E8962DD7A7A34F21F49446 /* SZDialogPresenter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SZDialogPresenter.m; sourceTree = "<group>"; };
 		5A18E8BB4528A1AB4DD349EB /* ShowInFileManagerAction-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ShowInFileManagerAction-Info.plist"; sourceTree = "<group>"; };
 		5F58255DCB77AF28307EC7CE /* SZArchive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZArchive.h; sourceTree = "<group>"; };
+		65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SZSettings.swift; sourceTree = "<group>"; };
 		66C60AB7E758ABD0F2751D95 /* SZCallbacks.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZCallbacks.h; sourceTree = "<group>"; };
 		6A27325B4402993E4B3F4F0B /* SZOperationSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZOperationSession.h; sourceTree = "<group>"; };
 		6D8FE357C90F014620315B33 /* SmartQuickExtractAction-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "SmartQuickExtractAction-Info.plist"; sourceTree = "<group>"; };
@@ -287,6 +289,7 @@
 				2E2FF83FA1080A0CA38F27F5 /* DialogPresenter.swift */,
 				AA43642E44A71EF577FDA9A1 /* SZOperationSessionDefaults.h */,
 				CCCBD7802EE988D8182FB615 /* SZOperationSessionDefaults.m */,
+				65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -526,6 +529,7 @@
 				A783E2CAD13FA8016D826804 /* SZModalDialogController.m in Sources */,
 				F86A0A75F45A7424DF89A0E6 /* SZOperationSession.m in Sources */,
 				D49D1ABE0FB54A906B16439D /* SZOperationSessionDefaults.m in Sources */,
+				47A974D49EB2F91F92DD6456 /* SZSettings.swift in Sources */,
 				A75F0A88DDC9FEB2C258A88D /* SettingsWindowController.swift in Sources */,
 				AA261563B50B35EE2B312E27 /* main.swift in Sources */,
 			);

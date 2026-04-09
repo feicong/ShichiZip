@@ -1,0 +1,125 @@
+import Foundation
+
+extension Notification.Name {
+    static let szSettingsDidChange = Notification.Name("SZSettingsDidChange")
+}
+
+// MARK: - Settings Keys (maps to Windows 7-Zip registry keys)
+
+enum SZSettingsKey: String {
+    // Settings page
+    case showDots = "ShowDots"
+    case showRealFileIcons = "ShowRealFileIcons"
+    case showHiddenFiles = "ShowHiddenFiles"
+    case showGridLines = "ShowGrid"
+    case singleClickOpen = "SingleClick"
+    case quitAfterLastWindowClosed = "QuitAfterLastWindowClosed"
+    case excludeMacResourceFilesByDefault = "ExcludeMacResourceFilesByDefault"
+    case moveArchiveToTrashAfterExtraction = "MoveArchiveToTrashAfterExtraction"
+    case inheritDownloadedFileQuarantine = "InheritDownloadedFileQuarantine"
+    case memLimitEnabled = "MemLimitEnabled"
+    case memLimitGB = "MemLimitGB"
+
+    // Folders page
+    case workDirMode = "WorkDirMode" // 0=system temp, 1=current, 2=specified
+    case workDirPath = "WorkDirPath"
+    case workDirRemovableOnly = "WorkDirForRemovableOnly"
+}
+
+// MARK: - Settings Access
+
+struct SZSettings {
+    static let defaults = UserDefaults.standard
+
+    private static func defaultBool(for key: SZSettingsKey) -> Bool {
+        switch key {
+        case .showRealFileIcons, .workDirRemovableOnly, .inheritDownloadedFileQuarantine:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func postChange(for key: SZSettingsKey) {
+        NotificationCenter.default.post(name: .szSettingsDidChange,
+                                        object: nil,
+                                        userInfo: ["key": key.rawValue])
+    }
+
+    static func bool(_ key: SZSettingsKey) -> Bool {
+        guard defaults.object(forKey: key.rawValue) != nil else {
+            return defaultBool(for: key)
+        }
+        return defaults.bool(forKey: key.rawValue)
+    }
+
+    static func set(_ value: Bool, for key: SZSettingsKey) {
+        defaults.set(value, forKey: key.rawValue)
+        postChange(for: key)
+    }
+
+    static func string(_ key: SZSettingsKey) -> String {
+        return defaults.string(forKey: key.rawValue) ?? ""
+    }
+
+    static func set(_ value: String, for key: SZSettingsKey) {
+        defaults.set(value, forKey: key.rawValue)
+        postChange(for: key)
+    }
+
+    static func integer(_ key: SZSettingsKey) -> Int {
+        return defaults.integer(forKey: key.rawValue)
+    }
+
+    static func set(_ value: Int, for key: SZSettingsKey) {
+        defaults.set(value, forKey: key.rawValue)
+        postChange(for: key)
+    }
+
+    static var memLimitGB: Int {
+        let v = defaults.integer(forKey: SZSettingsKey.memLimitGB.rawValue)
+        return v > 0 ? v : 4
+    }
+
+    static var workDirMode: Int {
+        return defaults.integer(forKey: SZSettingsKey.workDirMode.rawValue)
+    }
+
+    private static func useConfiguredWorkDir(for currentDir: URL?) -> Bool {
+        guard bool(.workDirRemovableOnly) else {
+            return true
+        }
+
+        guard let currentDir else {
+            return false
+        }
+
+        let keys: Set<URLResourceKey> = [.volumeIsRemovableKey, .volumeIsEjectableKey]
+        let values = try? currentDir.resourceValues(forKeys: keys)
+        return values?.volumeIsRemovable == true || values?.volumeIsEjectable == true
+    }
+
+    /// Resolve the working directory based on settings.
+    /// If "Use for removable drives only" is enabled, non-removable volumes fall back to the current folder.
+    static func resolvedWorkDir(currentDir: URL? = nil) -> URL {
+        let fallbackCurrentDir = currentDir ?? FileManager.default.temporaryDirectory
+        let effectiveMode: Int
+
+        if useConfiguredWorkDir(for: currentDir) {
+            effectiveMode = workDirMode
+        } else {
+            effectiveMode = 1
+        }
+
+        switch effectiveMode {
+        case 1:
+            return fallbackCurrentDir
+        case 2:
+            let path = string(.workDirPath)
+            if !path.isEmpty { return URL(fileURLWithPath: path) }
+            return FileManager.default.temporaryDirectory
+        default:
+            return FileManager.default.temporaryDirectory
+        }
+    }
+}
