@@ -1,8 +1,8 @@
 #import <Foundation/Foundation.h>
 
 #define BOOL BOOL_7Z_COMPAT
-#include "7zip/CPP/7zip/UI/Agent/Agent.h"
-#include "7zip/CPP/7zip/UI/Common/ZipRegistry.h"
+#include "CPP/7zip/UI/Agent/Agent.h"
+#include "CPP/7zip/UI/Common/ZipRegistry.h"
 #undef BOOL
 
 #define SZ_DEFINE_7ZIP_GUID(name, groupId, subId) \

@@ -2,8 +2,8 @@
 #import <Foundation/Foundation.h>
 
 #define BOOL BOOL_7Z_COMPAT
-#include "7zip/CPP/Common/MyString.h"
-#include "7zip/CPP/Common/UTFConvert.h"
+#include "CPP/Common/MyString.h"
+#include "CPP/Common/UTFConvert.h"
 #undef BOOL
 
 bool ShichiZip_DetectLegacyEncodingAndConvertToUnicode(UString &dest, const AString &src)
