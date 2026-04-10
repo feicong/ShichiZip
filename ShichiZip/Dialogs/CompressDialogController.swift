@@ -920,8 +920,6 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             threadField.isEditable = true
             threadField.addItems(withObjectValues: ["Auto"] + Self.threadChoices())
             threadField.stringValue = selectedThreadText
-            threadField.target = self
-            threadField.action = #selector(compressionSettingsChanged(_:))
             threadField.delegate = self
 
             let threadInfoLabel = makeInfoLabel(minWidth: 52)
@@ -1221,7 +1219,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             selectedDictionarySize = selectedDictionaryOption()?.value ?? 0
             selectedWordSize = selectedWordOption()?.value ?? 0
             selectedSolidMode = selectedSolidOption()?.value ?? selectedSolidMode
-            selectedThreadText = Self.normalizedThreadText(threadField.stringValue)
+            selectedThreadText = Self.normalizedThreadText(currentThreadText())
             selectedMemoryUsageSpec = selectedMemoryUsageSpecValue()
             selectedSplitVolumes = splitVolumesField.stringValue
             selectedParameters = parametersField.stringValue
@@ -1282,7 +1280,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     func controlTextDidChange(_ obj: Notification) {
         if let comboBox = obj.object as? NSComboBox,
            comboBox === threadField {
-            refreshOptionAvailability()
+            refreshCompressionEstimateSummary()
             return
         }
 
@@ -1305,8 +1303,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         if comboBox === threadField {
-            refreshOptionAvailability()
+            refreshCompressionEstimateSummary()
+            return
         }
+
+        refreshOptionAvailability()
     }
 
     @objc private func formatChanged(_ sender: Any?) {
@@ -1770,7 +1771,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                                       methodName: method?.methodName)
         let selectedDictionarySize = selectedDictionaryOption()?.value ?? 0
         let selectedWordSize = selectedWordOption()?.value ?? 0
-        let currentThreadText = threadField?.stringValue ?? "Auto"
+        let currentThreadText = currentThreadText()
         let memoryUsageSpec = selectedMemoryUsageSpecValue()
         let estimate = compressionResourceEstimate(for: format,
                                                    method: method,
@@ -1835,6 +1836,21 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         refreshCompressionResourceSummary(for: format, estimate: estimate)
         refreshAdvancedOptionsSummary()
+    }
+
+    private func refreshCompressionEstimateSummary() {
+        guard let format = selectedFormatOption() else { return }
+
+        let method = selectedMethodOption()
+        let level = selectedLevelOption()?.levelValue ?? defaultLevel(for: format.codecName,
+                                                                      methodName: method?.methodName)
+        let estimate = compressionResourceEstimate(for: format,
+                                                   method: method,
+                                                   level: level,
+                                                   dictionarySize: selectedDictionaryOption()?.value ?? 0,
+                                                   threadText: currentThreadText(),
+                                                   memoryUsageSpec: selectedMemoryUsageSpecValue())
+        refreshCompressionResourceSummary(for: format, estimate: estimate)
     }
 
     private func refreshCompressionResourceSummary(for format: FormatOption,
@@ -3005,19 +3021,12 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         let normalizedThreadText = Self.normalizedThreadText(currentThreadText)
         if Self.isAutomaticThreadText(normalizedThreadText) {
-            if threadField.indexOfSelectedItem != 0 {
+            if threadField.indexOfSelectedItem != 0 || threadField.stringValue != items[0] {
                 threadField.selectItem(at: 0)
             }
-            let autoTitle = items[0]
-            if threadField.stringValue != autoTitle {
-                threadField.stringValue = autoTitle
-            }
         } else if let itemIndex = items.firstIndex(of: normalizedThreadText) {
-            if threadField.indexOfSelectedItem != itemIndex {
+            if threadField.indexOfSelectedItem != itemIndex || threadField.stringValue != normalizedThreadText {
                 threadField.selectItem(at: itemIndex)
-            }
-            if threadField.stringValue != normalizedThreadText {
-                threadField.stringValue = normalizedThreadText
             }
         } else if threadField.stringValue != normalizedThreadText {
             threadField.stringValue = normalizedThreadText
@@ -3041,6 +3050,21 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private static func comboBoxItems(from comboBox: NSComboBox) -> [String] {
         (0..<comboBox.numberOfItems).compactMap { comboBox.itemObjectValue(at: $0) as? String }
+    }
+
+    private func currentThreadText() -> String {
+        if let threadField,
+           threadField.indexOfSelectedItem == 0 {
+            return "Auto"
+        }
+
+        if let threadField,
+           threadField.indexOfSelectedItem >= 0,
+           threadField.indexOfSelectedItem < threadField.numberOfItems,
+           let selectedItem = threadField.itemObjectValue(at: threadField.indexOfSelectedItem) as? String {
+            return selectedItem
+        }
+        return threadField?.stringValue ?? "Auto"
     }
 
     private static func isAutomaticThreadText(_ text: String) -> Bool {
