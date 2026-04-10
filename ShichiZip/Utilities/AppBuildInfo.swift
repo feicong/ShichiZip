@@ -18,11 +18,11 @@ enum AppBuildInfo {
             return configuredName
         }
 
-        let bundleIdentifier = bundle.bundleIdentifier ?? ""
-        if bundleIdentifier.localizedCaseInsensitiveContains("shichizipzs") {
-            return "7-Zip-zstd"
-        }
+        #if SHICHIZIP_ZS_VARIANT
+        return "7-Zip-zstd"
+        #else
         return "7-Zip"
+        #endif
     }
 
     static func displayVersion(bundle: Bundle = .main) -> String? {
