@@ -134,15 +134,17 @@ final class ArchiveOperationCoordinator {
     }
 
     private func hideProgressIfVisible() {
-        if isSheetVisible,
-           let parentWindow,
-           let progressWindow = progressController.window {
-            parentWindow.endSheet(progressWindow)
-            isSheetVisible = false
+        guard let progressWindow = progressController.window else {
             return
         }
 
-        progressController.hideWindowIfVisible()
+        if isSheetVisible,
+           let parentWindow {
+            parentWindow.endSheet(progressWindow)
+            isSheetVisible = false
+        }
+
+        progressWindow.close()
     }
 
     private func shouldShowProgress(for snapshot: SZOperationSnapshot) -> Bool {
