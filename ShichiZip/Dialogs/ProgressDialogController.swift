@@ -185,28 +185,6 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         }
     }
 
-    func hideIfVisible() {
-        if !Thread.isMainThread {
-            DispatchQueue.main.async {
-                self.hideIfVisible()
-            }
-            return
-        }
-
-        hideWindowIfVisible()
-    }
-
-    func hideWindowIfVisible() {
-        if !Thread.isMainThread {
-            DispatchQueue.main.async {
-                self.hideWindowIfVisible()
-            }
-            return
-        }
-
-        window?.orderOut(nil)
-    }
-
     @objc private func cancelClicked(_ sender: Any?) {
         cancelled = true
         cancelButton.isEnabled = false
