@@ -123,6 +123,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var pendingDeferredArchiveOpens = 0
     private var shouldPresentInitialFileManager = true
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainMenu.setup()
         // Delay slightly — if we're opening a file, the document system will handle it
