@@ -1721,6 +1721,22 @@ static BOOL CheckExtractResult(SZFolderExtractCallback* fae, HRESULT r,
     return YES;
 }
 
+static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
+    if (NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)))) {
+        return YES;
+    }
+
+    if (error) {
+        const DWORD lastError = GetLastError_noZero_HRESULT();
+        NSString* failureReason = ToNS(NWindows::NError::MyFormatMessage(lastError));
+        *error = SZMakeDetailedError(SZArchiveErrorCodeExtractionFailed,
+                                     [NSString stringWithFormat:@"Can't create folder \"%@\"", dest],
+                                     failureReason);
+    }
+
+    return NO;
+}
+
 // MARK: - Extract
 
 - (BOOL)extractToPath:(NSString*)dest
@@ -1744,7 +1760,9 @@ static BOOL CheckExtractResult(SZFolderExtractCallback* fae, HRESULT r,
     }
     IInArchive* archive = _arcLink->GetArchive();
     const CArc& arc = _arcLink->Arcs.Back();
-    NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
+    if (!EnsureExtractionDirectoryExists(dest, error)) {
+        return NO;
+    }
 
     SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZFolderExtractCallback* faeSpec = new SZFolderExtractCallback;
@@ -1800,7 +1818,9 @@ static BOOL CheckExtractResult(SZFolderExtractCallback* fae, HRESULT r,
     }
     IInArchive* archive = _arcLink->GetArchive();
     const CArc& arc = _arcLink->Arcs.Back();
-    NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
+    if (!EnsureExtractionDirectoryExists(dest, error)) {
+        return NO;
+    }
 
     SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZFolderExtractCallback* faeSpec = new SZFolderExtractCallback;
