@@ -16,7 +16,8 @@ final class ArchiveOperationCoordinator {
     init(operationTitle: String,
          initialFileName: String? = nil,
          parentWindow: NSWindow? = nil,
-         deferredDisplay: Bool = false) {
+         deferredDisplay: Bool = false)
+    {
         session = SZOperationSession()
         progressController = ProgressDialogController()
         progressController.operationTitle = operationTitle
@@ -25,7 +26,7 @@ final class ArchiveOperationCoordinator {
 
         self.parentWindow = parentWindow
         self.deferredDisplay = deferredDisplay
-        self.showDeadline = deferredDisplay
+        showDeadline = deferredDisplay
             ? Date().addingTimeInterval(ProgressDialogController.deferredPresentationDelay)
             : nil
         progressController.showRequestHandler = { [weak self] in
@@ -36,8 +37,9 @@ final class ArchiveOperationCoordinator {
             self?.prepareForPromptIfNeeded()
 
             guard let password = szPromptForPasswordSync(title: title,
-                                                        message: message,
-                                                        initialValue: initialValue) else {
+                                                         message: message,
+                                                         initialValue: initialValue)
+            else {
                 return false
             }
 
@@ -81,7 +83,8 @@ final class ArchiveOperationCoordinator {
     func requestChoice(style: SZOperationPromptStyle,
                        title: String,
                        message: String,
-                       buttonTitles: [String]) -> Int {
+                       buttonTitles: [String]) -> Int
+    {
         session.requestChoice(with: style,
                               title: title,
                               message: message,
@@ -91,7 +94,7 @@ final class ArchiveOperationCoordinator {
     @objc private func updateFromSession() {
         let snapshot = session.snapshot()
 
-        if progressController.progressShouldCancel() && !snapshot.isCancellationRequested {
+        if progressController.progressShouldCancel(), !snapshot.isCancellationRequested {
             session.requestCancel()
         }
 
@@ -107,7 +110,7 @@ final class ArchiveOperationCoordinator {
         }
         if snapshot.bytesTotal > 0 {
             progressController.progressDidUpdateBytesCompleted(snapshot.bytesCompleted,
-                                                              total: snapshot.bytesTotal)
+                                                               total: snapshot.bytesTotal)
         }
         if snapshot.filesCompleted > 0 {
             progressController.progressDidUpdateFilesCompleted(snapshot.filesCompleted)
@@ -124,7 +127,8 @@ final class ArchiveOperationCoordinator {
         }
 
         if let parentWindow,
-           let progressWindow = progressController.window {
+           let progressWindow = progressController.window
+        {
             parentWindow.beginSheet(progressWindow) { _ in }
             isSheetVisible = true
             return
@@ -139,7 +143,8 @@ final class ArchiveOperationCoordinator {
         }
 
         if isSheetVisible,
-           let parentWindow {
+           let parentWindow
+        {
             parentWindow.endSheet(progressWindow)
             isSheetVisible = false
         }

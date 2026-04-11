@@ -36,12 +36,11 @@ SZ_DEFINE_7ZIP_GUID(IID_IFolderSetZoneIdMode, 0x01, 0x12);
 SZ_DEFINE_7ZIP_GUID(IID_IFolderSetZoneIdFile, 0x01, 0x13);
 SZ_DEFINE_7ZIP_GUID(IID_IFolderArchiveUpdateCallback_MoveArc, 0x01, 0x14);
 
-static NSString * const kSZWorkDirModePreferenceKey = @"WorkDirMode";
-static NSString * const kSZWorkDirPathPreferenceKey = @"WorkDirPath";
-static NSString * const kSZWorkDirRemovableOnlyPreferenceKey = @"WorkDirForRemovableOnly";
+static NSString* const kSZWorkDirModePreferenceKey = @"WorkDirMode";
+static NSString* const kSZWorkDirPathPreferenceKey = @"WorkDirPath";
+static NSString* const kSZWorkDirRemovableOnlyPreferenceKey = @"WorkDirForRemovableOnly";
 
-static UString SZToUString(NSString *string)
-{
+static UString SZToUString(NSString* string) {
     if (!string) {
         return UString();
     }
@@ -53,9 +52,8 @@ static UString SZToUString(NSString *string)
     return converted;
 }
 
-static NSString *SZToNSString(const UString &string)
-{
-    NSMutableString *converted = [NSMutableString stringWithCapacity:string.Len()];
+static NSString* SZToNSString(const UString& string) {
+    NSMutableString* converted = [NSMutableString stringWithCapacity:string.Len()];
     for (unsigned index = 0; index < string.Len(); index++) {
         unichar character = (unichar)string[index];
         [converted appendString:[NSString stringWithCharacters:&character length:1]];
@@ -63,17 +61,16 @@ static NSString *SZToNSString(const UString &string)
     return converted;
 }
 
-bool SZWorkDirShouldUseConfiguredMode(const FString &path)
-{
-    NSString *resolvedPath = SZToNSString(fs2us(path));
+bool SZWorkDirShouldUseConfiguredMode(const FString& path) {
+    NSString* resolvedPath = SZToNSString(fs2us(path));
     if (resolvedPath.length == 0) {
         return false;
     }
 
-    NSURL *url = [NSURL fileURLWithPath:resolvedPath];
-    NSError *error = nil;
-    NSNumber *isRemovable = nil;
-    NSNumber *isEjectable = nil;
+    NSURL* url = [NSURL fileURLWithPath:resolvedPath];
+    NSError* error = nil;
+    NSNumber* isRemovable = nil;
+    NSNumber* isEjectable = nil;
     [url getResourceValue:&isRemovable forKey:NSURLVolumeIsRemovableKey error:&error];
     [url getResourceValue:&isEjectable forKey:NSURLVolumeIsEjectableKey error:nil];
     return isRemovable.boolValue || isEjectable.boolValue;
@@ -81,33 +78,31 @@ bool SZWorkDirShouldUseConfiguredMode(const FString &path)
 
 namespace NWorkDir {
 
-void CInfo::Save() const
-{
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+void CInfo::Save() const {
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
     [defaults setInteger:(NSInteger)Mode forKey:kSZWorkDirModePreferenceKey];
     [defaults setObject:SZToNSString(fs2us(Path)) forKey:kSZWorkDirPathPreferenceKey];
     [defaults setBool:ForRemovableOnly forKey:kSZWorkDirRemovableOnlyPreferenceKey];
 }
 
-void CInfo::Load()
-{
+void CInfo::Load() {
     SetDefault();
 
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults objectForKey:kSZWorkDirModePreferenceKey] != nil) {
         const NSInteger storedMode = [defaults integerForKey:kSZWorkDirModePreferenceKey];
         switch (storedMode) {
-            case NMode::kSystem:
-            case NMode::kCurrent:
-            case NMode::kSpecified:
-                Mode = (NMode::EEnum)storedMode;
-                break;
-            default:
-                break;
+        case NMode::kSystem:
+        case NMode::kCurrent:
+        case NMode::kSpecified:
+            Mode = (NMode::EEnum)storedMode;
+            break;
+        default:
+            break;
         }
     }
 
-    NSString *path = [defaults stringForKey:kSZWorkDirPathPreferenceKey];
+    NSString* path = [defaults stringForKey:kSZWorkDirPathPreferenceKey];
     if (path.length > 0) {
         Path = us2fs(SZToUString(path));
     } else if (Mode == NMode::kSpecified) {
@@ -121,23 +116,28 @@ void CInfo::Load()
 
 }
 
-int CompareFileNames_ForFolderList(const wchar_t *s1, const wchar_t *s2)
-{
+int CompareFileNames_ForFolderList(const wchar_t* s1, const wchar_t* s2) {
     for (;;) {
         wchar_t c1 = *s1;
         wchar_t c2 = *s2;
-        if ((c1 >= '0' && c1 <= '9') &&
-            (c2 >= '0' && c2 <= '9')) {
-            for (; *s1 == '0'; s1++);
-            for (; *s2 == '0'; s2++);
+        if ((c1 >= '0' && c1 <= '9') && (c2 >= '0' && c2 <= '9')) {
+            for (; *s1 == '0'; s1++)
+                ;
+            for (; *s2 == '0'; s2++)
+                ;
             size_t len1 = 0;
             size_t len2 = 0;
-            for (; (s1[len1] >= '0' && s1[len1] <= '9'); len1++);
-            for (; (s2[len2] >= '0' && s2[len2] <= '9'); len2++);
-            if (len1 < len2) return -1;
-            if (len1 > len2) return 1;
+            for (; (s1[len1] >= '0' && s1[len1] <= '9'); len1++)
+                ;
+            for (; (s2[len2] >= '0' && s2[len2] <= '9'); len2++)
+                ;
+            if (len1 < len2)
+                return -1;
+            if (len1 > len2)
+                return 1;
             for (; len1 > 0; s1++, s2++, len1--) {
-                if (*s1 == *s2) continue;
+                if (*s1 == *s2)
+                    continue;
                 return (*s1 < *s2) ? -1 : 1;
             }
             c1 = *s1;
@@ -148,9 +148,12 @@ int CompareFileNames_ForFolderList(const wchar_t *s1, const wchar_t *s2)
         if (c1 != c2) {
             const wchar_t u1 = MyCharUpper(c1);
             const wchar_t u2 = MyCharUpper(c2);
-            if (u1 < u2) return -1;
-            if (u1 > u2) return 1;
+            if (u1 < u2)
+                return -1;
+            if (u1 > u2)
+                return 1;
         }
-        if (c1 == 0) return 0;
+        if (c1 == 0)
+            return 0;
     }
 }

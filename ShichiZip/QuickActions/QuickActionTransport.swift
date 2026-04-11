@@ -20,7 +20,8 @@ enum ShichiZipQuickActionTransport {
 
     static func canHandle(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased(),
-              let host = url.host?.lowercased() else {
+              let host = url.host?.lowercased()
+        else {
             return false
         }
 
@@ -93,7 +94,8 @@ enum ShichiZipQuickActionTransport {
 
     private static func pasteboardName(from launchURL: URL) -> String? {
         guard canHandle(launchURL),
-              let components = URLComponents(url: launchURL, resolvingAgainstBaseURL: false) else {
+              let components = URLComponents(url: launchURL, resolvingAgainstBaseURL: false)
+        else {
             return nil
         }
 

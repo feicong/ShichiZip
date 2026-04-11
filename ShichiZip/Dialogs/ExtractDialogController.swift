@@ -20,7 +20,6 @@ struct ExtractQuickActionDefaults {
 }
 
 final class ExtractDialogController: NSObject {
-
     private struct ModeOption<Value: Equatable> {
         let title: String
         let value: Value
@@ -40,7 +39,7 @@ final class ExtractDialogController: NSObject {
             var updatedEntries = entries().filter { $0 != normalizedPath }
             updatedEntries.insert(normalizedPath, at: 0)
             if updatedEntries.count > maxEntries {
-                updatedEntries.removeSubrange(maxEntries..<updatedEntries.count)
+                updatedEntries.removeSubrange(maxEntries ..< updatedEntries.count)
             }
             defaults.set(updatedEntries, forKey: entriesKey)
         }
@@ -56,10 +55,12 @@ final class ExtractDialogController: NSObject {
         private static let showPasswordKey = "FileManager.ExtractShowPassword"
 
         static func pathMode(defaultValue: SZPathMode,
-                             allowedValues: [SZPathMode]) -> SZPathMode {
+                             allowedValues: [SZPathMode]) -> SZPathMode
+        {
             guard let rawValue = defaults.object(forKey: pathModeKey) as? Int,
                   let value = SZPathMode(rawValue: rawValue),
-                  allowedValues.contains(value) else {
+                  allowedValues.contains(value)
+            else {
                 return defaultValue
             }
             return value
@@ -67,7 +68,8 @@ final class ExtractDialogController: NSObject {
 
         static func overwriteMode(defaultValue: SZOverwriteMode) -> SZOverwriteMode {
             guard let rawValue = defaults.object(forKey: overwriteModeKey) as? Int,
-                  let value = SZOverwriteMode(rawValue: rawValue) else {
+                  let value = SZOverwriteMode(rawValue: rawValue)
+            else {
                 return defaultValue
             }
             return value
@@ -106,7 +108,8 @@ final class ExtractDialogController: NSObject {
                            preserveNtSecurityInfo: Bool,
                            eliminateDuplicates: Bool,
                            splitDestination: Bool,
-                           showPassword: Bool) {
+                           showPassword: Bool)
+        {
             defaults.set(pathMode.rawValue, forKey: pathModeKey)
             defaults.set(overwriteMode.rawValue, forKey: overwriteModeKey)
             defaults.set(preserveNtSecurityInfo, forKey: preserveNtSecurityKey)
@@ -123,13 +126,14 @@ final class ExtractDialogController: NSObject {
 
         init(ownerWindow: NSWindow?,
              pathField: NSComboBox,
-             baseDirectory: URL) {
+             baseDirectory: URL)
+        {
             self.ownerWindow = ownerWindow
             self.pathField = pathField
             self.baseDirectory = baseDirectory.standardizedFileURL
         }
 
-        @objc func browse(_ sender: Any?) {
+        @objc func browse(_: Any?) {
             let panel = NSOpenPanel()
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
@@ -201,10 +205,11 @@ final class ExtractDialogController: NSObject {
          defaultPathMode: SZPathMode,
          showsCurrentPathsOption: Bool,
          suggestedSplitDestinationName: String? = nil,
-         sourceArchiveAvailableForPostProcessing: Bool = true) {
+         sourceArchiveAvailableForPostProcessing: Bool = true)
+    {
         self.suggestedDestinationURL = suggestedDestinationURL.standardizedFileURL
         self.baseDirectory = baseDirectory.standardizedFileURL
-        self.messageText = message
+        messageText = message
         self.defaultPathMode = defaultPathMode
         self.showsCurrentPathsOption = showsCurrentPathsOption
         self.suggestedSplitDestinationName = suggestedSplitDestinationName
@@ -216,7 +221,7 @@ final class ExtractDialogController: NSObject {
         let overwriteModeOptions = makeOverwriteModeOptions()
         var selectedPath = suggestedDestinationURL.path
         var selectedPathMode = DialogPreferences.pathMode(defaultValue: defaultPathMode,
-                                                         allowedValues: pathModeOptions.map(\ .value))
+                                                          allowedValues: pathModeOptions.map(\ .value))
         var selectedOverwriteMode = DialogPreferences.overwriteMode(defaultValue: .ask)
         var enteredPassword = ""
         var preserveNtSecurityInfo = DialogPreferences.preserveNtSecurityInfo()
@@ -360,12 +365,12 @@ final class ExtractDialogController: NSObject {
                                                      cancelButtonIndex: 0)
             currentDialogWindow = controller.window
             self.splitNameField = splitNameField
-            self.splitNameRow = splitRow
+            splitNameRow = splitRow
             self.splitDestinationCheckbox = splitDestinationCheckbox
             self.securePasswordField = securePasswordField
             self.plainPasswordField = plainPasswordField
             self.showPasswordCheckbox = showPasswordCheckbox
-            self.passwordContainerView = passwordContainer
+            passwordContainerView = passwordContainer
             updateSplitDestinationUI()
             updatePasswordVisibilityUI(moveFocus: false)
 
@@ -463,7 +468,8 @@ final class ExtractDialogController: NSObject {
                                    moveArchiveToTrashCheckbox: NSButton,
                                    inheritDownloadedFileQuarantineCheckbox: NSButton,
                                    ntSecurityCheckbox: NSButton,
-                                   eliminateDuplicatesCheckbox: NSButton) -> NSView {
+                                   eliminateDuplicatesCheckbox: NSButton) -> NSView
+    {
         let formStack = NSStackView(views: [
             makeFormRow(label: "Extract to:", control: pathRow),
             makeFormRow(label: "Separate folder:", control: splitRow),
@@ -555,7 +561,7 @@ final class ExtractDialogController: NSObject {
                               code: NSFileWriteInvalidFileNameError,
                               userInfo: [
                                   NSFilePathErrorKey: standardizedURL.path,
-                                  NSLocalizedDescriptionKey: "The destination path must be a folder."
+                                  NSLocalizedDescriptionKey: "The destination path must be a folder.",
                               ])
             }
             return standardizedURL
@@ -567,7 +573,8 @@ final class ExtractDialogController: NSObject {
 
     private func resolveFinalDestinationURL(baseDestinationURL: URL,
                                             splitDestination: Bool,
-                                            splitName: String) throws -> URL {
+                                            splitName: String) throws -> URL
+    {
         guard splitDestination else {
             return baseDestinationURL
         }
@@ -594,11 +601,11 @@ final class ExtractDialogController: NSObject {
         return securePasswordField?.stringValue ?? plainPasswordField?.stringValue ?? ""
     }
 
-    @objc private func splitDestinationToggled(_ sender: Any?) {
+    @objc private func splitDestinationToggled(_: Any?) {
         updateSplitDestinationUI()
     }
 
-    @objc private func showPasswordToggled(_ sender: Any?) {
+    @objc private func showPasswordToggled(_: Any?) {
         updatePasswordVisibilityUI(moveFocus: true)
     }
 

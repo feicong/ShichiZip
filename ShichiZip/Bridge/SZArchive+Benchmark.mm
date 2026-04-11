@@ -1,4 +1,5 @@
-// SZArchive+Benchmark.mm — Benchmark implementation (mirrors UI/GUI/BenchmarkDialog.cpp)
+// SZArchive+Benchmark.mm — Benchmark implementation (mirrors
+// UI/GUI/BenchmarkDialog.cpp)
 
 #include "SZBridgeCommon.h"
 
@@ -6,6 +7,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <vector>
 
 static std::atomic_bool g_BenchStop(false);
 
@@ -13,38 +15,32 @@ namespace {
 
 static const unsigned kRatingVector_NumBundlesMax = 20;
 
-struct CTotalBenchRes2: public CTotalBenchRes
-{
+struct CTotalBenchRes2 : public CTotalBenchRes {
     UInt64 UnpackSize;
 
-    void Init()
-    {
+    void Init() {
         CTotalBenchRes::Init();
         UnpackSize = 0;
     }
 
-    void SetFrom_BenchInfo(const CBenchInfo &info)
-    {
+    void SetFrom_BenchInfo(const CBenchInfo& info) {
         NumIterations2 = 1;
         Generate_From_BenchInfo(info);
         UnpackSize = info.Get_UnpackSize_Full();
     }
 
-    void Update_With_Res2(const CTotalBenchRes2 &res)
-    {
+    void Update_With_Res2(const CTotalBenchRes2& res) {
         Update_With_Res(res);
         UnpackSize += res.UnpackSize;
     }
 };
 
-struct CBenchPassResult
-{
+struct CBenchPassResult {
     CTotalBenchRes2 Enc;
     CTotalBenchRes2 Dec;
 };
 
-struct CBenchSyncState
-{
+struct CBenchSyncState {
     UInt64 DictSize;
     UInt32 PassesTotal;
     UInt32 PassesCompleted;
@@ -60,8 +56,7 @@ struct CBenchSyncState
     std::vector<CBenchPassResult> RatingVector;
     CFAbsoluteTime LastProgressTime;
 
-    void Init(UInt64 dictSize, UInt32 passesTotal)
-    {
+    void Init(UInt64 dictSize, UInt32 passesTotal) {
         DictSize = dictSize;
         PassesTotal = passesTotal;
         PassesCompleted = 0;
@@ -79,20 +74,38 @@ struct CBenchSyncState
     }
 };
 
-struct CBenchSharedContext
-{
+struct CBenchSharedContext {
     std::mutex Mutex;
     CBenchSyncState State;
 };
 
-#define SZ_UINT_TO_STR_3(s, val) { \
-  s[0] = (wchar_t)('0' + (val) / 100); \
-  s[1] = (wchar_t)('0' + (val) % 100 / 10); \
-  s[2] = (wchar_t)('0' + (val) % 10); \
-  s += 3; s[0] = 0; }
+static void SZBenchCopyState(CBenchSyncState& dest, const CBenchSyncState& src) {
+    dest.DictSize = src.DictSize;
+    dest.PassesTotal = src.PassesTotal;
+    dest.PassesCompleted = src.PassesCompleted;
+    dest.NumFreqThreadsPrev = src.NumFreqThreadsPrev;
+    dest.RatingVectorDeletedIndex = src.RatingVectorDeletedIndex;
+    dest.BenchWasFinished = src.BenchWasFinished;
+    dest.FreqString_Sync = src.FreqString_Sync;
+    dest.FreqString_GUI = src.FreqString_GUI;
+    dest.Enc_BenchRes_1 = src.Enc_BenchRes_1;
+    dest.Enc_BenchRes = src.Enc_BenchRes;
+    dest.Dec_BenchRes_1 = src.Dec_BenchRes_1;
+    dest.Dec_BenchRes = src.Dec_BenchRes;
+    dest.RatingVector = src.RatingVector;
+    dest.LastProgressTime = src.LastProgressTime;
+}
 
-static WCHAR *SZBenchNumberToDot3(UInt64 value, WCHAR *dest)
-{
+#define SZ_UINT_TO_STR_3(s, val)                  \
+    {                                             \
+        s[0] = (wchar_t)('0' + (val) / 100);      \
+        s[1] = (wchar_t)('0' + (val) % 100 / 10); \
+        s[2] = (wchar_t)('0' + (val) % 10);       \
+        s += 3;                                   \
+        s[0] = 0;                                 \
+    }
+
+static WCHAR* SZBenchNumberToDot3(UInt64 value, WCHAR* dest) {
     dest = ConvertUInt64ToString(value / 1000, dest);
     const UInt32 rem = (UInt32)(value % 1000);
     *dest++ = '.';
@@ -100,18 +113,13 @@ static WCHAR *SZBenchNumberToDot3(UInt64 value, WCHAR *dest)
     return dest;
 }
 
-static UInt64 SZBenchGetMips(UInt64 ips)
-{
-    return (ips + 500000) / 1000000;
-}
+static UInt64 SZBenchGetMips(UInt64 ips) { return (ips + 500000) / 1000000; }
 
-static UInt64 SZBenchGetUsagePercents(UInt64 usage)
-{
+static UInt64 SZBenchGetUsagePercents(UInt64 usage) {
     return Benchmark_GetUsage_Percents(usage);
 }
 
-static UInt32 SZBenchGetRating(const CTotalBenchRes &info)
-{
+static UInt32 SZBenchGetRating(const CTotalBenchRes& info) {
     UInt64 numIterations = info.NumIterations2;
     if (numIterations == 0)
         numIterations = 1000000;
@@ -122,41 +130,37 @@ static UInt32 SZBenchGetRating(const CTotalBenchRes &info)
     return rating32;
 }
 
-static void SZBenchAddDot3String(UString &dest, UInt64 value)
-{
+static void SZBenchAddDot3String(UString& dest, UInt64 value) {
     WCHAR temp[32];
     SZBenchNumberToDot3(value, temp);
     dest += temp;
 }
 
-static void SZBenchAddUsageString(UString &dest, const CTotalBenchRes &info)
-{
+static void SZBenchAddUsageString(UString& dest, const CTotalBenchRes& info) {
     UInt64 numIterations = info.NumIterations2;
     if (numIterations == 0)
         numIterations = 1000000;
     const UInt64 usage = SZBenchGetUsagePercents(info.Usage / numIterations);
 
     wchar_t temp[32];
-    wchar_t *ptr = ConvertUInt64ToString(usage, temp);
+    wchar_t* ptr = ConvertUInt64ToString(usage, temp);
     ptr[0] = '%';
     ptr[1] = 0;
 
     unsigned len = (unsigned)(size_t)(ptr - temp);
-    while (len < 5)
-    {
+    while (len < 5) {
         dest.Add_Space();
         len++;
     }
     dest += temp;
 }
 
-static void SZBenchAddRatingString(UString &dest, const CTotalBenchRes &info)
-{
+static void SZBenchAddRatingString(UString& dest, const CTotalBenchRes& info) {
     SZBenchAddDot3String(dest, SZBenchGetRating(info));
 }
 
-static void SZBenchAddRatingsLine(UString &dest, const CTotalBenchRes &enc, const CTotalBenchRes &dec)
-{
+static void SZBenchAddRatingsLine(UString& dest, const CTotalBenchRes& enc,
+    const CTotalBenchRes& dec) {
     SZBenchAddRatingString(dest, enc);
     dest += "  ";
     SZBenchAddRatingString(dest, dec);
@@ -171,47 +175,43 @@ static void SZBenchAddRatingsLine(UString &dest, const CTotalBenchRes &enc, cons
     SZBenchAddUsageString(dest, total);
 }
 
-static NSString *SZBenchFormatRating(UInt64 rating)
-{
+static NSString* SZBenchFormatRating(UInt64 rating) {
     WCHAR temp[64];
     MyStringCopy(SZBenchNumberToDot3(SZBenchGetMips(rating), temp), L" GIPS");
     return ToNS(UString(temp));
 }
 
-static NSString *SZBenchFormatUsage(UInt64 usage)
-{
-    return [NSString stringWithFormat:@"%llu%%", (unsigned long long)SZBenchGetUsagePercents(usage)];
+static NSString* SZBenchFormatUsage(UInt64 usage) {
+    return [NSString
+        stringWithFormat:@"%llu%%",
+        (unsigned long long)SZBenchGetUsagePercents(usage)];
 }
 
-static NSString *SZBenchFormatSpeed(const CTotalBenchRes2 &info)
-{
+static NSString* SZBenchFormatSpeed(const CTotalBenchRes2& info) {
     const UInt64 speed = (info.Speed >> 10) / info.NumIterations2;
     return [NSString stringWithFormat:@"%llu KB/s", (unsigned long long)speed];
 }
 
-static NSString *SZBenchFormatSize(UInt64 unpackSize)
-{
+static NSString* SZBenchFormatSize(UInt64 unpackSize) {
     UInt64 value = unpackSize;
-    NSString *suffix = @" MB";
-    if (value >= ((UInt64)1 << 40))
-    {
+    NSString* suffix = @" MB";
+    if (value >= ((UInt64)1 << 40)) {
         value >>= 30;
         suffix = @" GB";
-    }
-    else
-    {
+    } else {
         value >>= 20;
     }
-    return [NSString stringWithFormat:@"%llu%@", (unsigned long long)value, suffix];
+    return
+        [NSString stringWithFormat:@"%llu%@", (unsigned long long)value, suffix];
 }
 
-static SZBenchDisplayRow *SZBenchMakeRow(const CTotalBenchRes2 &info, bool includeSize, bool includeSpeed)
-{
+static SZBenchDisplayRow* SZBenchMakeRow(const CTotalBenchRes2& info,
+    bool includeSize, bool includeSpeed) {
     if (info.NumIterations2 == 0)
         return nil;
 
     const UInt64 numIterations = info.NumIterations2;
-    SZBenchDisplayRow *row = [[SZBenchDisplayRow alloc] init];
+    SZBenchDisplayRow* row = [[SZBenchDisplayRow alloc] init];
     row.usageText = SZBenchFormatUsage(info.Usage / numIterations);
     row.rpuText = SZBenchFormatRating(info.RPU / numIterations);
     row.ratingText = SZBenchFormatRating(info.Rating / numIterations);
@@ -220,34 +220,29 @@ static SZBenchDisplayRow *SZBenchMakeRow(const CTotalBenchRes2 &info, bool inclu
     return row;
 }
 
-static NSString *SZBenchBuildLogText(const CBenchSyncState &state)
-{
+static NSString* SZBenchBuildLogText(const CBenchSyncState& state) {
     UString text;
     text += state.FreqString_GUI;
 
-    if (!state.RatingVector.empty())
-    {
+    if (!state.RatingVector.empty()) {
         if (!text.IsEmpty())
             text.Add_LF();
         text += "Compr Decompr Total   CPU";
         text.Add_LF();
     }
 
-    for (size_t i = 0; i < state.RatingVector.size(); i++)
-    {
+    for (size_t i = 0; i < state.RatingVector.size(); i++) {
         if (i != 0)
             text.Add_LF();
-        if (state.RatingVectorDeletedIndex >= 0 && (int)i == state.RatingVectorDeletedIndex)
-        {
+        if (state.RatingVectorDeletedIndex >= 0 && (int)i == state.RatingVectorDeletedIndex) {
             text += "...";
             text.Add_LF();
         }
-        const CBenchPassResult &pair = state.RatingVector[i];
+        const CBenchPassResult& pair = state.RatingVector[i];
         SZBenchAddRatingsLine(text, pair.Enc, pair.Dec);
     }
 
-    if (state.BenchWasFinished)
-    {
+    if (state.BenchWasFinished) {
         text.Add_LF();
         text += "-------------";
         text.Add_LF();
@@ -257,9 +252,8 @@ static NSString *SZBenchBuildLogText(const CBenchSyncState &state)
     return ToNS(text);
 }
 
-static SZBenchSnapshot *SZBenchMakeSnapshot(const CBenchSyncState &state)
-{
-    SZBenchSnapshot *snapshot = [[SZBenchSnapshot alloc] init];
+static SZBenchSnapshot* SZBenchMakeSnapshot(const CBenchSyncState& state) {
+    SZBenchSnapshot* snapshot = [[SZBenchSnapshot alloc] init];
     snapshot.passesCompleted = state.PassesCompleted;
     snapshot.passesTotal = state.PassesTotal;
     snapshot.finished = state.BenchWasFinished;
@@ -269,8 +263,7 @@ static SZBenchSnapshot *SZBenchMakeSnapshot(const CBenchSyncState &state)
     snapshot.decodeCurrent = SZBenchMakeRow(state.Dec_BenchRes_1, true, true);
     snapshot.decodeResult = SZBenchMakeRow(state.Dec_BenchRes, true, true);
 
-    if (state.BenchWasFinished)
-    {
+    if (state.BenchWasFinished) {
         CTotalBenchRes2 total = state.Enc_BenchRes;
         total.Update_With_Res2(state.Dec_BenchRes);
         snapshot.totalResult = SZBenchMakeRow(total, false, false);
@@ -279,8 +272,7 @@ static SZBenchSnapshot *SZBenchMakeSnapshot(const CBenchSyncState &state)
     return snapshot;
 }
 
-static bool SZBenchShouldEmit(CBenchSyncState &state, bool force)
-{
+static bool SZBenchShouldEmit(CBenchSyncState& state, bool force) {
     const CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
     if (!force && state.LastProgressTime != 0 && now - state.LastProgressTime < 0.25)
         return false;
@@ -288,31 +280,31 @@ static bool SZBenchShouldEmit(CBenchSyncState &state, bool force)
     return true;
 }
 
-static void SZBenchDispatchSnapshot(void (^progress)(SZBenchSnapshot *), const CBenchSyncState &state)
-{
+static void SZBenchDispatchSnapshot(void (^progress)(SZBenchSnapshot*),
+    const CBenchSyncState& state) {
     if (!progress)
         return;
 
-    SZBenchSnapshot *snapshot = SZBenchMakeSnapshot(state);
-    void (^progressBlock)(SZBenchSnapshot *) = progress;
+    SZBenchSnapshot* snapshot = SZBenchMakeSnapshot(state);
+    void (^progressBlock)(SZBenchSnapshot*) = progress;
     dispatch_async(dispatch_get_main_queue(), ^{
         progressBlock(snapshot);
     });
 }
 
-static NSString *SZBenchErrorMessage(HRESULT result)
-{
+static NSString* SZBenchErrorMessage(HRESULT result) {
     if (result == S_OK || result == E_ABORT)
         return nil;
     if (result == S_FALSE)
         return @"Decoding error";
     if (result == CLASS_E_CLASSNOTAVAILABLE)
         return @"Can't find 7-Zip codecs";
-    return [NSString stringWithFormat:@"Benchmark failed (0x%08X).", (unsigned)result];
+    return [NSString
+        stringWithFormat:@"Benchmark failed (0x%08X).", (unsigned)result];
 }
 
-static CObjectVector<CProperty> SZBenchMakeProps(UInt64 dictionarySize, UInt32 numThreads)
-{
+static CObjectVector<CProperty> SZBenchMakeProps(UInt64 dictionarySize,
+    UInt32 numThreads) {
     CObjectVector<CProperty> props;
 
     {
@@ -333,22 +325,20 @@ static CObjectVector<CProperty> SZBenchMakeProps(UInt64 dictionarySize, UInt32 n
     return props;
 }
 
-class BenchGuiCallback final : public IBenchCallback
-{
+class BenchGuiCallback final : public IBenchCallback {
 public:
     UInt64 DictionarySize;
-    CBenchSharedContext *Context;
-    void (^Progress)(SZBenchSnapshot *);
+    CBenchSharedContext* Context;
+    void (^Progress)(SZBenchSnapshot*);
 
-    BenchGuiCallback(UInt64 dictionarySize, CBenchSharedContext *context, void (^progress)(SZBenchSnapshot *)):
-        DictionarySize(dictionarySize),
-        Context(context),
-        Progress(progress ? [progress copy] : nil)
-    {
+    BenchGuiCallback(UInt64 dictionarySize, CBenchSharedContext* context,
+        void (^progress)(SZBenchSnapshot*))
+        : DictionarySize(dictionarySize)
+        , Context(context)
+        , Progress(progress ? [progress copy] : nil) {
     }
 
-    HRESULT SetEncodeResult(const CBenchInfo &info, bool final) override
-    {
+    HRESULT SetEncodeResult(const CBenchInfo& info, bool final) override {
         CBenchSyncState snapshotState;
         bool shouldEmit = false;
 
@@ -357,8 +347,8 @@ public:
             if (g_BenchStop.load())
                 return E_ABORT;
 
-            CBenchSyncState &state = Context->State;
-            CTotalBenchRes2 &benchRes = state.Enc_BenchRes_1;
+            CBenchSyncState& state = Context->State;
+            CTotalBenchRes2& benchRes = state.Enc_BenchRes_1;
 
             UInt64 dictSize = DictionarySize;
             if (!final && dictSize > info.UnpackSize)
@@ -372,7 +362,7 @@ public:
 
             shouldEmit = SZBenchShouldEmit(state, final);
             if (shouldEmit)
-                snapshotState = state;
+                SZBenchCopyState(snapshotState, state);
         }
 
         if (shouldEmit)
@@ -380,8 +370,7 @@ public:
         return S_OK;
     }
 
-    HRESULT SetDecodeResult(const CBenchInfo &info, bool final) override
-    {
+    HRESULT SetDecodeResult(const CBenchInfo& info, bool final) override {
         CBenchSyncState snapshotState;
         bool shouldEmit = false;
 
@@ -390,8 +379,8 @@ public:
             if (g_BenchStop.load())
                 return E_ABORT;
 
-            CBenchSyncState &state = Context->State;
-            CTotalBenchRes2 &benchRes = state.Dec_BenchRes_1;
+            CBenchSyncState& state = Context->State;
+            CTotalBenchRes2& benchRes = state.Dec_BenchRes_1;
 
             benchRes.Rating = info.GetRating_LzmaDec();
             benchRes.SetFrom_BenchInfo(info);
@@ -401,7 +390,7 @@ public:
 
             shouldEmit = SZBenchShouldEmit(state, final);
             if (shouldEmit)
-                snapshotState = state;
+                SZBenchCopyState(snapshotState, state);
         }
 
         if (shouldEmit)
@@ -410,28 +399,25 @@ public:
     }
 };
 
-class BenchFreqCallback final : public IBenchFreqCallback
-{
+class BenchFreqCallback final : public IBenchFreqCallback {
 public:
-    CBenchSharedContext *Context;
-    void (^Progress)(SZBenchSnapshot *);
+    CBenchSharedContext* Context;
+    void (^Progress)(SZBenchSnapshot*);
 
-    BenchFreqCallback(CBenchSharedContext *context, void (^progress)(SZBenchSnapshot *)):
-        Context(context),
-        Progress(progress ? [progress copy] : nil)
-    {
+    BenchFreqCallback(CBenchSharedContext* context,
+        void (^progress)(SZBenchSnapshot*))
+        : Context(context)
+        , Progress(progress ? [progress copy] : nil) {
     }
 
-    HRESULT AddCpuFreq(unsigned numThreads, UInt64 freq, UInt64 usage) override
-    {
+    HRESULT AddCpuFreq(unsigned numThreads, UInt64 freq, UInt64 usage) override {
         std::lock_guard<std::mutex> lock(Context->Mutex);
         if (g_BenchStop.load())
             return E_ABORT;
 
-        CBenchSyncState &state = Context->State;
-        UString &text = state.FreqString_Sync;
-        if (state.NumFreqThreadsPrev != numThreads)
-        {
+        CBenchSyncState& state = Context->State;
+        UString& text = state.FreqString_Sync;
+        if (state.NumFreqThreadsPrev != numThreads) {
             state.NumFreqThreadsPrev = numThreads;
             if (!text.IsEmpty())
                 text.Add_LF();
@@ -441,8 +427,7 @@ public:
         }
 
         text.Add_Space();
-        if (numThreads != 1)
-        {
+        if (numThreads != 1) {
             text.Add_UInt64(SZBenchGetUsagePercents(usage));
             text.Add_Char('%');
             text.Add_Space();
@@ -451,8 +436,7 @@ public:
         return S_OK;
     }
 
-    HRESULT FreqsFinished(unsigned /* numThreads */) override
-    {
+    HRESULT FreqsFinished(unsigned /* numThreads */) override {
         CBenchSyncState snapshotState;
         {
             std::lock_guard<std::mutex> lock(Context->Mutex);
@@ -461,7 +445,7 @@ public:
 
             Context->State.FreqString_GUI = Context->State.FreqString_Sync;
             SZBenchShouldEmit(Context->State, true);
-            snapshotState = Context->State;
+            SZBenchCopyState(snapshotState, Context->State);
         }
 
         SZBenchDispatchSnapshot(Progress, snapshotState);
@@ -473,7 +457,8 @@ public:
 
 @implementation SZArchive (Benchmark)
 
-+ (uint64_t)benchMemoryUsageForThreads:(uint32_t)threads dictionary:(uint64_t)dictSize {
++ (uint64_t)benchMemoryUsageForThreads:(uint32_t)threads
+                            dictionary:(uint64_t)dictSize {
     return GetBenchMemoryUsage(threads, -1, dictSize, false);
 }
 
@@ -484,9 +469,11 @@ public:
 + (void)runBenchmarkWithDictionary:(uint64_t)dictSize
                            threads:(uint32_t)threads
                             passes:(uint32_t)passes
-                          progress:(void (^)(SZBenchSnapshot *snapshot))progress
-                        completion:(void (^)(BOOL success, NSString * _Nullable errorMessage))completion {
-    CCodecs *codecs = SZGetCodecs();
+                          progress:(void (^)(SZBenchSnapshot* snapshot))progress
+                        completion:(void (^)(BOOL success,
+                                       NSString* _Nullable errorMessage))
+                                       completion {
+    CCodecs* codecs = SZGetCodecs();
     if (!codecs) {
         if (completion) {
             completion(NO, @"Failed to init codecs");
@@ -504,8 +491,8 @@ public:
             CBenchSharedContext context;
             context.State.Init(dictSize, passCount);
 
-            void (^progressBlock)(SZBenchSnapshot *) = progress ? [progress copy] : nil;
-            void (^completionBlock)(BOOL, NSString *) = completion ? [completion copy] : nil;
+            void (^progressBlock)(SZBenchSnapshot*) = progress ? [progress copy] : nil;
+            void (^completionBlock)(BOOL, NSString*) = completion ? [completion copy] : nil;
 
             if (progressBlock)
                 SZBenchDispatchSnapshot(progressBlock, context.State);
@@ -522,13 +509,8 @@ public:
                 BenchFreqCallback freqCallback(&context, progressBlock);
                 CObjectVector<CProperty> props = SZBenchMakeProps(dictSize, threadCount);
 
-                HRESULT result = Bench(EXTERNAL_CODECS_LOC_VARS
-                    NULL,
-                    &benchCallback,
-                    props,
-                    1,
-                    false,
-                    passIndex == 0 ? &freqCallback : NULL);
+                HRESULT result = Bench(EXTERNAL_CODECS_LOC_VARS NULL, &benchCallback, props, 1,
+                    false, passIndex == 0 ? &freqCallback : NULL);
 
                 if (result != S_OK) {
                     finalResult = result;
@@ -538,7 +520,7 @@ public:
                 CBenchSyncState snapshotState;
                 {
                     std::lock_guard<std::mutex> lock(context.Mutex);
-                    CBenchSyncState &state = context.State;
+                    CBenchSyncState& state = context.State;
 
                     state.PassesCompleted++;
 
@@ -556,7 +538,7 @@ public:
                         state.BenchWasFinished = true;
 
                     SZBenchShouldEmit(state, true);
-                    snapshotState = state;
+                    SZBenchCopyState(snapshotState, state);
                 }
 
                 if (progressBlock)
@@ -564,7 +546,7 @@ public:
             }
 
             if (completionBlock) {
-                NSString *errorMessage = SZBenchErrorMessage(finalResult);
+                NSString* errorMessage = SZBenchErrorMessage(finalResult);
                 const BOOL success = (finalResult == S_OK);
                 dispatch_async(dispatch_get_main_queue(), ^{
                     completionBlock(success, errorMessage);

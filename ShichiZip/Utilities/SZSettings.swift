@@ -32,7 +32,7 @@ enum SZSettingsKey: String {
 
 // MARK: - Settings Access
 
-struct SZSettings {
+enum SZSettings {
     static let defaults = UserDefaults.standard
 
     private static func defaultBool(for key: SZSettingsKey) -> Bool {
@@ -110,7 +110,8 @@ struct SZSettings {
         var resolvedMap: [FileManagerShortcutCommand: FileManagerShortcut] = [:]
         for command in FileManagerShortcutCommand.allCases {
             guard let shortcutRepresentation = rawMap[command.rawValue],
-                  let shortcut = FileManagerShortcut.fromSerializedRepresentation(shortcutRepresentation) else {
+                  let shortcut = FileManagerShortcut.fromSerializedRepresentation(shortcutRepresentation)
+            else {
                 continue
             }
             resolvedMap[command] = shortcut

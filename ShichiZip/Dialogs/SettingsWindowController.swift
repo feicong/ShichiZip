@@ -7,7 +7,8 @@ private final class SettingsPageContainerView: NSView {
     private let contentInsets: NSEdgeInsets
 
     init(contentStack: NSStackView,
-         contentInsets: NSEdgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)) {
+         contentInsets: NSEdgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+    {
         self.contentStack = contentStack
         self.contentInsets = contentInsets
         super.init(frame: .zero)
@@ -24,7 +25,7 @@ private final class SettingsPageContainerView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -62,7 +63,7 @@ private final class ShortcutRecorderButton: NSButton {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -70,7 +71,7 @@ private final class ShortcutRecorderButton: NSButton {
         stopRecording()
     }
 
-    @objc private func toggleRecording(_ sender: Any?) {
+    @objc private func toggleRecording(_: Any?) {
         if isRecording {
             cancelRecording()
         } else {
@@ -158,7 +159,6 @@ private final class ShortcutRecorderButton: NSButton {
 }
 
 class SettingsWindowController: NSWindowController {
-
     private enum LayoutMetrics {
         static let outerInset: CGFloat = 12
         static let segmentSpacing: CGFloat = 12
@@ -192,7 +192,7 @@ class SettingsWindowController: NSWindowController {
 
         tabView = NSTabView()
         tabView.translatesAutoresizingMaskIntoConstraints = false
-        tabView.tabViewType = .noTabsNoBorder  // hide default tabs, use toolbar
+        tabView.tabViewType = .noTabsNoBorder // hide default tabs, use toolbar
 
         // Settings tab (SettingsPage.cpp)
         let settingsTab = NSTabViewItem(identifier: "settings")
@@ -220,9 +220,9 @@ class SettingsWindowController: NSWindowController {
 
         // Segmented control for tab switching
         tabSegmentedControl = NSSegmentedControl(labels: ["Settings", "Shortcuts", "Folders", "Integration"],
-                                                trackingMode: .selectOne,
-                                                target: self,
-                                                action: #selector(tabSegmentChanged(_:)))
+                                                 trackingMode: .selectOne,
+                                                 target: self,
+                                                 action: #selector(tabSegmentChanged(_:)))
         tabSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         tabSegmentedControl.selectedSegment = 0
         tabSegmentedControl.segmentStyle = .automatic
@@ -352,7 +352,8 @@ class SettingsWindowController: NSWindowController {
     private func resizeWindowToFitSelectedTab(animated: Bool) {
         guard let window,
               let contentView = window.contentView,
-              let selectedView = tabView.selectedTabViewItem?.view as? SettingsPageContainerView else {
+              let selectedView = tabView.selectedTabViewItem?.view as? SettingsPageContainerView
+        else {
             return
         }
 
@@ -502,7 +503,8 @@ class SettingsWindowController: NSWindowController {
     }
 
     private func updateShortcutBinding(for command: FileManagerShortcutCommand,
-                                       to shortcut: FileManagerShortcut?) {
+                                       to shortcut: FileManagerShortcut?)
+    {
         guard !isUpdatingShortcutControls else { return }
 
         let previousPreset = SZSettings.fileManagerShortcutPreset
@@ -647,7 +649,8 @@ class SettingsWindowController: NSWindowController {
 
         let previousPreset = SZSettings.fileManagerShortcutPreset
         guard let selectedItem = sender.selectedItem,
-              let preset = FileManagerShortcutPreset(rawValue: selectedItem.tag) else {
+              let preset = FileManagerShortcutPreset(rawValue: selectedItem.tag)
+        else {
             return
         }
 
@@ -666,7 +669,8 @@ class SettingsWindowController: NSWindowController {
 
     @objc private func clearShortcutBinding(_ sender: NSButton) {
         guard let commandRawValue = sender.identifier?.rawValue,
-              let command = FileManagerShortcutCommand(rawValue: commandRawValue) else {
+              let command = FileManagerShortcutCommand(rawValue: commandRawValue)
+        else {
             return
         }
 
@@ -715,9 +719,10 @@ class SettingsWindowController: NSWindowController {
         SZSettings.set(sender.state == .on, for: .workDirRemovableOnly)
     }
 
-    @objc private func openFinderQuickActionsSettings(_ sender: Any?) {
+    @objc private func openFinderQuickActionsSettings(_: Any?) {
         guard let url = Self.finderQuickActionsSettingsURL,
-              NSWorkspace.shared.open(url) else {
+              NSWorkspace.shared.open(url)
+        else {
             let alert = NSAlert()
             alert.messageText = "Unable to open Finder Quick Actions settings."
             alert.informativeText = "Open System Settings and go to Extensions > Finder to manage \(AppBuildInfo.appDisplayName())'s Quick Actions."

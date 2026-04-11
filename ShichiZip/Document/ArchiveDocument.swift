@@ -4,8 +4,10 @@ import Cocoa
 /// Windows 7-Zip opens archives through the file-manager panel, so this document
 /// class exists only to redirect archive opens into the unified file-manager UI.
 class ArchiveDocument: NSDocument {
+    override class var autosavesInPlace: Bool {
+        false
+    }
 
-    override class var autosavesInPlace: Bool { false }
     override class var readableTypes: [String] {
         [
             "org.7-zip.7-zip-archive",
@@ -22,8 +24,8 @@ class ArchiveDocument: NSDocument {
         ]
     }
 
-    // Accept all types — let 7-Zip core detect format
-    override class func isNativeType(_ type: String) -> Bool {
+    /// Accept all types — let 7-Zip core detect format
+    override class func isNativeType(_: String) -> Bool {
         return true
     }
 
@@ -41,7 +43,7 @@ class ArchiveDocument: NSDocument {
         // Intentionally empty: archive windows are handled by the file manager.
     }
 
-    override func read(from url: URL, ofType typeName: String) throws {
+    override func read(from url: URL, ofType _: String) throws {
         NSLog("[ShichiZip] Opening via document: %@ — will redirect to File Manager", url.path)
         // Actual archive parsing happens when the file manager enters the archive.
     }

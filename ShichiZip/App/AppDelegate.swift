@@ -14,12 +14,14 @@ enum ArchiveExtractionPostProcessor {
                                    pathMode: SZPathMode,
                                    pathPrefixToStrip: String?,
                                    moveSourceArchiveToTrash: Bool,
-                                   inheritSourceQuarantine: Bool) throws -> ArchiveExtractionPostProcessResult {
+                                   inheritSourceQuarantine: Bool) throws -> ArchiveExtractionPostProcessResult
+    {
         let standardizedSourceArchiveURL = sourceArchiveURL?.standardizedFileURL
 
         if inheritSourceQuarantine,
            let standardizedSourceArchiveURL,
-           let quarantineData = try quarantineData(for: standardizedSourceArchiveURL) {
+           let quarantineData = try quarantineData(for: standardizedSourceArchiveURL)
+        {
             let extractedOutputURLs = ArchiveItem.extractedOutputURLs(for: extractedItems,
                                                                       destinationURL: destinationURL,
                                                                       pathMode: pathMode,
@@ -31,7 +33,8 @@ enum ArchiveExtractionPostProcessor {
 
         guard moveSourceArchiveToTrash,
               let standardizedSourceArchiveURL,
-              FileManager.default.fileExists(atPath: standardizedSourceArchiveURL.path) else {
+              FileManager.default.fileExists(atPath: standardizedSourceArchiveURL.path)
+        else {
             return ArchiveExtractionPostProcessResult(movedSourceArchiveToTrash: false)
         }
 
@@ -79,7 +82,8 @@ enum ArchiveExtractionPostProcessor {
 
     private static func applyExtendedAttribute(named name: String,
                                                data: Data,
-                                               to urls: [URL]) throws {
+                                               to urls: [URL]) throws
+    {
         for url in urls {
             let result = data.withUnsafeBytes { buffer in
                 url.path.withCString { pathPointer in
@@ -108,7 +112,6 @@ enum ArchiveExtractionPostProcessor {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-
     private struct SmartQuickExtractPlan {
         let destinationURL: URL
         let pathPrefixToStrip: String?
@@ -123,52 +126,52 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var pendingDeferredArchiveOpens = 0
     private var shouldPresentInitialFileManager = true
 
-    func applicationWillFinishLaunching(_ notification: Notification) {
+    func applicationWillFinishLaunching(_: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = false
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         MainMenu.setup()
         // Delay slightly — if we're opening a file, the document system will handle it
         // Only show file manager if no documents are being opened
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if self.shouldPresentInitialFileManager &&
-               self.pendingDeferredArchiveOpens == 0 &&
-               NSDocumentController.shared.documents.isEmpty &&
-               NSApp.windows.filter({ $0.isVisible }).isEmpty {
+            if self.shouldPresentInitialFileManager,
+               self.pendingDeferredArchiveOpens == 0,
+               NSDocumentController.shared.documents.isEmpty,
+               NSApp.windows.filter({ $0.isVisible }).isEmpty
+            {
                 self.showFileManager(nil)
             }
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-    }
+    func applicationWillTerminate(_: Notification) {}
 
-    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+    func applicationShouldOpenUntitledFile(_: NSApplication) -> Bool {
         return false
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         SZSettings.bool(.quitAfterLastWindowClosed)
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
             showFileManager(nil)
         }
         return true
     }
 
-    // Handle files dropped onto dock icon
-    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+    /// Handle files dropped onto dock icon
+    func application(_: NSApplication, openFiles filenames: [String]) {
         beginDeferredArchiveOpen()
         defer { endDeferredArchiveOpen() }
         let urls = filenames.map { URL(fileURLWithPath: $0) }
         openArchiveURLs(urls, preferPrimaryWindow: false)
     }
 
-    func application(_ application: NSApplication, open urls: [URL]) {
+    func application(_: NSApplication, open urls: [URL]) {
         shouldPresentInitialFileManager = false
 
         var archiveURLs: [URL] = []
@@ -188,18 +191,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openArchiveURLs(archiveURLs, preferPrimaryWindow: false)
     }
 
-    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    func applicationSupportsSecureRestorableState(_: NSApplication) -> Bool {
         return true
     }
 
     // MARK: - Menu Actions
 
-    @IBAction func showFileManager(_ sender: Any?) {
+    @IBAction func showFileManager(_: Any?) {
         let controller = ensurePrimaryFileManagerWindowController()
         controller.showWindow(self)
     }
 
-    @IBAction func openArchives(_ sender: Any?) {
+    @IBAction func openArchives(_: Any?) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -258,7 +261,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @IBAction func newArchive(_ sender: Any?) {
+    @IBAction func newArchive(_: Any?) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -278,7 +281,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             do {
                 try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
-                                                     parentWindow: parentWindow) { session in
+                                                     parentWindow: parentWindow)
+                { session in
                     try SZArchive.create(atPath: result.archiveURL.path,
                                          fromPaths: sourceURLs.map(\.path),
                                          settings: result.settings,
@@ -291,28 +295,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @IBAction func showBenchmark(_ sender: Any?) {
+    @IBAction func showBenchmark(_: Any?) {
         if benchmarkWindowController == nil {
             benchmarkWindowController = BenchmarkWindowController()
         }
         benchmarkWindowController?.showWindow(self)
     }
 
-    @IBAction func showDeleteTemporaryFiles(_ sender: Any?) {
+    @IBAction func showDeleteTemporaryFiles(_: Any?) {
         if deleteTemporaryFilesWindowController == nil {
             deleteTemporaryFilesWindowController = DeleteTemporaryFilesWindowController()
         }
         deleteTemporaryFilesWindowController?.showWindow(self)
     }
 
-    @IBAction func showPreferences(_ sender: Any?) {
+    @IBAction func showPreferences(_: Any?) {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
         settingsWindowController?.showWindow(self)
     }
 
-    @IBAction func showAbout(_ sender: Any?) {
+    @IBAction func showAbout(_: Any?) {
         let appName = AppBuildInfo.appDisplayName()
         let details = AppBuildInfo.bundled7ZipLicense() ?? AppBuildInfo.missingLicenseMessage()
         let summary = AppBuildInfo.aboutSummary()
@@ -396,7 +400,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let plan = try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
                                                                 initialFileName: archiveURL.lastPathComponent,
                                                                 parentWindow: parentWindow,
-                                                                deferredDisplay: true) { session in
+                                                                deferredDisplay: true)
+                { session in
                     let archive = SZArchive()
                     try archive.open(atPath: archiveURL.path, session: session)
                     defer { archive.close() }
@@ -419,12 +424,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let postProcessError: Error?
                 do {
                     _ = try ArchiveExtractionPostProcessor.finalizeExtraction(sourceArchiveURL: archiveURL,
-                                                                             extractedItems: plan.extractedItems,
-                                                                             destinationURL: plan.destinationURL,
-                                                                             pathMode: .fullPaths,
-                                                                             pathPrefixToStrip: plan.pathPrefixToStrip,
-                                                                             moveSourceArchiveToTrash: defaults.moveArchiveToTrashAfterExtraction,
-                                                                             inheritSourceQuarantine: defaults.inheritDownloadedFileQuarantine)
+                                                                              extractedItems: plan.extractedItems,
+                                                                              destinationURL: plan.destinationURL,
+                                                                              pathMode: .fullPaths,
+                                                                              pathPrefixToStrip: plan.pathPrefixToStrip,
+                                                                              moveSourceArchiveToTrash: defaults.moveArchiveToTrashAfterExtraction,
+                                                                              inheritSourceQuarantine: defaults.inheritDownloadedFileQuarantine)
                     postProcessError = nil
                 } catch {
                     postProcessError = error
@@ -458,7 +463,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func existingSingleFileURL(from request: ShichiZipQuickActionRequest,
                                        selectionError: String,
-                                       directoryError: String) throws -> URL {
+                                       directoryError: String) throws -> URL
+    {
         let fileURLs = try existingFileURLs(from: request)
         guard fileURLs.count == 1 else {
             throw ShichiZipQuickActionError.unsupportedSelection(selectionError)
@@ -476,7 +482,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func existingSingleURL(from request: ShichiZipQuickActionRequest,
-                                   selectionError: String) throws -> URL {
+                                   selectionError: String) throws -> URL
+    {
         let fileURLs = try existingFileURLs(from: request)
         guard fileURLs.count == 1 else {
             throw ShichiZipQuickActionError.unsupportedSelection(selectionError)
@@ -526,7 +533,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func smartQuickExtractPlan(for archiveURL: URL,
                                        archiveItems: [ArchiveItem],
-                                       eliminateDuplicates: Bool) -> SmartQuickExtractPlan {
+                                       eliminateDuplicates: Bool) -> SmartQuickExtractPlan
+    {
         let baseDestinationURL = archiveURL.deletingLastPathComponent().standardizedFileURL
         let suggestedFolderName = archiveURL.deletingPathExtension().lastPathComponent
         let topLevelNames = Set(archiveItems.compactMap { $0.pathParts.first }.filter { !$0.isEmpty })

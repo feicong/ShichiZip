@@ -14,18 +14,20 @@ enum FileManagerTemporaryDirectorySupport {
     }
 
     static func makeTemporaryDirectory(prefix: String,
-                                       fileManager: FileManager = .default) throws -> URL {
+                                       fileManager: FileManager = .default) throws -> URL
+    {
         let root = rootDirectory(fileManager: fileManager)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
 
-        for _ in 0..<16 {
+        for _ in 0 ..< 16 {
             let candidate = root.appendingPathComponent(prefix + randomSuffix(), isDirectory: true)
             do {
                 try fileManager.createDirectory(at: candidate, withIntermediateDirectories: false)
                 return candidate.standardizedFileURL
             } catch let error as NSError {
                 if error.domain == NSCocoaErrorDomain,
-                   error.code == CocoaError.fileWriteFileExists.rawValue {
+                   error.code == CocoaError.fileWriteFileExists.rawValue
+                {
                     continue
                 }
                 throw error
@@ -53,7 +55,8 @@ enum FileManagerTemporaryDirectorySupport {
     }
 
     static func isInsideRoot(_ url: URL,
-                             fileManager: FileManager = .default) -> Bool {
+                             fileManager: FileManager = .default) -> Bool
+    {
         let root = rootDirectory(fileManager: fileManager)
         let standardized = url.resolvingSymlinksInPath().standardizedFileURL
         let rootPath = root.path
@@ -69,7 +72,7 @@ enum FileManagerTemporaryDirectorySupport {
 private extension UnicodeScalar {
     var isASCIIHexDigit: Bool {
         switch value {
-        case 48...57, 65...70, 97...102:
+        case 48 ... 57, 65 ... 70, 97 ... 102:
             return true
         default:
             return false

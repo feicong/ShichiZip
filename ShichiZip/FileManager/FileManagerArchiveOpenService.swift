@@ -34,10 +34,12 @@ struct FileManagerArchiveFileFingerprint: Equatable {
     let modificationDate: Date
 
     static func captureIfPossible(for url: URL,
-                                  fileManager: FileManager = .default) -> FileManagerArchiveFileFingerprint? {
+                                  fileManager: FileManager = .default) -> FileManagerArchiveFileFingerprint?
+    {
         let standardizedURL = url.standardizedFileURL
         guard let attributes = try? fileManager.attributesOfItem(atPath: standardizedURL.path),
-              let modificationDate = attributes[.modificationDate] as? Date else {
+              let modificationDate = attributes[.modificationDate] as? Date
+        else {
             return nil
         }
 
@@ -77,11 +79,13 @@ enum FileManagerArchiveOpenService {
                                   temporaryDirectory: URL?,
                                   displayPathPrefix: String,
                                   nestedWriteBackInfo: FileManagerNestedArchiveWriteBackInfo? = nil,
-                                  openMode: FileManagerArchiveOpenMode = .defaultBehavior) -> FileManagerPreparedArchiveOpenResult {
+                                  openMode: FileManagerArchiveOpenMode = .defaultBehavior) -> FileManagerPreparedArchiveOpenResult
+    {
         do {
             return try ArchiveOperationRunner.runSynchronously(operationTitle: "Opening archive...",
-                                                              initialFileName: displayPathPrefix,
-                                                              deferredDisplay: true) { session in
+                                                               initialFileName: displayPathPrefix,
+                                                               deferredDisplay: true)
+            { session in
                 prepareArchiveOpen(url: url,
                                    hostDirectory: hostDirectory,
                                    temporaryDirectory: temporaryDirectory,
@@ -101,7 +105,8 @@ enum FileManagerArchiveOpenService {
                                    displayPathPrefix: String,
                                    nestedWriteBackInfo: FileManagerNestedArchiveWriteBackInfo?,
                                    openMode: FileManagerArchiveOpenMode,
-                                   session: SZOperationSession) -> FileManagerPreparedArchiveOpenResult {
+                                   session: SZOperationSession) -> FileManagerPreparedArchiveOpenResult
+    {
         let archive = SZArchive()
         do {
             try archive.open(atPath: url.path,

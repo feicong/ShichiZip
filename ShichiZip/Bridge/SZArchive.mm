@@ -3,24 +3,27 @@
 #include "SZBridgeCommon.h"
 #include "SZCallbacks.h"
 
+#include <string>
+#include <vector>
+
 #import "../Utilities/SZOperationSessionDefaults.h"
 
-#include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
+#include "7zVersion.h"
+#include "CPP/7zip/Common/MethodProps.h"
 #include "CPP/7zip/UI/Agent/Agent.h"
-#include "CPP/7zip/UI/Common/Extract.h"
-#include "CPP/7zip/UI/Common/Update.h"
-#include "CPP/7zip/UI/Common/UpdateCallback.h"
+#include "CPP/7zip/UI/Common/ArchiveExtractCallback.h"
 #include "CPP/7zip/UI/Common/EnumDirItems.h"
-#include "CPP/7zip/UI/Common/SetProperties.h"
+#include "CPP/7zip/UI/Common/Extract.h"
 #include "CPP/7zip/UI/Common/HashCalc.h"
 #include "CPP/7zip/UI/Common/OpenArchive.h"
-#include "CPP/7zip/Common/MethodProps.h"
+#include "CPP/7zip/UI/Common/SetProperties.h"
+#include "CPP/7zip/UI/Common/Update.h"
+#include "CPP/7zip/UI/Common/UpdateCallback.h"
 #include "CPP/Common/MyString.h"
 #include "CPP/Common/StringToInt.h"
 #include "CPP/Common/Wildcard.h"
 #include "CPP/Windows/ErrorMsg.h"
 #include "CPP/Windows/System.h"
-#include "7zVersion.h"
 
 // ============================================================
 // ObjC model implementations
@@ -29,9 +32,11 @@
 @implementation SZCompressionSettings
 - (instancetype)init {
     if ((self = [super init])) {
-        _format = SZArchiveFormat7z; _level = SZCompressionLevelNormal;
+        _format = SZArchiveFormat7z;
+        _level = SZCompressionLevelNormal;
         _levelValue = SZCompressionLevelNormal;
-        _method = SZCompressionMethodLZMA2; _encryption = SZEncryptionMethodNone;
+        _method = SZCompressionMethodLZMA2;
+        _encryption = SZEncryptionMethodNone;
         _updateMode = SZCompressionUpdateModeAdd;
         _pathMode = SZCompressionPathModeRelativePaths;
         _methodName = @"LZMA2";
@@ -56,16 +61,20 @@
 @implementation SZExtractionSettings
 - (instancetype)init {
     if ((self = [super init])) {
-        _pathMode = SZPathModeFullPaths; _overwriteMode = SZOverwriteModeAsk;
+        _pathMode = SZPathModeFullPaths;
+        _overwriteMode = SZOverwriteModeAsk;
         _preserveNtSecurityInfo = NO;
     }
     return self;
 }
 @end
 
-@implementation SZArchiveEntry @end
-@implementation SZFormatInfo @end
-@implementation SZCompressionResourceInfo @end
+@implementation SZArchiveEntry
+@end
+@implementation SZFormatInfo
+@end
+@implementation SZCompressionResourceInfo
+@end
 @implementation SZBenchDisplayRow
 - (instancetype)init {
     if ((self = [super init])) {
@@ -129,52 +138,52 @@ struct SZCompressionEstimateRamInfo {
     UInt64 UsageAuto;
 };
 
-static NSString *SZArchiveCodecNameForCreateFormat(SZArchiveFormat format) {
+static NSString* SZArchiveCodecNameForCreateFormat(SZArchiveFormat format) {
     switch (format) {
-        case SZArchiveFormat7z:
-            return @"7z";
-        case SZArchiveFormatZip:
-            return @"zip";
-        case SZArchiveFormatTar:
-            return @"tar";
-        case SZArchiveFormatGZip:
-            return @"gzip";
-        case SZArchiveFormatBZip2:
-            return @"bzip2";
-        case SZArchiveFormatXz:
-            return @"xz";
-        case SZArchiveFormatWim:
-            return @"wim";
+    case SZArchiveFormat7z:
+        return @"7z";
+    case SZArchiveFormatZip:
+        return @"zip";
+    case SZArchiveFormatTar:
+        return @"tar";
+    case SZArchiveFormatGZip:
+        return @"gzip";
+    case SZArchiveFormatBZip2:
+        return @"bzip2";
+    case SZArchiveFormatXz:
+        return @"xz";
+    case SZArchiveFormatWim:
+        return @"wim";
 #if SHICHIZIP_ZS_VARIANT
-        case SZArchiveFormatZstd:
-            return @"zstd";
-        case SZArchiveFormatBrotli:
-            return @"brotli";
-        case SZArchiveFormatLizard:
-            return @"lizard";
-        case SZArchiveFormatLz4:
-            return @"lz4";
-        case SZArchiveFormatLz5:
-            return @"lz5";
+    case SZArchiveFormatZstd:
+        return @"zstd";
+    case SZArchiveFormatBrotli:
+        return @"brotli";
+    case SZArchiveFormatLizard:
+        return @"lizard";
+    case SZArchiveFormatLz4:
+        return @"lz4";
+    case SZArchiveFormatLz5:
+        return @"lz5";
 #endif
-        default:
-            return nil;
+    default:
+        return nil;
     }
 }
 
 static bool SZCompressionEstimateMethodSupportsSFX(int methodID) {
     switch (methodID) {
-        case kSZCompressionEstimateCopy:
-        case kSZCompressionEstimateLZMA:
-        case kSZCompressionEstimateLZMA2:
-        case kSZCompressionEstimatePPMd:
+    case kSZCompressionEstimateCopy:
+    case kSZCompressionEstimateLZMA:
+    case kSZCompressionEstimateLZMA2:
+    case kSZCompressionEstimatePPMd:
 #if SHICHIZIP_ZS_VARIANT
-        case kSZCompressionEstimateFastLzma2:
-        case kSZCompressionEstimateZstd:
+    case kSZCompressionEstimateFastLzma2:
+    case kSZCompressionEstimateZstd:
 #endif
-            return true;
-        default:
-            return false;
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -184,40 +193,41 @@ static bool SZCompressionEstimateFormatSupportsFilters(SZArchiveFormat format) {
 
 static bool SZCompressionEstimateFormatSupportsThreads(SZArchiveFormat format) {
     switch (format) {
-        case SZArchiveFormat7z:
-        case SZArchiveFormatZip:
-        case SZArchiveFormatBZip2:
-        case SZArchiveFormatXz:
+    case SZArchiveFormat7z:
+    case SZArchiveFormatZip:
+    case SZArchiveFormatBZip2:
+    case SZArchiveFormatXz:
 #if SHICHIZIP_ZS_VARIANT
-        case SZArchiveFormatZstd:
-        case SZArchiveFormatBrotli:
-        case SZArchiveFormatLizard:
-        case SZArchiveFormatLz4:
-        case SZArchiveFormatLz5:
+    case SZArchiveFormatZstd:
+    case SZArchiveFormatBrotli:
+    case SZArchiveFormatLizard:
+    case SZArchiveFormatLz4:
+    case SZArchiveFormatLz5:
 #endif
-            return true;
-        default:
-            return false;
+        return true;
+    default:
+        return false;
     }
 }
 
-static bool SZCompressionEstimateFormatSupportsMemoryUse(SZArchiveFormat format) {
+static bool
+SZCompressionEstimateFormatSupportsMemoryUse(SZArchiveFormat format) {
     switch (format) {
-        case SZArchiveFormat7z:
-        case SZArchiveFormatZip:
-        case SZArchiveFormatGZip:
-        case SZArchiveFormatBZip2:
-        case SZArchiveFormatXz:
+    case SZArchiveFormat7z:
+    case SZArchiveFormatZip:
+    case SZArchiveFormatGZip:
+    case SZArchiveFormatBZip2:
+    case SZArchiveFormatXz:
 #if SHICHIZIP_ZS_VARIANT
-        case SZArchiveFormatZstd:
-        case SZArchiveFormatBrotli:
-        case SZArchiveFormatLizard:
-        case SZArchiveFormatLz4:
-        case SZArchiveFormatLz5:
+    case SZArchiveFormatZstd:
+    case SZArchiveFormatBrotli:
+    case SZArchiveFormatLizard:
+    case SZArchiveFormatLz4:
+    case SZArchiveFormatLz5:
 #endif
-            return true;
-        default:
-            return false;
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -229,10 +239,11 @@ static bool SZCompressionEstimateIsXzFormat(SZArchiveFormat format) {
     return format == SZArchiveFormatXz;
 }
 
-static int SZCompressionEstimateLevel(SZCompressionSettings *settings) {
+static int SZCompressionEstimateLevel(SZCompressionSettings* settings) {
     return (int)settings.levelValue;
 }
 
+#if SHICHIZIP_ZS_VARIANT
 static bool SZCompressionEstimateIsZstdFastLevel(int level) {
     return level < 0;
 }
@@ -240,8 +251,10 @@ static bool SZCompressionEstimateIsZstdFastLevel(int level) {
 static UInt32 SZCompressionEstimateZstdFastLevel(int level) {
     return level < 0 ? (UInt32)(-level) : 0;
 }
+#endif
 
-static UInt32 SZCompressionLevelPropertyValue(int methodID, NSInteger levelValue) {
+static UInt32 SZCompressionLevelPropertyValue(int methodID,
+    NSInteger levelValue) {
 #if SHICHIZIP_ZS_VARIANT
     if (methodID == kSZCompressionEstimateZstd && levelValue < 0) {
         return (UInt32)(kSZCompressionZstdFastLevelIncrement - levelValue);
@@ -250,8 +263,8 @@ static UInt32 SZCompressionLevelPropertyValue(int methodID, NSInteger levelValue
     return (UInt32)levelValue;
 }
 
-static int SZCompressionEstimateMethodID(SZCompressionSettings *settings) {
-    NSString *methodName = settings.methodName ? settings.methodName.lowercaseString : @"";
+static int SZCompressionEstimateMethodID(SZCompressionSettings* settings) {
+    NSString* methodName = settings.methodName ? settings.methodName.lowercaseString : @"";
     if (methodName.length > 0) {
         if ([methodName isEqualToString:@"copy"]) {
             return kSZCompressionEstimateCopy;
@@ -263,7 +276,9 @@ static int SZCompressionEstimateMethodID(SZCompressionSettings *settings) {
             return kSZCompressionEstimateLZMA2;
         }
         if ([methodName isEqualToString:@"ppmd"]) {
-            return settings.format == SZArchiveFormatZip ? kSZCompressionEstimatePPMdZip : kSZCompressionEstimatePPMd;
+            return settings.format == SZArchiveFormatZip
+                ? kSZCompressionEstimatePPMdZip
+                : kSZCompressionEstimatePPMd;
         }
         if ([methodName isEqualToString:@"bzip2"]) {
             return kSZCompressionEstimateBZip2;
@@ -312,43 +327,44 @@ static int SZCompressionEstimateMethodID(SZCompressionSettings *settings) {
     }
 
     switch (settings.format) {
-        case SZArchiveFormatGZip:
-            return kSZCompressionEstimateDeflate;
-        case SZArchiveFormatBZip2:
-            return kSZCompressionEstimateBZip2;
-        case SZArchiveFormatXz:
-            return kSZCompressionEstimateLZMA2;
+    case SZArchiveFormatGZip:
+        return kSZCompressionEstimateDeflate;
+    case SZArchiveFormatBZip2:
+        return kSZCompressionEstimateBZip2;
+    case SZArchiveFormatXz:
+        return kSZCompressionEstimateLZMA2;
 #if SHICHIZIP_ZS_VARIANT
-        case SZArchiveFormatZstd:
-            return kSZCompressionEstimateZstd;
-        case SZArchiveFormatBrotli:
-            return kSZCompressionEstimateBrotli;
-        case SZArchiveFormatLizard:
-            return kSZCompressionEstimateLizardFastLz4;
-        case SZArchiveFormatLz4:
-            return kSZCompressionEstimateLz4;
-        case SZArchiveFormatLz5:
-            return kSZCompressionEstimateLz5;
+    case SZArchiveFormatZstd:
+        return kSZCompressionEstimateZstd;
+    case SZArchiveFormatBrotli:
+        return kSZCompressionEstimateBrotli;
+    case SZArchiveFormatLizard:
+        return kSZCompressionEstimateLizardFastLz4;
+    case SZArchiveFormatLz4:
+        return kSZCompressionEstimateLz4;
+    case SZArchiveFormatLz5:
+        return kSZCompressionEstimateLz5;
 #endif
-        default:
-            break;
+    default:
+        break;
     }
 
     switch (settings.method) {
-        case SZCompressionMethodLZMA:
-            return kSZCompressionEstimateLZMA;
-        case SZCompressionMethodLZMA2:
-            return kSZCompressionEstimateLZMA2;
-        case SZCompressionMethodPPMd:
-            return settings.format == SZArchiveFormatZip ? kSZCompressionEstimatePPMdZip : kSZCompressionEstimatePPMd;
-        case SZCompressionMethodBZip2:
-            return kSZCompressionEstimateBZip2;
-        case SZCompressionMethodDeflate:
-            return kSZCompressionEstimateDeflate;
-        case SZCompressionMethodDeflate64:
-            return kSZCompressionEstimateDeflate64;
-        case SZCompressionMethodCopy:
-            return kSZCompressionEstimateCopy;
+    case SZCompressionMethodLZMA:
+        return kSZCompressionEstimateLZMA;
+    case SZCompressionMethodLZMA2:
+        return kSZCompressionEstimateLZMA2;
+    case SZCompressionMethodPPMd:
+        return settings.format == SZArchiveFormatZip ? kSZCompressionEstimatePPMdZip
+                                                     : kSZCompressionEstimatePPMd;
+    case SZCompressionMethodBZip2:
+        return kSZCompressionEstimateBZip2;
+    case SZCompressionMethodDeflate:
+        return kSZCompressionEstimateDeflate;
+    case SZCompressionMethodDeflate64:
+        return kSZCompressionEstimateDeflate64;
+    case SZCompressionMethodCopy:
+        return kSZCompressionEstimateCopy;
     }
 
     return -1;
@@ -377,44 +393,56 @@ static SZCompressionEstimateRamInfo SZCompressionEstimateGetRamInfo() {
     return info;
 }
 
-static bool SZCompressionEstimateGetMemoryUsageLimit(SZCompressionSettings *settings,
-                                                     const SZCompressionEstimateRamInfo &ramInfo,
-                                                     UInt64 &memoryUsageLimit) {
+static bool SZCompressionEstimateGetMemoryUsageLimit(
+    SZCompressionSettings* settings,
+    const SZCompressionEstimateRamInfo& ramInfo, UInt64& memoryUsageLimit) {
     memoryUsageLimit = ramInfo.UsageAuto;
     bool isDefined = ramInfo.IsDefined;
 
     if (settings.memoryUsage.length > 0) {
-        NSString *spec = [[settings.memoryUsage
-            stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
+        NSString* spec = [[settings.memoryUsage
+            stringByTrimmingCharactersInSet:NSCharacterSet
+                                                .whitespaceAndNewlineCharacterSet]
             lowercaseString];
         if (spec.length > 0) {
             UInt64 parsedLimit = 0;
             bool parsed = false;
 
             if ([spec hasSuffix:@"%"] && spec.length > 1) {
-                NSString *valueText = [spec substringToIndex:spec.length - 1];
+                NSString* valueText = [spec substringToIndex:spec.length - 1];
                 unsigned long long percentValue = 0;
-                NSScanner *scanner = [NSScanner scannerWithString:valueText];
-                parsed = [scanner scanUnsignedLongLong:&percentValue] && scanner.isAtEnd;
+                NSScanner* scanner = [NSScanner scannerWithString:valueText];
+                parsed =
+                    [scanner scanUnsignedLongLong:&percentValue] && scanner.isAtEnd;
                 if (parsed) {
                     parsedLimit = Calc_From_Val_Percents(ramInfo.RamSizeReduced,
-                                                         (UInt64)percentValue);
+                        (UInt64)percentValue);
                 }
             } else {
-                NSString *valueText = spec;
+                NSString* valueText = spec;
                 if ([valueText hasSuffix:@"b"] && valueText.length > 1) {
                     valueText = [valueText substringToIndex:valueText.length - 1];
                 }
 
                 unsigned shift = 0;
                 if (valueText.length > 1) {
-                    const unichar suffix = [valueText characterAtIndex:valueText.length - 1];
+                    const unichar suffix =
+                        [valueText characterAtIndex:valueText.length - 1];
                     switch (suffix) {
-                        case 'k': shift = 10; break;
-                        case 'm': shift = 20; break;
-                        case 'g': shift = 30; break;
-                        case 't': shift = 40; break;
-                        default: break;
+                    case 'k':
+                        shift = 10;
+                        break;
+                    case 'm':
+                        shift = 20;
+                        break;
+                    case 'g':
+                        shift = 30;
+                        break;
+                    case 't':
+                        shift = 40;
+                        break;
+                    default:
+                        break;
                     }
                     if (shift != 0) {
                         valueText = [valueText substringToIndex:valueText.length - 1];
@@ -422,7 +450,7 @@ static bool SZCompressionEstimateGetMemoryUsageLimit(SZCompressionSettings *sett
                 }
 
                 unsigned long long baseValue = 0;
-                NSScanner *scanner = [NSScanner scannerWithString:valueText];
+                NSScanner* scanner = [NSScanner scannerWithString:valueText];
                 parsed = [scanner scanUnsignedLongLong:&baseValue] && scanner.isAtEnd;
                 if (parsed) {
                     parsedLimit = (UInt64)baseValue;
@@ -446,8 +474,9 @@ static bool SZCompressionEstimateGetMemoryUsageLimit(SZCompressionSettings *sett
     return isDefined;
 }
 
-static void SZCompressionEstimateGetCpuThreadCounts(UInt32 &numCPUs,
-                                                    UInt32 &numHardwareThreads) {
+static void
+SZCompressionEstimateGetCpuThreadCounts(UInt32& numCPUs,
+    UInt32& numHardwareThreads) {
     numCPUs = 1;
     numHardwareThreads = 1;
 
@@ -456,7 +485,8 @@ static void SZCompressionEstimateGetCpuThreadCounts(UInt32 &numCPUs,
 
 #ifdef _WIN32
 #ifndef Z7_ST
-    threadsInfo.Get_and_return_NumProcessThreads_and_SysThreads(numCPUs, numHardwareThreads);
+    threadsInfo.Get_and_return_NumProcessThreads_and_SysThreads(
+        numCPUs, numHardwareThreads);
 #endif
 #else
     if (threadsInfo.Get()) {
@@ -478,190 +508,192 @@ static void SZCompressionEstimateGetCpuThreadCounts(UInt32 &numCPUs,
 
 static UInt64 SZCompressionEstimateAutoDictionary(int methodID, int level) {
     switch (methodID) {
-        case kSZCompressionEstimateLZMA:
-        case kSZCompressionEstimateLZMA2:
-            return level <= 4
-                ? (UInt64)1 << (level * 2 + 16)
-                : level <= sizeof(size_t) / 2 + 4
-                    ? (UInt64)1 << (level + 20)
-                    : (UInt64)1 << (sizeof(size_t) / 2 + 24);
+    case kSZCompressionEstimateLZMA:
+    case kSZCompressionEstimateLZMA2:
+        return level <= 4 ? (UInt64)1 << (level * 2 + 16)
+            : level <= sizeof(size_t) / 2 + 4
+            ? (UInt64)1 << (level + 20)
+            : (UInt64)1 << (sizeof(size_t) / 2 + 24);
 
-        case kSZCompressionEstimatePPMd:
-        case kSZCompressionEstimatePPMdZip:
-            return (UInt64)1 << (level + 19);
+    case kSZCompressionEstimatePPMd:
+    case kSZCompressionEstimatePPMdZip:
+        return (UInt64)1 << (level + 19);
 
-        case kSZCompressionEstimateDeflate:
-            return (UInt64)1 << 15;
+    case kSZCompressionEstimateDeflate:
+        return (UInt64)1 << 15;
 
-        case kSZCompressionEstimateDeflate64:
-            return (UInt64)1 << 16;
+    case kSZCompressionEstimateDeflate64:
+        return (UInt64)1 << 16;
 
-        case kSZCompressionEstimateBZip2:
-            if (level >= 5) {
-                return (UInt64)900 << 10;
-            }
-            if (level >= 3) {
-                return (UInt64)500 << 10;
-            }
-            return (UInt64)100 << 10;
+    case kSZCompressionEstimateBZip2:
+        if (level >= 5) {
+            return (UInt64)900 << 10;
+        }
+        if (level >= 3) {
+            return (UInt64)500 << 10;
+        }
+        return (UInt64)100 << 10;
 
-        case kSZCompressionEstimateCopy:
-            return 0;
+    case kSZCompressionEstimateCopy:
+        return 0;
 
 #if SHICHIZIP_ZS_VARIANT
-        case kSZCompressionEstimateFastLzma2:
-            if (level == 0) {
-                level = 1;
-            }
-            if (level > 9) {
-                level = 9;
-            }
-            switch (level) {
-                case 1:
-                    return (UInt64)1 << 20;
-                case 2:
-                case 3:
-                    return (UInt64)2 << 20;
-                case 4:
-                    return (UInt64)4 << 20;
-                case 5:
-                    return (UInt64)16 << 20;
-                case 6:
-                    return (UInt64)32 << 20;
-                case 7:
-                case 8:
-                    return (UInt64)64 << 20;
-                case 9:
-                default:
-                    return (UInt64)128 << 20;
-            }
-
-        case kSZCompressionEstimateZstd:
-            if (level == (int)kSZCompressionZstdUltimateLevel) {
-                return (UInt64)1 << 27;
-            }
-            if (SZCompressionEstimateIsZstdFastLevel(level)) {
-                const UInt32 fastLevel = SZCompressionEstimateZstdFastLevel(level);
-                const UInt32 windowLog = fastLevel >= 12 ? 20u : fastLevel >= 6 ? 22u : 24u;
-                return (UInt64)1 << windowLog;
-            }
-            if (level <= 3) {
-                return (UInt64)1 << 23;
-            }
-            if (level <= 9) {
-                return (UInt64)1 << 24;
-            }
-            if (level <= 16) {
-                return (UInt64)1 << 25;
-            }
-            return (UInt64)1 << 26;
-
-        case kSZCompressionEstimateBrotli:
-            return level >= 9 ? (UInt64)16 << 20 : level >= 5 ? (UInt64)8 << 20 : (UInt64)4 << 20;
-
-        case kSZCompressionEstimateLz4:
-            if (level <= 4) {
-                return (UInt64)4 << 20;
-            }
-            if (level <= 8) {
-                return (UInt64)8 << 20;
-            }
+    case kSZCompressionEstimateFastLzma2:
+        if (level == 0) {
+            level = 1;
+        }
+        if (level > 9) {
+            level = 9;
+        }
+        switch (level) {
+        case 1:
+            return (UInt64)1 << 20;
+        case 2:
+        case 3:
+            return (UInt64)2 << 20;
+        case 4:
+            return (UInt64)4 << 20;
+        case 5:
             return (UInt64)16 << 20;
-
-        case kSZCompressionEstimateLz5:
-            if (level <= 5) {
-                return (UInt64)8 << 20;
-            }
-            if (level <= 10) {
-                return (UInt64)16 << 20;
-            }
+        case 6:
             return (UInt64)32 << 20;
+        case 7:
+        case 8:
+            return (UInt64)64 << 20;
+        case 9:
+        default:
+            return (UInt64)128 << 20;
+        }
 
-        case kSZCompressionEstimateLizardFastLz4:
-        case kSZCompressionEstimateLizardLizV1:
-        case kSZCompressionEstimateLizardFastLz4Huffman:
-        case kSZCompressionEstimateLizardLizV1Huffman:
-            return level >= 40 ? (UInt64)64 << 20 : level >= 30 ? (UInt64)32 << 20 : (UInt64)16 << 20;
+    case kSZCompressionEstimateZstd:
+        if (level == (int)kSZCompressionZstdUltimateLevel) {
+            return (UInt64)1 << 27;
+        }
+        if (SZCompressionEstimateIsZstdFastLevel(level)) {
+            const UInt32 fastLevel = SZCompressionEstimateZstdFastLevel(level);
+            const UInt32 windowLog = fastLevel >= 12 ? 20u
+                : fastLevel >= 6                     ? 22u
+                                                     : 24u;
+            return (UInt64)1 << windowLog;
+        }
+        if (level <= 3) {
+            return (UInt64)1 << 23;
+        }
+        if (level <= 9) {
+            return (UInt64)1 << 24;
+        }
+        if (level <= 16) {
+            return (UInt64)1 << 25;
+        }
+        return (UInt64)1 << 26;
+
+    case kSZCompressionEstimateBrotli:
+        return level >= 9 ? (UInt64)16 << 20
+            : level >= 5  ? (UInt64)8 << 20
+                          : (UInt64)4 << 20;
+
+    case kSZCompressionEstimateLz4:
+        if (level <= 4) {
+            return (UInt64)4 << 20;
+        }
+        if (level <= 8) {
+            return (UInt64)8 << 20;
+        }
+        return (UInt64)16 << 20;
+
+    case kSZCompressionEstimateLz5:
+        if (level <= 5) {
+            return (UInt64)8 << 20;
+        }
+        if (level <= 10) {
+            return (UInt64)16 << 20;
+        }
+        return (UInt64)32 << 20;
+
+    case kSZCompressionEstimateLizardFastLz4:
+    case kSZCompressionEstimateLizardLizV1:
+    case kSZCompressionEstimateLizardFastLz4Huffman:
+    case kSZCompressionEstimateLizardLizV1Huffman:
+        return level >= 40 ? (UInt64)64 << 20
+            : level >= 30  ? (UInt64)32 << 20
+                           : (UInt64)16 << 20;
 #endif
 
-        default:
-            return (UInt64)-1;
+    default:
+        return (UInt64)-1;
     }
 }
 
-static UInt64 SZCompressionEstimateDictionary(SZCompressionSettings *settings,
-                                              int methodID,
-                                              int level) {
+static UInt64 SZCompressionEstimateDictionary(SZCompressionSettings* settings,
+    int methodID, int level) {
     if (settings.dictionarySize > 0) {
         return settings.dictionarySize;
     }
     return SZCompressionEstimateAutoDictionary(methodID, level);
 }
 
-static bool SZCompressionEstimateAutoWordSize(int methodID,
-                                              int level,
-                                              UInt32 &wordSize) {
+static bool SZCompressionEstimateAutoWordSize(int methodID, int level,
+    UInt32& wordSize) {
     switch (methodID) {
-        case kSZCompressionEstimateLZMA:
-        case kSZCompressionEstimateLZMA2:
-            wordSize = (level < 7 ? 32u : 64u);
-            return true;
+    case kSZCompressionEstimateLZMA:
+    case kSZCompressionEstimateLZMA2:
+        wordSize = (level < 7 ? 32u : 64u);
+        return true;
 
-        case kSZCompressionEstimateDeflate:
-        case kSZCompressionEstimateDeflate64:
-            if (level >= 9) {
-                wordSize = 128;
-            } else if (level >= 7) {
-                wordSize = 64;
-            } else {
-                wordSize = 32;
-            }
-            return true;
+    case kSZCompressionEstimateDeflate:
+    case kSZCompressionEstimateDeflate64:
+        if (level >= 9) {
+            wordSize = 128;
+        } else if (level >= 7) {
+            wordSize = 64;
+        } else {
+            wordSize = 32;
+        }
+        return true;
 
-        case kSZCompressionEstimatePPMd:
-            if (level >= 9) {
-                wordSize = 32;
-            } else if (level >= 7) {
-                wordSize = 16;
-            } else if (level >= 5) {
-                wordSize = 6;
-            } else {
-                wordSize = 4;
-            }
-            return true;
+    case kSZCompressionEstimatePPMd:
+        if (level >= 9) {
+            wordSize = 32;
+        } else if (level >= 7) {
+            wordSize = 16;
+        } else if (level >= 5) {
+            wordSize = 6;
+        } else {
+            wordSize = 4;
+        }
+        return true;
 
-        case kSZCompressionEstimatePPMdZip:
-            wordSize = level + 3;
-            return true;
+    case kSZCompressionEstimatePPMdZip:
+        wordSize = level + 3;
+        return true;
 
 #if SHICHIZIP_ZS_VARIANT
-        case kSZCompressionEstimateFastLzma2:
-            if (level == 0) {
-                level = 1;
-            }
-            if (level <= 4) {
-                wordSize = 32;
-            } else if (level == 5) {
-                wordSize = 48;
-            } else if (level == 6) {
-                wordSize = 64;
-            } else if (level == 7) {
-                wordSize = 96;
-            } else {
-                wordSize = 273;
-            }
-            return true;
+    case kSZCompressionEstimateFastLzma2:
+        if (level == 0) {
+            level = 1;
+        }
+        if (level <= 4) {
+            wordSize = 32;
+        } else if (level == 5) {
+            wordSize = 48;
+        } else if (level == 6) {
+            wordSize = 64;
+        } else if (level == 7) {
+            wordSize = 96;
+        } else {
+            wordSize = 273;
+        }
+        return true;
 #endif
 
-        default:
-            return false;
+    default:
+        return false;
     }
 }
 
-static bool SZCompressionEstimateWordSize(SZCompressionSettings *settings,
-                                          int methodID,
-                                          int level,
-                                          UInt32 &wordSize) {
+static bool SZCompressionEstimateWordSize(SZCompressionSettings* settings,
+    int methodID, int level,
+    UInt32& wordSize) {
     if (settings.wordSize > 0) {
         wordSize = settings.wordSize;
         return true;
@@ -669,13 +701,10 @@ static bool SZCompressionEstimateWordSize(SZCompressionSettings *settings,
     return SZCompressionEstimateAutoWordSize(methodID, level, wordSize);
 }
 
-static UInt64 SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(SZArchiveFormat format,
-                                                                      int methodID,
-                                                                      int level,
-                                                                      UInt32 numThreads,
-                                                                      UInt64 dict64,
-                                                                      UInt64 &decompressMemory) {
-        decompressMemory = (UInt64)-1;
+static UInt64 SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(
+    SZArchiveFormat format, int methodID, int level, UInt32 numThreads,
+    UInt64 dict64, UInt64& decompressMemory) {
+    decompressMemory = (UInt64)-1;
 
     if (level == 0) {
         decompressMemory = (UInt64)1 << 20;
@@ -706,167 +735,167 @@ static UInt64 SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(SZArchiveF
     }
 
     switch (methodID) {
-        case kSZCompressionEstimateLZMA:
-        case kSZCompressionEstimateLZMA2: {
-            const UInt32 dict = (dict64 >= kSZCompressionEstimateLzmaMaxDictSize
+    case kSZCompressionEstimateLZMA:
+    case kSZCompressionEstimateLZMA2: {
+        const UInt32 dict = (dict64 >= kSZCompressionEstimateLzmaMaxDictSize
                 ? kSZCompressionEstimateLzmaMaxDictSize
                 : (UInt32)dict64);
 
-            UInt32 hashSize = dict - 1;
-            hashSize |= (hashSize >> 1);
-            hashSize |= (hashSize >> 2);
-            hashSize |= (hashSize >> 4);
-            hashSize |= (hashSize >> 8);
+        UInt32 hashSize = dict - 1;
+        hashSize |= (hashSize >> 1);
+        hashSize |= (hashSize >> 2);
+        hashSize |= (hashSize >> 4);
+        hashSize |= (hashSize >> 8);
+        hashSize >>= 1;
+        if (hashSize >= (1 << 24)) {
             hashSize >>= 1;
-            if (hashSize >= (1 << 24)) {
-                hashSize >>= 1;
-            }
-            hashSize |= (1 << 16) - 1;
-            if (level < 5) {
-                hashSize |= (256 << 10) - 1;
-            }
-            hashSize++;
+        }
+        hashSize |= (1 << 16) - 1;
+        if (level < 5) {
+            hashSize |= (256 << 10) - 1;
+        }
+        hashSize++;
 
-            UInt64 size1 = (UInt64)hashSize * 4;
+        UInt64 size1 = (UInt64)hashSize * 4;
+        size1 += (UInt64)dict * 4;
+        if (level >= 5) {
             size1 += (UInt64)dict * 4;
-            if (level >= 5) {
-                size1 += (UInt64)dict * 4;
-            }
-            size1 += (2 << 20);
+        }
+        size1 += (2 << 20);
 
-            UInt32 numThreads1 = 1;
-            if (numThreads > 1 && level >= 5) {
-                size1 += (2 << 20) + (4 << 20);
-                numThreads1 = 2;
-            }
-
-            UInt32 numBlockThreads = numThreads / numThreads1;
-            UInt64 chunkSize = 0;
-            if (methodID == kSZCompressionEstimateLZMA2 && numBlockThreads != 1) {
-                chunkSize = (UInt64)dict << 2;
-                const UInt32 kMinSize = (UInt32)1 << 20;
-                const UInt32 kMaxSize = (UInt32)1 << 28;
-                if (chunkSize < kMinSize) {
-                    chunkSize = kMinSize;
-                }
-                if (chunkSize > kMaxSize) {
-                    chunkSize = kMaxSize;
-                }
-                if (chunkSize < dict) {
-                    chunkSize = dict;
-                }
-                chunkSize += (kMinSize - 1);
-                chunkSize &= ~(UInt64)(kMinSize - 1);
-            }
-
-            if (chunkSize == 0) {
-                const UInt32 kBlockSizeMax = (UInt32)0 - (UInt32)(1 << 16);
-                UInt64 blockSize = (UInt64)dict + (1 << 16)
-                    + (numThreads1 > 1 ? (1 << 20) : 0);
-                blockSize += (blockSize >> (blockSize < ((UInt32)1 << 30) ? 1 : 2));
-                if (blockSize >= kBlockSizeMax) {
-                    blockSize = kBlockSizeMax;
-                }
-                size += numBlockThreads * (size1 + blockSize);
-            } else {
-                size += numBlockThreads * (size1 + chunkSize);
-                const UInt32 numPackChunks = numBlockThreads + (numBlockThreads / 8) + 1;
-                if (chunkSize < ((UInt32)1 << 26)) {
-                    numBlockThreads++;
-                }
-                if (chunkSize < ((UInt32)1 << 24)) {
-                    numBlockThreads++;
-                }
-                if (chunkSize < ((UInt32)1 << 22)) {
-                    numBlockThreads++;
-                }
-                size += numPackChunks * chunkSize;
-            }
-
-            decompressMemory = dict + (2 << 20);
-            return size;
+        UInt32 numThreads1 = 1;
+        if (numThreads > 1 && level >= 5) {
+            size1 += (2 << 20) + (4 << 20);
+            numThreads1 = 2;
         }
 
-        case kSZCompressionEstimatePPMd:
-            decompressMemory = dict64 + (2 << 20);
-            return size + decompressMemory;
-
-        case kSZCompressionEstimateDeflate:
-        case kSZCompressionEstimateDeflate64: {
-            UInt64 size1 = 3 << 20;
-            size1 += (1 << 20);
-            size += size1 * numMainZipThreads;
-            decompressMemory = (2 << 20);
-            return size;
+        UInt32 numBlockThreads = numThreads / numThreads1;
+        UInt64 chunkSize = 0;
+        if (methodID == kSZCompressionEstimateLZMA2 && numBlockThreads != 1) {
+            chunkSize = (UInt64)dict << 2;
+            const UInt32 kMinSize = (UInt32)1 << 20;
+            const UInt32 kMaxSize = (UInt32)1 << 28;
+            if (chunkSize < kMinSize) {
+                chunkSize = kMinSize;
+            }
+            if (chunkSize > kMaxSize) {
+                chunkSize = kMaxSize;
+            }
+            if (chunkSize < dict) {
+                chunkSize = dict;
+            }
+            chunkSize += (kMinSize - 1);
+            chunkSize &= ~(UInt64)(kMinSize - 1);
         }
 
-        case kSZCompressionEstimateBZip2:
-            decompressMemory = (7 << 20);
-            return size + ((UInt64)10 << 20) * numThreads;
+        if (chunkSize == 0) {
+            const UInt32 kBlockSizeMax = (UInt32)0 - (UInt32)(1 << 16);
+            UInt64 blockSize = (UInt64)dict + (1 << 16) + (numThreads1 > 1 ? (1 << 20) : 0);
+            blockSize += (blockSize >> (blockSize < ((UInt32)1 << 30) ? 1 : 2));
+            if (blockSize >= kBlockSizeMax) {
+                blockSize = kBlockSizeMax;
+            }
+            size += numBlockThreads * (size1 + blockSize);
+        } else {
+            size += numBlockThreads * (size1 + chunkSize);
+            const UInt32 numPackChunks = numBlockThreads + (numBlockThreads / 8) + 1;
+            if (chunkSize < ((UInt32)1 << 26)) {
+                numBlockThreads++;
+            }
+            if (chunkSize < ((UInt32)1 << 24)) {
+                numBlockThreads++;
+            }
+            if (chunkSize < ((UInt32)1 << 22)) {
+                numBlockThreads++;
+            }
+            size += numPackChunks * chunkSize;
+        }
 
-        case kSZCompressionEstimatePPMdZip:
-            decompressMemory = dict64 + (2 << 20);
-            return size + (UInt64)decompressMemory * numThreads;
+        decompressMemory = dict + (2 << 20);
+        return size;
+    }
+
+    case kSZCompressionEstimatePPMd:
+        decompressMemory = dict64 + (2 << 20);
+        return size + decompressMemory;
+
+    case kSZCompressionEstimateDeflate:
+    case kSZCompressionEstimateDeflate64: {
+        UInt64 size1 = 3 << 20;
+        size1 += (1 << 20);
+        size += size1 * numMainZipThreads;
+        decompressMemory = (2 << 20);
+        return size;
+    }
+
+    case kSZCompressionEstimateBZip2:
+        decompressMemory = (7 << 20);
+        return size + ((UInt64)10 << 20) * numThreads;
+
+    case kSZCompressionEstimatePPMdZip:
+        decompressMemory = dict64 + (2 << 20);
+        return size + (UInt64)decompressMemory * numThreads;
 
 #if SHICHIZIP_ZS_VARIANT
-        case kSZCompressionEstimateFastLzma2: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            decompressMemory = dictionary + (4 << 20);
-            return ((UInt64)12 << 20) + dictionary * 3 + ((UInt64)4 << 20) * effectiveThreads;
-        }
+    case kSZCompressionEstimateFastLzma2: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        decompressMemory = dictionary + (4 << 20);
+        return ((UInt64)12 << 20) + dictionary * 3 + ((UInt64)4 << 20) * effectiveThreads;
+    }
 
-        case kSZCompressionEstimateZstd: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)1 << 24 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            const UInt64 perThread = SZCompressionEstimateIsZstdFastLevel(level) ? (UInt64)3 << 20 : (UInt64)8 << 20;
-            decompressMemory = dictionary + (2 << 20);
-            return dictionary * 2 + perThread * effectiveThreads;
-        }
+    case kSZCompressionEstimateZstd: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)1 << 24 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        const UInt64 perThread = SZCompressionEstimateIsZstdFastLevel(level)
+            ? (UInt64)3 << 20
+            : (UInt64)8 << 20;
+        decompressMemory = dictionary + (2 << 20);
+        return dictionary * 2 + perThread * effectiveThreads;
+    }
 
-        case kSZCompressionEstimateBrotli: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)8 << 20 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            decompressMemory = dictionary + (1 << 20);
-            return dictionary * 2 + ((UInt64)10 << 20) * effectiveThreads;
-        }
+    case kSZCompressionEstimateBrotli: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)8 << 20 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        decompressMemory = dictionary + (1 << 20);
+        return dictionary * 2 + ((UInt64)10 << 20) * effectiveThreads;
+    }
 
-        case kSZCompressionEstimateLz4: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)8 << 20 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            decompressMemory = (4 << 20);
-            return dictionary + ((UInt64)6 << 20) * effectiveThreads;
-        }
+    case kSZCompressionEstimateLz4: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)8 << 20 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        decompressMemory = (4 << 20);
+        return dictionary + ((UInt64)6 << 20) * effectiveThreads;
+    }
 
-        case kSZCompressionEstimateLz5: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            decompressMemory = (6 << 20);
-            return dictionary + ((UInt64)8 << 20) * effectiveThreads;
-        }
+    case kSZCompressionEstimateLz5: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        decompressMemory = (6 << 20);
+        return dictionary + ((UInt64)8 << 20) * effectiveThreads;
+    }
 
-        case kSZCompressionEstimateLizardFastLz4:
-        case kSZCompressionEstimateLizardLizV1:
-        case kSZCompressionEstimateLizardFastLz4Huffman:
-        case kSZCompressionEstimateLizardLizV1Huffman: {
-            const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
-            const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
-            decompressMemory = (8 << 20);
-            return dictionary + ((UInt64)10 << 20) * effectiveThreads;
-        }
+    case kSZCompressionEstimateLizardFastLz4:
+    case kSZCompressionEstimateLizardLizV1:
+    case kSZCompressionEstimateLizardFastLz4Huffman:
+    case kSZCompressionEstimateLizardLizV1Huffman: {
+        const UInt64 dictionary = dict64 == (UInt64)-1 ? (UInt64)16 << 20 : dict64;
+        const UInt32 effectiveThreads = numThreads == 0 ? 1u : numThreads;
+        decompressMemory = (8 << 20);
+        return dictionary + ((UInt64)10 << 20) * effectiveThreads;
+    }
 #endif
 
-        default:
-            return (UInt64)-1;
+    default:
+        return (UInt64)-1;
     }
 }
 
-static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
-                                               int methodID,
-                                               int level,
-                                               UInt64 dict64,
-                                               UInt64 memoryUsageLimit,
-                                               bool memoryUsageLimitIsDefined) {
+static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings* settings,
+    int methodID, int level,
+    UInt64 dict64,
+    UInt64 memoryUsageLimit,
+    bool memoryUsageLimitIsDefined) {
     if (!SZCompressionEstimateFormatSupportsThreads(settings.format)) {
         return 1;
     }
@@ -882,37 +911,37 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
         numAlgoThreadsMax = 256 * 2;
     } else {
         switch (methodID) {
-            case kSZCompressionEstimateLZMA:
-                numAlgoThreadsMax = 2;
-                break;
-            case kSZCompressionEstimateLZMA2:
-                numAlgoThreadsMax = 256 * 2;
-                break;
-            case kSZCompressionEstimateBZip2:
-                numAlgoThreadsMax = 64;
-                break;
+        case kSZCompressionEstimateLZMA:
+            numAlgoThreadsMax = 2;
+            break;
+        case kSZCompressionEstimateLZMA2:
+            numAlgoThreadsMax = 256 * 2;
+            break;
+        case kSZCompressionEstimateBZip2:
+            numAlgoThreadsMax = 64;
+            break;
 #if SHICHIZIP_ZS_VARIANT
-            case kSZCompressionEstimateFastLzma2:
-            case kSZCompressionEstimateZstd:
-            case kSZCompressionEstimateBrotli:
-            case kSZCompressionEstimateLz4:
-            case kSZCompressionEstimateLz5:
-            case kSZCompressionEstimateLizardFastLz4:
-            case kSZCompressionEstimateLizardLizV1:
-            case kSZCompressionEstimateLizardFastLz4Huffman:
-            case kSZCompressionEstimateLizardLizV1Huffman:
-                numAlgoThreadsMax = 128;
-                break;
+        case kSZCompressionEstimateFastLzma2:
+        case kSZCompressionEstimateZstd:
+        case kSZCompressionEstimateBrotli:
+        case kSZCompressionEstimateLz4:
+        case kSZCompressionEstimateLz5:
+        case kSZCompressionEstimateLizardFastLz4:
+        case kSZCompressionEstimateLizardLizV1:
+        case kSZCompressionEstimateLizardFastLz4Huffman:
+        case kSZCompressionEstimateLizardLizV1Huffman:
+            numAlgoThreadsMax = 128;
+            break;
 #endif
-            case kSZCompressionEstimateCopy:
-            case kSZCompressionEstimatePPMd:
-            case kSZCompressionEstimateDeflate:
-            case kSZCompressionEstimateDeflate64:
-            case kSZCompressionEstimatePPMdZip:
-                numAlgoThreadsMax = 1;
-                break;
-            default:
-                break;
+        case kSZCompressionEstimateCopy:
+        case kSZCompressionEstimatePPMd:
+        case kSZCompressionEstimateDeflate:
+        case kSZCompressionEstimateDeflate64:
+        case kSZCompressionEstimatePPMdZip:
+            numAlgoThreadsMax = 1;
+            break;
+        default:
+            break;
         }
     }
 
@@ -925,12 +954,9 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
         if (SZCompressionEstimateIsZipFormat(settings.format)) {
             for (; autoThreads > 1; autoThreads--) {
                 UInt64 decompressMemory;
-                const UInt64 usage = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(settings.format,
-                                                                                            methodID,
-                                                                                            level,
-                                                                                            autoThreads,
-                                                                                            dict64,
-                                                                                            decompressMemory);
+                const UInt64 usage = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(
+                    settings.format, methodID, level, autoThreads, dict64,
+                    decompressMemory);
                 if (usage <= memoryUsageLimit) {
                     break;
                 }
@@ -941,12 +967,9 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
             for (; numBlockThreads > 1; numBlockThreads--) {
                 autoThreads = numBlockThreads * numThreads1;
                 UInt64 decompressMemory;
-                const UInt64 usage = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(settings.format,
-                                                                                            methodID,
-                                                                                            level,
-                                                                                            autoThreads,
-                                                                                            dict64,
-                                                                                            decompressMemory);
+                const UInt64 usage = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(
+                    settings.format, methodID, level, autoThreads, dict64,
+                    decompressMemory);
                 if (usage <= memoryUsageLimit) {
                     break;
                 }
@@ -965,31 +988,30 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings *settings,
 // ============================================================
 
 @interface SZArchive () {
-    CArchiveLink *_arcLink;
+    CArchiveLink* _arcLink;
     BOOL _isOpen;
-    NSString *_archivePath;
-    NSString *_openType;
-    NSString *_cachedPassword;
+    NSString* _archivePath;
+    NSString* _openType;
+    NSString* _cachedPassword;
     BOOL _cachedPasswordIsDefined;
 }
 @end
 
 static BOOL SZOpenErrorFlagsIndicateWrongPassword(UInt32 errorFlags) {
-    return (errorFlags & (kpv_ErrorFlags_EncryptedHeadersError |
-                          kpv_ErrorFlags_DataError |
-                          kpv_ErrorFlags_CrcError)) != 0;
+    return (errorFlags & (kpv_ErrorFlags_EncryptedHeadersError | kpv_ErrorFlags_DataError | kpv_ErrorFlags_CrcError)) != 0;
 }
 
-static NSString *SZOpenArchiveFlagDetails(UInt32 errorFlags) {
-    NSMutableArray<NSString *> *messages = [NSMutableArray array];
+static NSString* SZOpenArchiveFlagDetails(UInt32 errorFlags) {
+    NSMutableArray<NSString*>* messages = [NSMutableArray array];
 
     const struct {
         UInt32 flag;
-        const char *message;
+        const char* message;
     } flagMessages[] = {
         { kpv_ErrorFlags_IsNotArc, "Is not archive" },
         { kpv_ErrorFlags_HeadersError, "Headers Error" },
-        { kpv_ErrorFlags_EncryptedHeadersError, "Headers Error in encrypted archive. Wrong password?" },
+        { kpv_ErrorFlags_EncryptedHeadersError,
+            "Headers Error in encrypted archive. Wrong password?" },
         { kpv_ErrorFlags_UnavailableStart, "Unavailable start of archive" },
         { kpv_ErrorFlags_UnconfirmedStart, "Unconfirmed start of archive" },
         { kpv_ErrorFlags_UnexpectedEnd, "Unexpected end of data" },
@@ -1000,8 +1022,9 @@ static NSString *SZOpenArchiveFlagDetails(UInt32 errorFlags) {
         { kpv_ErrorFlags_CrcError, "CRC Error" },
     };
 
-    for (size_t index = 0; index < sizeof(flagMessages) / sizeof(flagMessages[0]); index++) {
-        const auto &entry = flagMessages[index];
+    for (size_t index = 0; index < sizeof(flagMessages) / sizeof(flagMessages[0]);
+        index++) {
+        const auto& entry = flagMessages[index];
         if ((errorFlags & entry.flag) == 0) {
             continue;
         }
@@ -1011,15 +1034,15 @@ static NSString *SZOpenArchiveFlagDetails(UInt32 errorFlags) {
     return messages.count > 0 ? [messages componentsJoinedByString:@"\n"] : nil;
 }
 
-static NSString *SZOpenArchiveFailureReason(const CArcErrorInfo &errorInfo) {
-    NSMutableArray<NSString *> *messages = [NSMutableArray array];
+static NSString* SZOpenArchiveFailureReason(const CArcErrorInfo& errorInfo) {
+    NSMutableArray<NSString*>* messages = [NSMutableArray array];
 
-    NSString *flagDetails = SZOpenArchiveFlagDetails(errorInfo.GetErrorFlags());
+    NSString* flagDetails = SZOpenArchiveFlagDetails(errorInfo.GetErrorFlags());
     if (flagDetails.length > 0) {
         [messages addObject:flagDetails];
     }
 
-    NSString *errorMessage = ToNS(errorInfo.ErrorMessage);
+    NSString* errorMessage = ToNS(errorInfo.ErrorMessage);
     if (errorMessage.length > 0 && ![messages containsObject:errorMessage]) {
         [messages addObject:errorMessage];
     }
@@ -1027,69 +1050,62 @@ static NSString *SZOpenArchiveFailureReason(const CArcErrorInfo &errorInfo) {
     return messages.count > 0 ? [messages componentsJoinedByString:@"\n"] : nil;
 }
 
-static NSError *SZOpenArchiveErrorFromPasswordContext(HRESULT result,
-                                                      const CArcErrorInfo &errorInfo,
-                                                      BOOL passwordWasAsked,
-                                                      BOOL passwordIsDefined) {
+static NSError* SZOpenArchiveErrorFromPasswordContext(
+    HRESULT result, const CArcErrorInfo& errorInfo, BOOL passwordWasAsked,
+    BOOL passwordIsDefined) {
     if (result == E_ABORT) {
-        return SZMakeError(SZArchiveErrorCodeUserCancelled, @"Operation was cancelled");
+        return SZMakeError(SZArchiveErrorCodeUserCancelled,
+            @"Operation was cancelled");
     }
 
     if (result != S_FALSE) {
-        return SZMakeError(result,
-                           [NSString stringWithFormat:@"Failed to open archive (0x%08X)", (unsigned)result]);
+        return SZMakeError(
+            result, [NSString stringWithFormat:@"Failed to open archive (0x%08X)", (unsigned)result]);
     }
 
     const UInt32 errorFlags = errorInfo.GetErrorFlags();
     const BOOL hadPasswordContext = passwordWasAsked || passwordIsDefined;
-    const BOOL wrongPassword = (hadPasswordContext &&
-                                (errorFlags & (kpv_ErrorFlags_HeadersError |
-                                               kpv_ErrorFlags_EncryptedHeadersError |
-                                               kpv_ErrorFlags_DataError |
-                                               kpv_ErrorFlags_CrcError)) != 0)
-        || (passwordWasAsked && !errorInfo.ErrorFlags_Defined)
-        || SZOpenErrorFlagsIndicateWrongPassword(errorFlags);
+    const BOOL wrongPassword = (hadPasswordContext && (errorFlags & (kpv_ErrorFlags_HeadersError | kpv_ErrorFlags_EncryptedHeadersError | kpv_ErrorFlags_DataError | kpv_ErrorFlags_CrcError)) != 0) || (passwordWasAsked && !errorInfo.ErrorFlags_Defined) || SZOpenErrorFlagsIndicateWrongPassword(errorFlags);
     if (wrongPassword) {
         return SZMakeError(SZArchiveErrorCodeWrongPassword,
-                           @"Cannot open encrypted archive. Wrong password?");
+            @"Cannot open encrypted archive. Wrong password?");
     }
 
     if (!errorInfo.IsArc_After_NonOpen() && errorInfo.ErrorMessage.IsEmpty()) {
         return SZMakeDetailedError(SZArchiveErrorCodeUnsupportedArchive,
-                                   @"Cannot open archive or unsupported format",
-                                   SZOpenArchiveFailureReason(errorInfo));
+            @"Cannot open archive or unsupported format",
+            SZOpenArchiveFailureReason(errorInfo));
     }
 
     return SZMakeDetailedError(SZArchiveErrorCodeInvalidArchive,
-                               @"Cannot open archive",
-                               SZOpenArchiveFailureReason(errorInfo));
+        @"Cannot open archive",
+        SZOpenArchiveFailureReason(errorInfo));
 }
 
-static NSError *SZOpenArchiveErrorFromResult(HRESULT result,
-                                             const CArcErrorInfo &errorInfo,
-                                             const SZOpenCallbackUI &callbackUI) {
-    return SZOpenArchiveErrorFromPasswordContext(result,
-                                                 errorInfo,
-                                                 callbackUI.PasswordWasAsked,
-                                                 callbackUI.PasswordIsDefined);
+static NSError*
+SZOpenArchiveErrorFromResult(HRESULT result, const CArcErrorInfo& errorInfo,
+    const SZOpenCallbackUI& callbackUI) {
+    return SZOpenArchiveErrorFromPasswordContext(result, errorInfo,
+        callbackUI.PasswordWasAsked,
+        callbackUI.PasswordIsDefined);
 }
 
-static NSString *SZNormalizeArchiveRelativePath(NSString *path) {
-    NSString *normalized = [path copy] ?: @"";
+static NSString* SZNormalizeArchiveRelativePath(NSString* path) {
+    NSString* normalized = [path copy] ?: @"";
     while (normalized.length > 0 && [normalized hasSuffix:@"/"]) {
         normalized = [normalized substringToIndex:normalized.length - 1];
     }
     return normalized;
 }
 
-static NSArray<NSString *> *SZArchivePathComponents(NSString *path) {
-    NSString *normalized = SZNormalizeArchiveRelativePath(path);
+static NSArray<NSString*>* SZArchivePathComponents(NSString* path) {
+    NSString* normalized = SZNormalizeArchiveRelativePath(path);
     if (normalized.length == 0) {
         return @[];
     }
 
-    NSMutableArray<NSString *> *components = [NSMutableArray array];
-    for (NSString *component in [normalized componentsSeparatedByString:@"/"]) {
+    NSMutableArray<NSString*>* components = [NSMutableArray array];
+    for (NSString* component in [normalized componentsSeparatedByString:@"/"]) {
         if (component.length > 0) {
             [components addObject:component];
         }
@@ -1097,19 +1113,20 @@ static NSArray<NSString *> *SZArchivePathComponents(NSString *path) {
     return components;
 }
 
-static NSString *SZArchiveParentPath(NSString *path) {
-    NSArray<NSString *> *components = SZArchivePathComponents(path);
+static NSString* SZArchiveParentPath(NSString* path) {
+    NSArray<NSString*>* components = SZArchivePathComponents(path);
     if (components.count <= 1) {
         return @"";
     }
-    return [[components subarrayWithRange:NSMakeRange(0, components.count - 1)] componentsJoinedByString:@"/"];
+    return [[components subarrayWithRange:NSMakeRange(0, components.count - 1)]
+        componentsJoinedByString:@"/"];
 }
 
-static NSString *SZArchiveLeafName(NSString *path) {
+static NSString* SZArchiveLeafName(NSString* path) {
     return SZArchivePathComponents(path).lastObject ?: @"";
 }
 
-static NSString *SZFolderItemName(IFolderFolder *folder, UInt32 index) {
+static NSString* SZFolderItemName(IFolderFolder* folder, UInt32 index) {
     NWindows::NCOM::CPropVariant value;
     if (folder->GetProperty(index, kpidName, &value) != S_OK) {
         return nil;
@@ -1120,11 +1137,11 @@ static NSString *SZFolderItemName(IFolderFolder *folder, UInt32 index) {
     return nil;
 }
 
-static HRESULT SZBindFolderToArchiveSubdir(IFolderFolder *rootFolder,
-                                           NSString *archiveSubdir,
-                                           IFolderFolder **resultFolder) {
+static HRESULT SZBindFolderToArchiveSubdir(IFolderFolder* rootFolder,
+    NSString* archiveSubdir,
+    IFolderFolder** resultFolder) {
     CMyComPtr<IFolderFolder> currentFolder = rootFolder;
-    for (NSString *component in SZArchivePathComponents(archiveSubdir)) {
+    for (NSString* component in SZArchivePathComponents(archiveSubdir)) {
         CMyComPtr<IFolderFolder> nextFolder;
         RINOK(currentFolder->BindToFolder(ToU(component), &nextFolder))
         if (!nextFolder) {
@@ -1137,30 +1154,31 @@ static HRESULT SZBindFolderToArchiveSubdir(IFolderFolder *rootFolder,
     return S_OK;
 }
 
-static HRESULT SZResolveFolderItemIndices(IFolderFolder *folder,
-                                          NSArray<NSString *> *itemPaths,
-                                          NSString *archiveSubdir,
-                                          std::vector<UInt32> &indices) {
+static HRESULT SZResolveFolderItemIndices(IFolderFolder* folder,
+    NSArray<NSString*>* itemPaths,
+    NSString* archiveSubdir,
+    std::vector<UInt32>& indices) {
     indices.clear();
 
-    NSString *normalizedSubdir = SZNormalizeArchiveRelativePath(archiveSubdir);
+    NSString* normalizedSubdir = SZNormalizeArchiveRelativePath(archiveSubdir);
     UInt32 numItems = 0;
     RINOK(folder->GetNumberOfItems(&numItems))
 
-    for (NSString *itemPath in itemPaths) {
-        NSString *normalizedPath = SZNormalizeArchiveRelativePath(itemPath);
-        if (![SZArchiveParentPath(normalizedPath) isEqualToString:normalizedSubdir]) {
+    for (NSString* itemPath in itemPaths) {
+        NSString* normalizedPath = SZNormalizeArchiveRelativePath(itemPath);
+        if (![SZArchiveParentPath(normalizedPath)
+                isEqualToString:normalizedSubdir]) {
             return E_INVALIDARG;
         }
 
-        NSString *expectedName = SZArchiveLeafName(normalizedPath);
+        NSString* expectedName = SZArchiveLeafName(normalizedPath);
         if (expectedName.length == 0) {
             return E_INVALIDARG;
         }
 
         BOOL found = NO;
         for (UInt32 index = 0; index < numItems; index++) {
-            NSString *itemName = SZFolderItemName(folder, index);
+            NSString* itemName = SZFolderItemName(folder, index);
             if (![itemName isEqualToString:expectedName]) {
                 continue;
             }
@@ -1177,19 +1195,18 @@ static HRESULT SZResolveFolderItemIndices(IFolderFolder *folder,
     return S_OK;
 }
 
-static HRESULT SZOpenAgentFolder(NSString *archivePath,
-                                 NSString *openType,
-                                 SZAgentUpdateCallback *callback,
-                                 NSString *archiveSubdir,
-                                 CMyComPtr<IInFolderArchive> &agentOut,
-                                 CAgent *&agentSpecOut,
-                                 CMyComPtr<IFolderFolder> &folderOut) {
-    CAgent *agentSpec = new CAgent();
+static HRESULT SZOpenAgentFolder(NSString* archivePath, NSString* openType,
+    SZAgentUpdateCallback* callback,
+    NSString* archiveSubdir,
+    CMyComPtr<IInFolderArchive>& agentOut,
+    CAgent*& agentSpecOut,
+    CMyComPtr<IFolderFolder>& folderOut) {
+    CAgent* agentSpec = new CAgent();
     agentOut = agentSpec;
     agentSpecOut = agentSpec;
 
     UString openTypeText = openType.length > 0 ? ToU(openType) : UString();
-    const wchar_t *arcFormat = openTypeText.IsEmpty() ? L"" : openTypeText.Ptr();
+    const wchar_t* arcFormat = openTypeText.IsEmpty() ? L"" : openTypeText.Ptr();
     RINOK(agentOut->Open(NULL, ToU(archivePath), arcFormat, NULL, callback))
 
     CMyComPtr<IFolderFolder> rootFolder;
@@ -1203,16 +1220,18 @@ static HRESULT SZOpenAgentFolder(NSString *archivePath,
     return SZBindFolderToArchiveSubdir(rootFolder, archiveSubdir, &folderOut);
 }
 
-static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
-                                               NSString *fallbackDescription,
-                                               const UString &errorMessage) {
+static NSError* SZArchiveUpdateErrorFromResult(HRESULT result,
+    NSString* fallbackDescription,
+    const UString& errorMessage) {
     if (result == E_ABORT) {
-        return SZMakeError(SZArchiveErrorCodeUserCancelled, @"Operation was cancelled");
+        return SZMakeError(SZArchiveErrorCodeUserCancelled,
+            @"Operation was cancelled");
     }
 
     if (result == E_NOTIMPL) {
-        return SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                           @"This archive does not support that in-place update operation.");
+        return SZMakeError(
+            SZArchiveErrorCodeUnsupportedFormat,
+            @"This archive does not support that in-place update operation.");
     }
 
     if (result == E_INVALIDARG) {
@@ -1220,24 +1239,23 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 
     if (result == (HRESULT)ERROR_ALREADY_EXISTS || result == HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)) {
-        return SZMakeError(result, @"An item with the same name already exists in the archive.");
+        return SZMakeError(
+            result, @"An item with the same name already exists in the archive.");
     }
 
-    NSString *details = ToNS(errorMessage);
+    NSString* details = ToNS(errorMessage);
     if (details.length > 0) {
         return SZMakeDetailedError(result, fallbackDescription, details);
     }
 
-    return SZMakeError(result,
-                       [NSString stringWithFormat:@"%@ (0x%08X)",
-                                                  fallbackDescription,
-                                                  (unsigned)result]);
+    return SZMakeError(result, [NSString stringWithFormat:@"%@ (0x%08X)", fallbackDescription, (unsigned)result]);
 }
 
 @implementation SZArchive
 
-+ (SZCompressionResourceInfo *)compressionResourceEstimateForSettings:(SZCompressionSettings *)settings {
-    SZCompressionResourceInfo *info = [SZCompressionResourceInfo new];
++ (SZCompressionResourceInfo*)compressionResourceEstimateForSettings:
+    (SZCompressionSettings*)settings {
+    SZCompressionResourceInfo* info = [SZCompressionResourceInfo new];
     if (!settings) {
         return info;
     }
@@ -1262,20 +1280,16 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 
     const SZCompressionEstimateRamInfo ramInfo = SZCompressionEstimateGetRamInfo();
     UInt64 memoryUsageLimit = ramInfo.UsageAuto;
-    const bool memoryUsageLimitIsDefined = SZCompressionEstimateGetMemoryUsageLimit(settings,
-                                                                                    ramInfo,
-                                                                                    memoryUsageLimit);
+    const bool memoryUsageLimitIsDefined = SZCompressionEstimateGetMemoryUsageLimit(settings, ramInfo,
+        memoryUsageLimit);
 
     UInt32 numThreads = settings.numThreads;
     if (!SZCompressionEstimateFormatSupportsThreads(settings.format)) {
         numThreads = 1;
     } else if (numThreads == 0) {
-        numThreads = SZCompressionEstimateAutoThreads(settings,
-                                                     methodID,
-                                                     level,
-                                                     dict64,
-                                                     memoryUsageLimit,
-                                                     memoryUsageLimitIsDefined);
+        numThreads = SZCompressionEstimateAutoThreads(settings, methodID, level,
+            dict64, memoryUsageLimit,
+            memoryUsageLimitIsDefined);
     }
     if (SZCompressionEstimateFormatSupportsThreads(settings.format)) {
         info.resolvedNumThreadsIsDefined = YES;
@@ -1287,12 +1301,9 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 
     UInt64 decompressionMemory;
-    const UInt64 compressionMemory = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(settings.format,
-                                                                                              methodID,
-                                                                                              level,
-                                                                                              numThreads,
-                                                                                              dict64,
-                                                                                              decompressionMemory);
+    const UInt64 compressionMemory = SZCompressionEstimateMemoryUsage_Threads_Dict_DecompMem(
+        settings.format, methodID, level, numThreads, dict64,
+        decompressionMemory);
     if (compressionMemory != (UInt64)-1) {
         info.compressionMemoryIsDefined = YES;
         info.compressionMemory = compressionMemory;
@@ -1313,7 +1324,7 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     _cachedPasswordIsDefined = NO;
 }
 
-- (void)storeCachedPassword:(const UString &)password defined:(bool)isDefined {
+- (void)storeCachedPassword:(const UString&)password defined:(bool)isDefined {
     if (isDefined) {
         _cachedPassword = ToNS(password);
         _cachedPasswordIsDefined = YES;
@@ -1322,7 +1333,8 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 }
 
-- (void)configureExtractPasswordForCallback:(SZFolderExtractCallback *)callback explicitPassword:(NSString *)password {
+- (void)configureExtractPasswordForCallback:(SZFolderExtractCallback*)callback
+                           explicitPassword:(NSString*)password {
     if (password) {
         callback->PasswordIsDefined = true;
         callback->Password = ToU(password);
@@ -1335,7 +1347,9 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 }
 
-- (void)updateCachedPasswordFromExtractCallback:(SZFolderExtractCallback *)callback result:(HRESULT)result {
+- (void)updateCachedPasswordFromExtractCallback:
+            (SZFolderExtractCallback*)callback
+                                         result:(HRESULT)result {
     if (result == S_OK && callback->PasswordIsDefined) {
         [self storeCachedPassword:callback->Password defined:true];
         return;
@@ -1346,10 +1360,11 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 }
 
-- (BOOL)reopenAfterExternalMutationWithSession:(SZOperationSession *)session error:(NSError **)error {
-    NSString *archivePath = [_archivePath copy];
-    NSString *openType = [_openType copy];
-    NSString *password = _cachedPasswordIsDefined ? [_cachedPassword copy] : nil;
+- (BOOL)reopenAfterExternalMutationWithSession:(SZOperationSession*)session
+                                         error:(NSError**)error {
+    NSString* archivePath = [_archivePath copy];
+    NSString* openType = [_openType copy];
+    NSString* password = _cachedPasswordIsDefined ? [_cachedPassword copy] : nil;
     if (archivePath.length == 0) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
@@ -1374,45 +1389,88 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     return self;
 }
 
-- (void)dealloc { [self close]; delete _arcLink; _arcLink = nullptr; }
+- (void)dealloc {
+    [self close];
+    delete _arcLink;
+    _arcLink = nullptr;
+}
 
-+ (NSString *)sevenZipVersionString {
++ (NSString*)sevenZipVersionString {
     return @MY_VERSION;
 }
 
 // MARK: - Open / Close
 
-- (BOOL)openAtPath:(NSString *)path error:(NSError **)error {
-    return [self openAtPath:path openType:nil password:nil session:nil error:error];
+- (BOOL)openAtPath:(NSString*)path error:(NSError**)error {
+    return [self openAtPath:path
+                   openType:nil
+                   password:nil
+                    session:nil
+                      error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path progress:(id<SZProgressDelegate>)progress error:(NSError **)error {
+- (BOOL)openAtPath:(NSString*)path
+          progress:(id<SZProgressDelegate>)progress
+             error:(NSError**)error {
     return [self openAtPath:path password:nil progress:progress error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)openAtPath:(NSString*)path
+           session:(SZOperationSession*)session
+             error:(NSError**)error {
     return [self openAtPath:path openType:nil session:session error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path openType:(NSString *)openType session:(SZOperationSession *)session error:(NSError **)error {
-    return [self openAtPath:path openType:openType password:nil session:session error:error];
+- (BOOL)openAtPath:(NSString*)path
+          openType:(NSString*)openType
+           session:(SZOperationSession*)session
+             error:(NSError**)error {
+    return [self openAtPath:path
+                   openType:openType
+                   password:nil
+                    session:session
+                      error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path password:(NSString *)password error:(NSError **)error {
+- (BOOL)openAtPath:(NSString*)path
+          password:(NSString*)password
+             error:(NSError**)error {
     return [self openAtPath:path password:password session:nil error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path password:(NSString *)password progress:(id<SZProgressDelegate>)progress error:(NSError **)error {
-    return [self openAtPath:path password:password session:SZMakeDefaultOperationSession(progress) error:error];
+- (BOOL)openAtPath:(NSString*)path
+          password:(NSString*)password
+          progress:(id<SZProgressDelegate>)progress
+             error:(NSError**)error {
+    return [self openAtPath:path
+                   password:password
+                    session:SZMakeDefaultOperationSession(progress)
+                      error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path password:(NSString *)password session:(SZOperationSession *)session error:(NSError **)error {
-    return [self openAtPath:path openType:nil password:password session:session error:error];
+- (BOOL)openAtPath:(NSString*)path
+          password:(NSString*)password
+           session:(SZOperationSession*)session
+             error:(NSError**)error {
+    return [self openAtPath:path
+                   openType:nil
+                   password:password
+                    session:session
+                      error:error];
 }
 
-- (BOOL)openAtPath:(NSString *)path openType:(NSString *)openType password:(NSString *)password session:(SZOperationSession *)session error:(NSError **)error {
-    CCodecs *codecs = SZGetCodecs();
-    if (!codecs) { if (error) *error = SZMakeError(SZArchiveErrorCodeFailedToInitCodecs, @"Failed to init codecs"); return NO; }
+- (BOOL)openAtPath:(NSString*)path
+          openType:(NSString*)openType
+          password:(NSString*)password
+           session:(SZOperationSession*)session
+             error:(NSError**)error {
+    CCodecs* codecs = SZGetCodecs();
+    if (!codecs) {
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeFailedToInitCodecs,
+                @"Failed to init codecs");
+        return NO;
+    }
     [self close];
     [self clearCachedPassword];
     _archivePath = [path copy];
@@ -1420,8 +1478,10 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     CObjectVector<COpenType> types;
     if (openType.length > 0 && !ParseOpenTypes(*codecs, ToU(openType), types)) {
         if (error) {
-            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 [NSString stringWithFormat:@"Invalid archive open type: %@", openType]);
+            *error = SZMakeError(
+                SZArchiveErrorCodeUnsupportedFormat,
+                [NSString
+                    stringWithFormat:@"Invalid archive open type: %@", openType]);
         }
         return NO;
     }
@@ -1437,7 +1497,7 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     options.stream = NULL;
     options.filePath = ToU(path);
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZOpenCallbackUI callbackUI;
     callbackUI.Session = resolvedSession;
     if (password) {
@@ -1448,7 +1508,8 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
     HRESULT res = _arcLink->Open3(options, &callbackUI);
     if (res != S_OK) {
         if (error) {
-            *error = SZOpenArchiveErrorFromResult(res, _arcLink->NonOpen_ErrorInfo, callbackUI);
+            *error = SZOpenArchiveErrorFromResult(res, _arcLink->NonOpen_ErrorInfo,
+                callbackUI);
         }
         return NO;
     }
@@ -1462,7 +1523,8 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 }
 
 - (void)close {
-    if (_isOpen) _arcLink->Close();
+    if (_isOpen)
+        _arcLink->Close();
     _isOpen = NO;
     _openType = nil;
     [self clearCachedPassword];
@@ -1470,18 +1532,22 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 
 // MARK: - Properties
 
-- (NSString *)formatName {
-    if (!_isOpen) return nil;
-    const CArc &arc = _arcLink->Arcs.Back();
-    CCodecs *c = SZGetCodecs();
-    if (!c || arc.FormatIndex < 0) return nil;
+- (NSString*)formatName {
+    if (!_isOpen)
+        return nil;
+    const CArc& arc = _arcLink->Arcs.Back();
+    CCodecs* c = SZGetCodecs();
+    if (!c || arc.FormatIndex < 0)
+        return nil;
     return ToNS(c->Formats[arc.FormatIndex].Name);
 }
 
 - (uint64_t)archivePhysicalSize {
-    if (!_isOpen) return 0;
-    IInArchive *archive = _arcLink->GetArchive();
-    if (!archive) return 0;
+    if (!_isOpen)
+        return 0;
+    IInArchive* archive = _arcLink->GetArchive();
+    if (!archive)
+        return 0;
 
     NWindows::NCOM::CPropVariant value;
     if (archive->GetArchiveProperty(kpidPhySize, &value) != S_OK)
@@ -1499,9 +1565,11 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 }
 
 - (BOOL)isSolidArchive {
-    if (!_isOpen) return NO;
-    IInArchive *archive = _arcLink->GetArchive();
-    if (!archive) return NO;
+    if (!_isOpen)
+        return NO;
+    IInArchive* archive = _arcLink->GetArchive();
+    if (!archive)
+        return NO;
 
     NWindows::NCOM::CPropVariant value;
     if (archive->GetArchiveProperty(kpidSolid, &value) != S_OK)
@@ -1517,27 +1585,35 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 }
 
 - (NSUInteger)entryCount {
-    if (!_isOpen) return 0;
-    IInArchive *archive = _arcLink->GetArchive();
-    if (!archive) return 0;
-    UInt32 n = 0; archive->GetNumberOfItems(&n); return n;
+    if (!_isOpen)
+        return 0;
+    IInArchive* archive = _arcLink->GetArchive();
+    if (!archive)
+        return 0;
+    UInt32 n = 0;
+    archive->GetNumberOfItems(&n);
+    return n;
 }
 
-- (NSArray<SZArchiveEntry *> *)entries {
-    if (!_isOpen) return @[];
-    IInArchive *archive = _arcLink->GetArchive();
-    if (!archive) return @[];
-    const CArc &arc = _arcLink->Arcs.Back();
-    UInt32 n = 0; archive->GetNumberOfItems(&n);
-    NSMutableArray *arr = [NSMutableArray arrayWithCapacity:n];
+- (NSArray<SZArchiveEntry*>*)entries {
+    if (!_isOpen)
+        return @[];
+    IInArchive* archive = _arcLink->GetArchive();
+    if (!archive)
+        return @[];
+    const CArc& arc = _arcLink->Arcs.Back();
+    UInt32 n = 0;
+    archive->GetNumberOfItems(&n);
+    NSMutableArray* arr = [NSMutableArray arrayWithCapacity:n];
     for (UInt32 i = 0; i < n; i++) {
-        SZArchiveEntry *e = [SZArchiveEntry new];
+        SZArchiveEntry* e = [SZArchiveEntry new];
         e.index = i;
         CReadArcItem item;
         const bool hasReadItem = (arc.GetItem(i, item) == S_OK);
         if (hasReadItem) {
             e.path = ToNS(item.Path);
-            NSMutableArray<NSString *> *pathParts = [NSMutableArray arrayWithCapacity:item.PathParts.Size()];
+            NSMutableArray<NSString*>* pathParts =
+                [NSMutableArray arrayWithCapacity:item.PathParts.Size()];
             for (unsigned j = 0; j < item.PathParts.Size(); j++) {
                 [pathParts addObject:ToNS(item.PathParts[j])];
             }
@@ -1569,24 +1645,35 @@ static NSError *SZArchiveUpdateErrorFromResult(HRESULT result,
 
 static NExtract::NOverwriteMode::EEnum MapOverwriteMode(SZOverwriteMode m) {
     switch (m) {
-        case SZOverwriteModeOverwrite: return NExtract::NOverwriteMode::kOverwrite;
-        case SZOverwriteModeSkip: return NExtract::NOverwriteMode::kSkip;
-        case SZOverwriteModeRename: return NExtract::NOverwriteMode::kRename;
-        case SZOverwriteModeRenameExisting: return NExtract::NOverwriteMode::kRenameExisting;
-        case SZOverwriteModeAsk: default: return NExtract::NOverwriteMode::kAsk;
+    case SZOverwriteModeOverwrite:
+        return NExtract::NOverwriteMode::kOverwrite;
+    case SZOverwriteModeSkip:
+        return NExtract::NOverwriteMode::kSkip;
+    case SZOverwriteModeRename:
+        return NExtract::NOverwriteMode::kRename;
+    case SZOverwriteModeRenameExisting:
+        return NExtract::NOverwriteMode::kRenameExisting;
+    case SZOverwriteModeAsk:
+    default:
+        return NExtract::NOverwriteMode::kAsk;
     }
 }
 
 static NExtract::NPathMode::EEnum MapPathMode(SZPathMode m) {
     switch (m) {
-        case SZPathModeCurrentPaths: return NExtract::NPathMode::kCurPaths;
-        case SZPathModeNoPaths: return NExtract::NPathMode::kNoPaths;
-        case SZPathModeAbsolutePaths: return NExtract::NPathMode::kAbsPaths;
-        case SZPathModeFullPaths: default: return NExtract::NPathMode::kFullPaths;
+    case SZPathModeCurrentPaths:
+        return NExtract::NPathMode::kCurPaths;
+    case SZPathModeNoPaths:
+        return NExtract::NPathMode::kNoPaths;
+    case SZPathModeAbsolutePaths:
+        return NExtract::NPathMode::kAbsPaths;
+    case SZPathModeFullPaths:
+    default:
+        return NExtract::NPathMode::kFullPaths;
     }
 }
 
-static UStringVector BuildRemovePathParts(NSString *pathPrefixToStrip) {
+static UStringVector BuildRemovePathParts(NSString* pathPrefixToStrip) {
     UStringVector pathParts;
     if (!pathPrefixToStrip || pathPrefixToStrip.length == 0) {
         return pathParts;
@@ -1607,22 +1694,28 @@ static UStringVector BuildRemovePathParts(NSString *pathPrefixToStrip) {
     return pathParts;
 }
 
-static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError **error) {
+static BOOL CheckExtractResult(SZFolderExtractCallback* fae, HRESULT r,
+    NSError** error) {
     if (r == S_OK && fae->PasswordWasWrong) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeWrongPassword, @"Wrong password");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeWrongPassword, @"Wrong password");
         return NO;
     }
     if (r == S_OK && fae->NumErrors > 0) {
-        NSString *title = [NSString stringWithFormat:@"Completed with %u error%@",
-                           fae->NumErrors,
-                           fae->NumErrors == 1 ? @"" : @"s"];
-        NSString *failureReason = fae->LastErrorMessage.IsEmpty() ? nil : ToNS(fae->LastErrorMessage);
-        if (error) *error = SZMakeDetailedError(SZArchiveErrorCodePartialFailure, title, failureReason);
+        NSString* title =
+            [NSString stringWithFormat:@"Completed with %u error%@", fae->NumErrors,
+                fae->NumErrors == 1 ? @"" : @"s"];
+        NSString* failureReason = fae->LastErrorMessage.IsEmpty() ? nil : ToNS(fae->LastErrorMessage);
+        if (error)
+            *error = SZMakeDetailedError(SZArchiveErrorCodePartialFailure, title,
+                failureReason);
         return NO;
     }
     if (r != S_OK) {
-        if (error) *error = SZMakeError(r == E_ABORT ? SZArchiveErrorCodeUserCancelled : SZArchiveErrorCodeExtractionFailed,
-                                        r == E_ABORT ? @"Cancelled" : @"Extraction failed");
+        if (error)
+            *error = SZMakeError(r == E_ABORT ? SZArchiveErrorCodeUserCancelled
+                                              : SZArchiveErrorCodeExtractionFailed,
+                r == E_ABORT ? @"Cancelled" : @"Extraction failed");
         return NO;
     }
     return YES;
@@ -1630,26 +1723,40 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
 
 // MARK: - Extract
 
-- (BOOL)extractToPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
-    return [self extractToPath:dest settings:s session:SZMakeDefaultOperationSession(p) error:error];
+- (BOOL)extractToPath:(NSString*)dest
+             settings:(SZExtractionSettings*)s
+             progress:(id<SZProgressDelegate>)p
+                error:(NSError**)error {
+    return [self extractToPath:dest
+                      settings:s
+                       session:SZMakeDefaultOperationSession(p)
+                         error:error];
 }
 
-- (BOOL)extractToPath:(NSString *)dest settings:(SZExtractionSettings *)s session:(SZOperationSession *)session error:(NSError **)error {
-    if (!_isOpen) { if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open"); return NO; }
-    IInArchive *archive = _arcLink->GetArchive();
-    const CArc &arc = _arcLink->Arcs.Back();
+- (BOOL)extractToPath:(NSString*)dest
+             settings:(SZExtractionSettings*)s
+              session:(SZOperationSession*)session
+                error:(NSError**)error {
+    if (!_isOpen) {
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+    IInArchive* archive = _arcLink->GetArchive();
+    const CArc& arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZFolderExtractCallback* faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
     faeSpec->OverwriteMode = s.overwriteMode;
     faeSpec->ArchivePath = ToU(_archivePath);
     faeSpec->TestMode = false;
-    [self configureExtractPasswordForCallback:faeSpec explicitPassword:s.password];
+    [self configureExtractPasswordForCallback:faeSpec
+                             explicitPassword:s.password];
 
-    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CArchiveExtractCallback* ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
     if (s.preserveNtSecurityInfo) {
@@ -1658,36 +1765,54 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
     UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
-    ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),
+    ecs->InitForMulti(false, MapPathMode(s.pathMode),
+        MapOverwriteMode(s.overwriteMode),
         NExtract::NZoneIdMode::kNone, false);
-    ecs->Init(ntOptions, NULL, &arc, faeCallback,
-        false, false, us2fs(ToU(dest)), removePathParts, false, arc.GetEstmatedPhySize());
+    ecs->Init(ntOptions, NULL, &arc, faeCallback, false, false, us2fs(ToU(dest)),
+        removePathParts, false, arc.GetEstmatedPhySize());
 
     HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 0, ec);
     [self updateCachedPasswordFromExtractCallback:faeSpec result:r];
     return CheckExtractResult(faeSpec, r, error);
 }
 
-- (BOOL)extractEntries:(NSArray<NSNumber *> *)indices toPath:(NSString *)dest settings:(SZExtractionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
-    return [self extractEntries:indices toPath:dest settings:s session:SZMakeDefaultOperationSession(p) error:error];
+- (BOOL)extractEntries:(NSArray<NSNumber*>*)indices
+                toPath:(NSString*)dest
+              settings:(SZExtractionSettings*)s
+              progress:(id<SZProgressDelegate>)p
+                 error:(NSError**)error {
+    return [self extractEntries:indices
+                         toPath:dest
+                       settings:s
+                        session:SZMakeDefaultOperationSession(p)
+                          error:error];
 }
 
-- (BOOL)extractEntries:(NSArray<NSNumber *> *)indices toPath:(NSString *)dest settings:(SZExtractionSettings *)s session:(SZOperationSession *)session error:(NSError **)error {
-    if (!_isOpen) { if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open"); return NO; }
-    IInArchive *archive = _arcLink->GetArchive();
-    const CArc &arc = _arcLink->Arcs.Back();
+- (BOOL)extractEntries:(NSArray<NSNumber*>*)indices
+                toPath:(NSString*)dest
+              settings:(SZExtractionSettings*)s
+               session:(SZOperationSession*)session
+                 error:(NSError**)error {
+    if (!_isOpen) {
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+    IInArchive* archive = _arcLink->GetArchive();
+    const CArc& arc = _arcLink->Arcs.Back();
     NWindows::NFile::NDir::CreateComplexDir(us2fs(ToU(dest)));
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZFolderExtractCallback* faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
     faeSpec->OverwriteMode = s.overwriteMode;
     faeSpec->ArchivePath = ToU(_archivePath);
     faeSpec->TestMode = false;
-    [self configureExtractPasswordForCallback:faeSpec explicitPassword:s.password];
+    [self configureExtractPasswordForCallback:faeSpec
+                             explicitPassword:s.password];
 
-    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CArchiveExtractCallback* ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
     if (s.preserveNtSecurityInfo) {
@@ -1696,58 +1821,70 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
     UStringVector removePathParts = BuildRemovePathParts(s.pathPrefixToStrip);
 
-    ecs->InitForMulti(false, MapPathMode(s.pathMode), MapOverwriteMode(s.overwriteMode),
+    ecs->InitForMulti(false, MapPathMode(s.pathMode),
+        MapOverwriteMode(s.overwriteMode),
         NExtract::NZoneIdMode::kNone, false);
-    ecs->Init(ntOptions, NULL, &arc, faeCallback,
-        false, false, us2fs(ToU(dest)), removePathParts, false, arc.GetEstmatedPhySize());
+    ecs->Init(ntOptions, NULL, &arc, faeCallback, false, false, us2fs(ToU(dest)),
+        removePathParts, false, arc.GetEstmatedPhySize());
 
-    std::vector<UInt32> ia; ia.reserve(indices.count);
-    for (NSNumber *n in indices) ia.push_back([n unsignedIntValue]);
+    std::vector<UInt32> ia;
+    ia.reserve(indices.count);
+    for (NSNumber* n in indices)
+        ia.push_back([n unsignedIntValue]);
     HRESULT r = archive->Extract(ia.data(), (UInt32)ia.size(), 0, ec);
     [self updateCachedPasswordFromExtractCallback:faeSpec result:r];
     return CheckExtractResult(faeSpec, r, error);
 }
 
-- (BOOL)testWithProgress:(id<SZProgressDelegate>)p error:(NSError **)error {
+- (BOOL)testWithProgress:(id<SZProgressDelegate>)p error:(NSError**)error {
     return [self testWithSession:SZMakeDefaultOperationSession(p) error:error];
 }
 
-- (BOOL)testWithSession:(SZOperationSession *)session error:(NSError **)error {
-    if (!_isOpen) { if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open"); return NO; }
-    IInArchive *archive = _arcLink->GetArchive();
-    const CArc &arc = _arcLink->Arcs.Back();
+- (BOOL)testWithSession:(SZOperationSession*)session error:(NSError**)error {
+    if (!_isOpen) {
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        return NO;
+    }
+    IInArchive* archive = _arcLink->GetArchive();
+    const CArc& arc = _arcLink->Arcs.Back();
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZFolderExtractCallback *faeSpec = new SZFolderExtractCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZFolderExtractCallback* faeSpec = new SZFolderExtractCallback;
     CMyComPtr<IFolderArchiveExtractCallback> faeCallback(faeSpec);
     faeSpec->Session = resolvedSession;
     faeSpec->ArchivePath = ToU(_archivePath);
     faeSpec->TestMode = true;
     [self configureExtractPasswordForCallback:faeSpec explicitPassword:nil];
 
-    CArchiveExtractCallback *ecs = new CArchiveExtractCallback;
+    CArchiveExtractCallback* ecs = new CArchiveExtractCallback;
     CMyComPtr<IArchiveExtractCallback> ec(ecs);
     CExtractNtOptions ntOptions;
     UStringVector removePathParts;
 
     ecs->InitForMulti(false, NExtract::NPathMode::kFullPaths,
-        NExtract::NOverwriteMode::kOverwrite, NExtract::NZoneIdMode::kNone, false);
-    ecs->Init(ntOptions, NULL, &arc, faeCallback,
-        false, true, FString(), removePathParts, false, arc.GetEstmatedPhySize());
+        NExtract::NOverwriteMode::kOverwrite,
+        NExtract::NZoneIdMode::kNone, false);
+    ecs->Init(ntOptions, NULL, &arc, faeCallback, false, true, FString(),
+        removePathParts, false, arc.GetEstmatedPhySize());
 
     HRESULT r = archive->Extract(nullptr, (UInt32)(Int32)-1, 1, ec);
     [self updateCachedPasswordFromExtractCallback:faeSpec result:r];
     return CheckExtractResult(faeSpec, r, error);
 }
 
-- (BOOL)createFolderNamed:(NSString *)folderName inArchiveSubdir:(NSString *)archiveSubdir session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)createFolderNamed:(NSString*)folderName
+          inArchiveSubdir:(NSString*)archiveSubdir
+                  session:(SZOperationSession*)session
+                    error:(NSError**)error {
     if (!_isOpen) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
         return NO;
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback* updateSpec = new SZAgentUpdateCallback;
     CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
     updateSpec->Session = resolvedSession;
     updateSpec->ArchivePath = ToU(_archivePath ?: @"");
@@ -1757,22 +1894,17 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
 
     CMyComPtr<IInFolderArchive> agent;
-    CAgent *agentSpec = NULL;
+    CAgent* agentSpec = NULL;
     CMyComPtr<IFolderFolder> folder;
-    HRESULT result = SZOpenAgentFolder(_archivePath,
-                                       _openType,
-                                       updateSpec,
-                                       archiveSubdir,
-                                       agent,
-                                       agentSpec,
-                                       folder);
+    HRESULT result = SZOpenAgentFolder(_archivePath, _openType, updateSpec,
+        archiveSubdir, agent, agentSpec, folder);
     if (result != S_OK) {
         if (error) {
-            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
-            *error = SZOpenArchiveErrorFromPasswordContext(result,
-                                                           errorInfo,
-                                                           updateSpec->PasswordWasAsked,
-                                                           updateSpec->PasswordIsDefined);
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo
+                                                      : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(
+                result, errorInfo, updateSpec->PasswordWasAsked,
+                updateSpec->PasswordIsDefined);
         }
         return NO;
     }
@@ -1782,7 +1914,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     if (!folderOperations) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 @"This archive does not support in-place updates.");
+                @"This archive does not support in-place updates.");
         }
         return NO;
     }
@@ -1793,16 +1925,16 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         [self storeCachedPassword:updateSpec->Password defined:true];
     }
 
-    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
-        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
+                                                                                                      error:error]) {
         return NO;
     }
 
     if (result != S_OK) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(result,
-                                                    @"Cannot create folder in archive",
-                                                    updateSpec->LastErrorMessage);
+            *error = SZArchiveUpdateErrorFromResult(
+                result, @"Cannot create folder in archive",
+                updateSpec->LastErrorMessage);
         }
         return NO;
     }
@@ -1810,14 +1942,19 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return YES;
 }
 
-- (BOOL)renameItemAtPath:(NSString *)itemPath inArchiveSubdir:(NSString *)archiveSubdir newName:(NSString *)newName session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)renameItemAtPath:(NSString*)itemPath
+         inArchiveSubdir:(NSString*)archiveSubdir
+                 newName:(NSString*)newName
+                 session:(SZOperationSession*)session
+                   error:(NSError**)error {
     if (!_isOpen) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
         return NO;
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback* updateSpec = new SZAgentUpdateCallback;
     CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
     updateSpec->Session = resolvedSession;
     updateSpec->ArchivePath = ToU(_archivePath ?: @"");
@@ -1827,33 +1964,27 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
 
     CMyComPtr<IInFolderArchive> agent;
-    CAgent *agentSpec = NULL;
+    CAgent* agentSpec = NULL;
     CMyComPtr<IFolderFolder> folder;
-    HRESULT result = SZOpenAgentFolder(_archivePath,
-                                       _openType,
-                                       updateSpec,
-                                       archiveSubdir,
-                                       agent,
-                                       agentSpec,
-                                       folder);
+    HRESULT result = SZOpenAgentFolder(_archivePath, _openType, updateSpec,
+        archiveSubdir, agent, agentSpec, folder);
     if (result != S_OK) {
         if (error) {
-            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
-            *error = SZOpenArchiveErrorFromPasswordContext(result,
-                                                           errorInfo,
-                                                           updateSpec->PasswordWasAsked,
-                                                           updateSpec->PasswordIsDefined);
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo
+                                                      : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(
+                result, errorInfo, updateSpec->PasswordWasAsked,
+                updateSpec->PasswordIsDefined);
         }
         return NO;
     }
 
     std::vector<UInt32> indices;
-    result = SZResolveFolderItemIndices(folder, @[itemPath], archiveSubdir, indices);
+    result = SZResolveFolderItemIndices(folder, @[ itemPath ], archiveSubdir, indices);
     if (result != S_OK || indices.size() != 1) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(E_INVALIDARG,
-                                                    @"Cannot rename item in archive",
-                                                    UString());
+            *error = SZArchiveUpdateErrorFromResult(
+                E_INVALIDARG, @"Cannot rename item in archive", UString());
         }
         return NO;
     }
@@ -1863,7 +1994,7 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     if (!folderOperations) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 @"This archive does not support in-place updates.");
+                @"This archive does not support in-place updates.");
         }
         return NO;
     }
@@ -1874,16 +2005,16 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         [self storeCachedPassword:updateSpec->Password defined:true];
     }
 
-    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
-        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
+                                                                                                      error:error]) {
         return NO;
     }
 
     if (result != S_OK) {
         if (error) {
             *error = SZArchiveUpdateErrorFromResult(result,
-                                                    @"Cannot rename item in archive",
-                                                    updateSpec->LastErrorMessage);
+                @"Cannot rename item in archive",
+                updateSpec->LastErrorMessage);
         }
         return NO;
     }
@@ -1891,14 +2022,18 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return YES;
 }
 
-- (BOOL)deleteItemsAtPaths:(NSArray<NSString *> *)itemPaths inArchiveSubdir:(NSString *)archiveSubdir session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)deleteItemsAtPaths:(NSArray<NSString*>*)itemPaths
+           inArchiveSubdir:(NSString*)archiveSubdir
+                   session:(SZOperationSession*)session
+                     error:(NSError**)error {
     if (!_isOpen) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
         return NO;
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback* updateSpec = new SZAgentUpdateCallback;
     CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
     updateSpec->Session = resolvedSession;
     updateSpec->ArchivePath = ToU(_archivePath ?: @"");
@@ -1908,22 +2043,17 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
 
     CMyComPtr<IInFolderArchive> agent;
-    CAgent *agentSpec = NULL;
+    CAgent* agentSpec = NULL;
     CMyComPtr<IFolderFolder> folder;
-    HRESULT result = SZOpenAgentFolder(_archivePath,
-                                       _openType,
-                                       updateSpec,
-                                       archiveSubdir,
-                                       agent,
-                                       agentSpec,
-                                       folder);
+    HRESULT result = SZOpenAgentFolder(_archivePath, _openType, updateSpec,
+        archiveSubdir, agent, agentSpec, folder);
     if (result != S_OK) {
         if (error) {
-            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
-            *error = SZOpenArchiveErrorFromPasswordContext(result,
-                                                           errorInfo,
-                                                           updateSpec->PasswordWasAsked,
-                                                           updateSpec->PasswordIsDefined);
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo
+                                                      : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(
+                result, errorInfo, updateSpec->PasswordWasAsked,
+                updateSpec->PasswordIsDefined);
         }
         return NO;
     }
@@ -1932,9 +2062,8 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     result = SZResolveFolderItemIndices(folder, itemPaths, archiveSubdir, indices);
     if (result != S_OK || indices.empty()) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(E_INVALIDARG,
-                                                    @"Cannot delete items from archive",
-                                                    UString());
+            *error = SZArchiveUpdateErrorFromResult(
+                E_INVALIDARG, @"Cannot delete items from archive", UString());
         }
         return NO;
     }
@@ -1944,27 +2073,28 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     if (!folderOperations) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 @"This archive does not support in-place updates.");
+                @"This archive does not support in-place updates.");
         }
         return NO;
     }
 
-    result = folderOperations->Delete(indices.data(), (UInt32)indices.size(), updateCallback);
+    result = folderOperations->Delete(indices.data(), (UInt32)indices.size(),
+        updateCallback);
 
     if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
         [self storeCachedPassword:updateSpec->Password defined:true];
     }
 
-    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
-        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
+                                                                                                      error:error]) {
         return NO;
     }
 
     if (result != S_OK) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(result,
-                                                    @"Cannot delete items from archive",
-                                                    updateSpec->LastErrorMessage);
+            *error = SZArchiveUpdateErrorFromResult(
+                result, @"Cannot delete items from archive",
+                updateSpec->LastErrorMessage);
         }
         return NO;
     }
@@ -1972,9 +2102,14 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return YES;
 }
 
-- (BOOL)addPaths:(NSArray<NSString *> *)sourcePaths toArchiveSubdir:(NSString *)archiveSubdir moveMode:(BOOL)moveMode session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)addPaths:(NSArray<NSString*>*)sourcePaths
+    toArchiveSubdir:(NSString*)archiveSubdir
+           moveMode:(BOOL)moveMode
+            session:(SZOperationSession*)session
+              error:(NSError**)error {
     if (!_isOpen) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
         return NO;
     }
 
@@ -1982,15 +2117,17 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         return YES;
     }
 
-    NSMutableArray<NSString *> *normalizedPaths = [NSMutableArray arrayWithCapacity:sourcePaths.count];
-    NSString *folderPrefix = nil;
+    NSMutableArray<NSString*>* normalizedPaths =
+        [NSMutableArray arrayWithCapacity:sourcePaths.count];
+    NSString* folderPrefix = nil;
     std::vector<UString> pathStorage;
     pathStorage.reserve(sourcePaths.count);
 
-    for (NSString *sourcePath in sourcePaths) {
-        NSString *standardizedPath = [NSURL fileURLWithPath:sourcePath].standardizedURL.path;
-        NSString *parentPath = [standardizedPath stringByDeletingLastPathComponent];
-        NSString *leafName = [standardizedPath lastPathComponent];
+    for (NSString* sourcePath in sourcePaths) {
+        NSString* standardizedPath =
+            [NSURL fileURLWithPath:sourcePath].standardizedURL.path;
+        NSString* parentPath = [standardizedPath stringByDeletingLastPathComponent];
+        NSString* leafName = [standardizedPath lastPathComponent];
         if (leafName.length == 0) {
             if (error) {
                 *error = SZMakeError(E_INVALIDARG, @"Invalid source path.");
@@ -2002,8 +2139,8 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
             folderPrefix = parentPath;
         } else if (![folderPrefix isEqualToString:parentPath]) {
             if (error) {
-                *error = SZMakeError(E_INVALIDARG,
-                                     @"All items added to an open archive must come from the same folder.");
+                *error = SZMakeError(E_INVALIDARG, @"All items added to an open archive "
+                                                   @"must come from the same folder.");
             }
             return NO;
         }
@@ -2012,14 +2149,14 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
         pathStorage.push_back(ToU(leafName));
     }
 
-    std::vector<const wchar_t *> pathPointers;
+    std::vector<const wchar_t*> pathPointers;
     pathPointers.reserve(pathStorage.size());
-    for (const UString &path : pathStorage) {
+    for (const UString& path : pathStorage) {
         pathPointers.push_back(path.Ptr());
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback* updateSpec = new SZAgentUpdateCallback;
     CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
     updateSpec->Session = resolvedSession;
     updateSpec->ArchivePath = ToU(_archivePath ?: @"");
@@ -2029,22 +2166,17 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
 
     CMyComPtr<IInFolderArchive> agent;
-    CAgent *agentSpec = NULL;
+    CAgent* agentSpec = NULL;
     CMyComPtr<IFolderFolder> folder;
-    HRESULT result = SZOpenAgentFolder(_archivePath,
-                                       _openType,
-                                       updateSpec,
-                                       archiveSubdir,
-                                       agent,
-                                       agentSpec,
-                                       folder);
+    HRESULT result = SZOpenAgentFolder(_archivePath, _openType, updateSpec,
+        archiveSubdir, agent, agentSpec, folder);
     if (result != S_OK) {
         if (error) {
-            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
-            *error = SZOpenArchiveErrorFromPasswordContext(result,
-                                                           errorInfo,
-                                                           updateSpec->PasswordWasAsked,
-                                                           updateSpec->PasswordIsDefined);
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo
+                                                      : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(
+                result, errorInfo, updateSpec->PasswordWasAsked,
+                updateSpec->PasswordIsDefined);
         }
         return NO;
     }
@@ -2054,31 +2186,29 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     if (!folderOperations) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 @"This archive does not support in-place updates.");
+                @"This archive does not support in-place updates.");
         }
         return NO;
     }
 
-    result = folderOperations->CopyFrom(moveMode ? 1 : 0,
-                                        ToU(folderPrefix ?: @"").Ptr(),
-                                        pathPointers.data(),
-                                        (UInt32)pathPointers.size(),
-                                        updateCallback);
+    result = folderOperations->CopyFrom(
+        moveMode ? 1 : 0, ToU(folderPrefix ?: @"").Ptr(), pathPointers.data(),
+        (UInt32)pathPointers.size(), updateCallback);
 
     if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
         [self storeCachedPassword:updateSpec->Password defined:true];
     }
 
-    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
-        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
+                                                                                                      error:error]) {
         return NO;
     }
 
     if (result != S_OK) {
         if (error) {
             *error = SZArchiveUpdateErrorFromResult(result,
-                                                    @"Cannot update archive contents",
-                                                    updateSpec->LastErrorMessage);
+                @"Cannot update archive contents",
+                updateSpec->LastErrorMessage);
         }
         return NO;
     }
@@ -2086,22 +2216,30 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return YES;
 }
 
-- (BOOL)replaceItemAtPath:(NSString *)itemPath inArchiveSubdir:(NSString *)archiveSubdir withFileAtPath:(NSString *)sourceFilePath session:(SZOperationSession *)session error:(NSError **)error {
+- (BOOL)replaceItemAtPath:(NSString*)itemPath
+          inArchiveSubdir:(NSString*)archiveSubdir
+           withFileAtPath:(NSString*)sourceFilePath
+                  session:(SZOperationSession*)session
+                    error:(NSError**)error {
     if (!_isOpen) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeNoOpenArchive, @"No archive open");
         return NO;
     }
 
-    NSString *standardizedSourcePath = [NSURL fileURLWithPath:sourceFilePath].standardizedURL.path;
-    if (![[NSFileManager defaultManager] fileExistsAtPath:standardizedSourcePath]) {
+    NSString* standardizedSourcePath =
+        [NSURL fileURLWithPath:sourceFilePath].standardizedURL.path;
+    if (![[NSFileManager defaultManager]
+            fileExistsAtPath:standardizedSourcePath]) {
         if (error) {
-            *error = SZMakeError(E_INVALIDARG, @"The updated nested archive file is missing.");
+            *error = SZMakeError(E_INVALIDARG,
+                @"The updated nested archive file is missing.");
         }
         return NO;
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
-    SZAgentUpdateCallback *updateSpec = new SZAgentUpdateCallback;
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZAgentUpdateCallback* updateSpec = new SZAgentUpdateCallback;
     CMyComPtr<IFolderArchiveUpdateCallback> updateCallback(updateSpec);
     updateSpec->Session = resolvedSession;
     updateSpec->ArchivePath = ToU(_archivePath ?: @"");
@@ -2111,33 +2249,28 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     }
 
     CMyComPtr<IInFolderArchive> agent;
-    CAgent *agentSpec = NULL;
+    CAgent* agentSpec = NULL;
     CMyComPtr<IFolderFolder> folder;
-    HRESULT result = SZOpenAgentFolder(_archivePath,
-                                       _openType,
-                                       updateSpec,
-                                       archiveSubdir,
-                                       agent,
-                                       agentSpec,
-                                       folder);
+    HRESULT result = SZOpenAgentFolder(_archivePath, _openType, updateSpec,
+        archiveSubdir, agent, agentSpec, folder);
     if (result != S_OK) {
         if (error) {
-            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo : CArcErrorInfo();
-            *error = SZOpenArchiveErrorFromPasswordContext(result,
-                                                           errorInfo,
-                                                           updateSpec->PasswordWasAsked,
-                                                           updateSpec->PasswordIsDefined);
+            const CArcErrorInfo errorInfo = agentSpec ? agentSpec->_archiveLink.NonOpen_ErrorInfo
+                                                      : CArcErrorInfo();
+            *error = SZOpenArchiveErrorFromPasswordContext(
+                result, errorInfo, updateSpec->PasswordWasAsked,
+                updateSpec->PasswordIsDefined);
         }
         return NO;
     }
 
     std::vector<UInt32> indices;
-    result = SZResolveFolderItemIndices(folder, @[itemPath], archiveSubdir, indices);
+    result = SZResolveFolderItemIndices(folder, @[ itemPath ], archiveSubdir, indices);
     if (result != S_OK || indices.size() != 1) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(E_INVALIDARG,
-                                                    @"Cannot update nested archive in parent archive",
-                                                    UString());
+            *error = SZArchiveUpdateErrorFromResult(
+                E_INVALIDARG, @"Cannot update nested archive in parent archive",
+                UString());
         }
         return NO;
     }
@@ -2147,29 +2280,28 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     if (!folderOperations) {
         if (error) {
             *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
-                                 @"This archive does not support in-place updates.");
+                @"This archive does not support in-place updates.");
         }
         return NO;
     }
 
-    result = folderOperations->CopyFromFile(indices[0],
-                                            ToU(standardizedSourcePath).Ptr(),
-                                            updateCallback);
+    result = folderOperations->CopyFromFile(
+        indices[0], ToU(standardizedSourcePath).Ptr(), updateCallback);
 
     if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
         [self storeCachedPassword:updateSpec->Password defined:true];
     }
 
-    if ((result == S_OK || updateSpec->ArchiveWasReplaced)
-        && ![self reopenAfterExternalMutationWithSession:resolvedSession error:error]) {
+    if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
+                                                                                                      error:error]) {
         return NO;
     }
 
     if (result != S_OK) {
         if (error) {
-            *error = SZArchiveUpdateErrorFromResult(result,
-                                                    @"Cannot update nested archive in parent archive",
-                                                    updateSpec->LastErrorMessage);
+            *error = SZArchiveUpdateErrorFromResult(
+                result, @"Cannot update nested archive in parent archive",
+                updateSpec->LastErrorMessage);
         }
         return NO;
     }
@@ -2177,34 +2309,35 @@ static BOOL CheckExtractResult(SZFolderExtractCallback *fae, HRESULT r, NSError 
     return YES;
 }
 
-static UString SZCompressionMethodSpec(SZCompressionSettings *settings) {
+static UString SZCompressionMethodSpec(SZCompressionSettings* settings) {
     if (settings.methodName.length > 0) {
         return ToU(settings.methodName);
     }
 
     switch (settings.method) {
-        case SZCompressionMethodLZMA:
-            return UString(L"LZMA");
-        case SZCompressionMethodLZMA2:
-            return UString(L"LZMA2");
-        case SZCompressionMethodPPMd:
-            return UString(L"PPMd");
-        case SZCompressionMethodBZip2:
-            return UString(L"BZip2");
-        case SZCompressionMethodDeflate:
-            return UString(L"Deflate");
-        case SZCompressionMethodDeflate64:
-            return UString(L"Deflate64");
-        case SZCompressionMethodCopy:
-            return UString(L"Copy");
+    case SZCompressionMethodLZMA:
+        return UString(L"LZMA");
+    case SZCompressionMethodLZMA2:
+        return UString(L"LZMA2");
+    case SZCompressionMethodPPMd:
+        return UString(L"PPMd");
+    case SZCompressionMethodBZip2:
+        return UString(L"BZip2");
+    case SZCompressionMethodDeflate:
+        return UString(L"Deflate");
+    case SZCompressionMethodDeflate64:
+        return UString(L"Deflate64");
+    case SZCompressionMethodCopy:
+        return UString(L"Copy");
     }
 }
 
-static bool SZCompressionMethodUsesOrderMode(const UString &methodSpec) {
+static bool SZCompressionMethodUsesOrderMode(const UString& methodSpec) {
     return methodSpec.IsEqualTo_Ascii_NoCase("PPMd");
 }
 
-static UString SZCompressionEncryptionProperty(SZCompressionSettings *settings) {
+static UString
+SZCompressionEncryptionProperty(SZCompressionSettings* settings) {
     if (settings.password.length == 0) {
         return UString();
     }
@@ -2216,61 +2349,60 @@ static UString SZCompressionEncryptionProperty(SZCompressionSettings *settings) 
     return UString();
 }
 
-static const NUpdateArchive::CActionSet &SZCompressionActionSetForMode(SZCompressionUpdateMode mode) {
+static const NUpdateArchive::CActionSet&
+SZCompressionActionSetForMode(SZCompressionUpdateMode mode) {
     switch (mode) {
-        case SZCompressionUpdateModeUpdate:
-            return NUpdateArchive::k_ActionSet_Update;
-        case SZCompressionUpdateModeFresh:
-            return NUpdateArchive::k_ActionSet_Fresh;
-        case SZCompressionUpdateModeSync:
-            return NUpdateArchive::k_ActionSet_Sync;
-        case SZCompressionUpdateModeAdd:
-        default:
-            return NUpdateArchive::k_ActionSet_Add;
+    case SZCompressionUpdateModeUpdate:
+        return NUpdateArchive::k_ActionSet_Update;
+    case SZCompressionUpdateModeFresh:
+        return NUpdateArchive::k_ActionSet_Fresh;
+    case SZCompressionUpdateModeSync:
+        return NUpdateArchive::k_ActionSet_Sync;
+    case SZCompressionUpdateModeAdd:
+    default:
+        return NUpdateArchive::k_ActionSet_Add;
     }
 }
 
-static NWildcard::ECensorPathMode SZMapCompressionPathMode(SZCompressionPathMode mode) {
+static NWildcard::ECensorPathMode
+SZMapCompressionPathMode(SZCompressionPathMode mode) {
     switch (mode) {
-        case SZCompressionPathModeFullPaths:
-            return NWildcard::k_FullPath;
-        case SZCompressionPathModeAbsolutePaths:
-            return NWildcard::k_AbsPath;
-        case SZCompressionPathModeRelativePaths:
-        default:
-            return NWildcard::k_RelatPath;
+    case SZCompressionPathModeFullPaths:
+        return NWildcard::k_FullPath;
+    case SZCompressionPathModeAbsolutePaths:
+        return NWildcard::k_AbsPath;
+    case SZCompressionPathModeRelativePaths:
+    default:
+        return NWildcard::k_RelatPath;
     }
 }
 
-static void SZAddCompressionProperty(CObjectVector<CProperty> &properties,
-                                     const wchar_t *name,
-                                     const UString &value) {
+static void SZAddCompressionProperty(CObjectVector<CProperty>& properties,
+    const wchar_t* name,
+    const UString& value) {
     CProperty property;
     property.Name = name;
     property.Value = value;
     properties.Add(property);
 }
 
-static void SZAddCompressionPropertyUInt32(CObjectVector<CProperty> &properties,
-                                           const wchar_t *name,
-                                           UInt32 value) {
+static void SZAddCompressionPropertyUInt32(CObjectVector<CProperty>& properties,
+    const wchar_t* name, UInt32 value) {
     UString text;
     text.Add_UInt32(value);
     SZAddCompressionProperty(properties, name, text);
 }
 
-static void SZAddCompressionPropertySize(CObjectVector<CProperty> &properties,
-                                         const wchar_t *name,
-                                         UInt64 value) {
+static void SZAddCompressionPropertySize(CObjectVector<CProperty>& properties,
+    const wchar_t* name, UInt64 value) {
     UString text;
     text.Add_UInt64(value);
     text.Add_Char('b');
     SZAddCompressionProperty(properties, name, text);
 }
 
-static void SZAddCompressionPropertyBool(CObjectVector<CProperty> &properties,
-                                         const wchar_t *name,
-                                         bool value) {
+static void SZAddCompressionPropertyBool(CObjectVector<CProperty>& properties,
+    const wchar_t* name, bool value) {
     SZAddCompressionProperty(properties, name, UString(value ? L"on" : L"off"));
 }
 
@@ -2283,8 +2415,8 @@ static CBoolPair SZCompressionBoolPair(SZCompressionBoolSetting setting) {
     return pair;
 }
 
-static bool SZLocateBundledWindowsSfxModule(FString &sfxModule) {
-    NSString *path = [[NSBundle mainBundle] pathForResource:@"7z" ofType:@"sfx"];
+static bool SZLocateBundledWindowsSfxModule(FString& sfxModule) {
+    NSString* path = [[NSBundle mainBundle] pathForResource:@"7z" ofType:@"sfx"];
     if (path.length == 0) {
         return false;
     }
@@ -2293,24 +2425,20 @@ static bool SZLocateBundledWindowsSfxModule(FString &sfxModule) {
     return true;
 }
 
-static void SZSplitOptionsToStrings(const UString &src, UStringVector &strings) {
+static void SZSplitOptionsToStrings(const UString& src,
+    UStringVector& strings) {
     SplitString(src, strings);
-    FOR_VECTOR (i, strings)
-    {
-        UString &option = strings[i];
-        if (option.Len() > 2
-            && option[0] == '-'
-            && MyCharLower_Ascii(option[1]) == 'm') {
+    FOR_VECTOR(i, strings) {
+        UString& option = strings[i];
+        if (option.Len() > 2 && option[0] == '-' && MyCharLower_Ascii(option[1]) == 'm') {
             option.DeleteFrontal(2);
         }
     }
 }
 
-static void SZAddCensorExclude(NWildcard::CCensor &censor,
-                               const wchar_t *path,
-                               bool recursive,
-                               bool wildcardMatching,
-                               Byte markMode) {
+static void SZAddCensorExclude(NWildcard::CCensor& censor, const wchar_t* path,
+    bool recursive, bool wildcardMatching,
+    Byte markMode) {
     NWildcard::CCensorPathProps props;
     props.Recursive = recursive;
     props.WildcardMatching = wildcardMatching;
@@ -2318,71 +2446,36 @@ static void SZAddCensorExclude(NWildcard::CCensor &censor,
     censor.AddPreItem(false, UString(path), props);
 }
 
-static void SZAddMacResourceFileExcludes(NWildcard::CCensor &censor) {
-    SZAddCensorExclude(censor,
-                       L".DS_Store",
-                       true,
-                       false,
-                       NWildcard::kMark_StrictFile);
-    SZAddCensorExclude(censor,
-                       L"._*",
-                       true,
-                       true,
-                       NWildcard::kMark_StrictFile);
-    SZAddCensorExclude(censor,
-                       L"Icon\r",
-                       true,
-                       false,
-                       NWildcard::kMark_StrictFile);
-    SZAddCensorExclude(censor,
-                       L".VolumeIcon.icns",
-                       true,
-                       false,
-                       NWildcard::kMark_StrictFile);
-    SZAddCensorExclude(censor,
-                       L".apdisk",
-                       true,
-                       false,
-                       NWildcard::kMark_StrictFile);
+static void SZAddMacResourceFileExcludes(NWildcard::CCensor& censor) {
+    SZAddCensorExclude(censor, L".DS_Store", true, false,
+        NWildcard::kMark_StrictFile);
+    SZAddCensorExclude(censor, L"._*", true, true, NWildcard::kMark_StrictFile);
+    SZAddCensorExclude(censor, L"Icon\r", true, false,
+        NWildcard::kMark_StrictFile);
+    SZAddCensorExclude(censor, L".VolumeIcon.icns", true, false,
+        NWildcard::kMark_StrictFile);
+    SZAddCensorExclude(censor, L".apdisk", true, false,
+        NWildcard::kMark_StrictFile);
 
-    SZAddCensorExclude(censor,
-                       L"__MACOSX/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
-    SZAddCensorExclude(censor,
-                       L".Spotlight-V100/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
-    SZAddCensorExclude(censor,
-                       L".Trashes/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
-    SZAddCensorExclude(censor,
-                       L".fseventsd/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
-    SZAddCensorExclude(censor,
-                       L".TemporaryItems/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
-    SZAddCensorExclude(censor,
-                       L".DocumentRevisions-V100/",
-                       true,
-                       false,
-                       NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L"__MACOSX/", true, false,
+        NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L".Spotlight-V100/", true, false,
+        NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L".Trashes/", true, false,
+        NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L".fseventsd/", true, false,
+        NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L".TemporaryItems/", true, false,
+        NWildcard::kMark_FileOrDir);
+    SZAddCensorExclude(censor, L".DocumentRevisions-V100/", true, false,
+        NWildcard::kMark_FileOrDir);
 }
 
-static bool SZHasMethodOverride(bool is7z, const UStringVector &strings) {
-    FOR_VECTOR (i, strings)
-    {
-        const UString &option = strings[i];
+static bool SZHasMethodOverride(bool is7z, const UStringVector& strings) {
+    FOR_VECTOR(i, strings) {
+        const UString& option = strings[i];
         if (is7z) {
-            const wchar_t *end = NULL;
+            const wchar_t* end = NULL;
             const UInt64 number = ConvertStringToUInt64(option, &end);
             if (number == 0 && *end == L'=') {
                 return true;
@@ -2395,11 +2488,11 @@ static bool SZHasMethodOverride(bool is7z, const UStringVector &strings) {
     return false;
 }
 
-static void SZParseAndAddCompressionProperties(CObjectVector<CProperty> &properties,
-                                               const UStringVector &strings) {
-    FOR_VECTOR (i, strings)
-    {
-        const UString &option = strings[i];
+static void
+SZParseAndAddCompressionProperties(CObjectVector<CProperty>& properties,
+    const UStringVector& strings) {
+    FOR_VECTOR(i, strings) {
+        const UString& option = strings[i];
         CProperty property;
         const int separatorIndex = option.Find(L'=');
         if (separatorIndex < 0) {
@@ -2412,7 +2505,8 @@ static void SZParseAndAddCompressionProperties(CObjectVector<CProperty> &propert
     }
 }
 
-static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &values) {
+static bool SZParseVolumeSizes(const UString& text,
+    CRecordVector<UInt64>& values) {
     values.Clear();
     bool previousTokenWasNumber = false;
 
@@ -2429,24 +2523,24 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
             previousTokenWasNumber = false;
             unsigned shiftBits = 0;
             switch (MyCharLower_Ascii(character)) {
-                case 'b':
-                    continue;
-                case 'k':
-                    shiftBits = 10;
-                    break;
-                case 'm':
-                    shiftBits = 20;
-                    break;
-                case 'g':
-                    shiftBits = 30;
-                    break;
-                case 't':
-                    shiftBits = 40;
-                    break;
+            case 'b':
+                continue;
+            case 'k':
+                shiftBits = 10;
+                break;
+            case 'm':
+                shiftBits = 20;
+                break;
+            case 'g':
+                shiftBits = 30;
+                break;
+            case 't':
+                shiftBits = 40;
+                break;
             }
 
             if (shiftBits != 0) {
-                UInt64 &value = values.Back();
+                UInt64& value = values.Back();
                 if (value >= ((UInt64)1 << (64 - shiftBits))) {
                     return false;
                 }
@@ -2462,8 +2556,8 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
         }
 
         index--;
-        const wchar_t *start = text.Ptr(index);
-        const wchar_t *end = NULL;
+        const wchar_t* start = text.Ptr(index);
+        const wchar_t* end = NULL;
         const UInt64 value = ConvertStringToUInt64(start, &end);
         if (start == end || value == 0) {
             return false;
@@ -2478,23 +2572,37 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
 
 // MARK: - Create
 
-+ (BOOL)createAtPath:(NSString *)archivePath fromPaths:(NSArray<NSString *> *)src settings:(SZCompressionSettings *)s progress:(id<SZProgressDelegate>)p error:(NSError **)error {
-        return [self createAtPath:archivePath
-                                        fromPaths:src
-                                         settings:s
-                                            session:SZMakeDefaultOperationSession(p)
-                                                error:error];
++ (BOOL)createAtPath:(NSString*)archivePath
+           fromPaths:(NSArray<NSString*>*)src
+            settings:(SZCompressionSettings*)s
+            progress:(id<SZProgressDelegate>)p
+               error:(NSError**)error {
+    return [self createAtPath:archivePath
+                    fromPaths:src
+                     settings:s
+                      session:SZMakeDefaultOperationSession(p)
+                        error:error];
 }
 
-+ (BOOL)createAtPath:(NSString *)archivePath fromPaths:(NSArray<NSString *> *)src settings:(SZCompressionSettings *)s session:(SZOperationSession *)session error:(NSError **)error {
-    CCodecs *codecs = SZGetCodecs();
-    if (!codecs) { if (error) *error = SZMakeError(-1, @"Failed to init codecs"); return NO; }
++ (BOOL)createAtPath:(NSString*)archivePath
+           fromPaths:(NSArray<NSString*>*)src
+            settings:(SZCompressionSettings*)s
+             session:(SZOperationSession*)session
+               error:(NSError**)error {
+    CCodecs* codecs = SZGetCodecs();
+    if (!codecs) {
+        if (error)
+            *error = SZMakeError(-1, @"Failed to init codecs");
+        return NO;
+    }
 
     const int methodID = SZCompressionEstimateMethodID(s);
 
-    NSString *formatName = SZArchiveCodecNameForCreateFormat(s.format);
+    NSString* formatName = SZArchiveCodecNameForCreateFormat(s.format);
     if (formatName.length == 0) {
-        if (error) *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat, @"Unsupported format");
+        if (error)
+            *error = SZMakeError(SZArchiveErrorCodeUnsupportedFormat,
+                @"Unsupported format");
         return NO;
     }
 
@@ -2511,11 +2619,16 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
     if (s.createSFX) {
         const int sfxMethodID = methodID;
         if (s.format != SZArchiveFormat7z || !SZCompressionEstimateMethodSupportsSFX(sfxMethodID)) {
-            if (error) *error = SZMakeError(-8, @"The selected compression method does not support Windows SFX archives.");
+            if (error)
+                *error = SZMakeError(-8, @"The selected compression method does not "
+                                         @"support Windows SFX archives.");
             return NO;
         }
         if (!SZLocateBundledWindowsSfxModule(options.SfxModule)) {
-            if (error) *error = SZMakeError(-1, @"The Windows SFX module is missing from the application bundle.");
+            if (error)
+                *error = SZMakeError(
+                    -1,
+                    @"The Windows SFX module is missing from the application bundle.");
             return NO;
         }
     }
@@ -2534,14 +2647,18 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
     const UString fmtName = ToU(formatName);
     int formatIndex = codecs->FindFormatForArchiveType(fmtName);
     if (formatIndex < 0) {
-        NSString *ext = [[archivePath pathExtension] lowercaseString];
+        NSString* ext = [[archivePath pathExtension] lowercaseString];
         formatIndex = codecs->FindFormatForExtension(ToU(ext));
     }
-    if (formatIndex < 0) { if (error) *error = SZMakeError(-8, @"Unsupported format"); return NO; }
+    if (formatIndex < 0) {
+        if (error)
+            *error = SZMakeError(-8, @"Unsupported format");
+        return NO;
+    }
     options.MethodMode.Type.FormatIndex = formatIndex;
     options.MethodMode.Type_Defined = true;
 
-    const CArcInfoEx &formatInfo = codecs->Formats[(unsigned)formatIndex];
+    const CArcInfoEx& formatInfo = codecs->Formats[(unsigned)formatIndex];
     const bool is7z = formatInfo.Is_7z();
     const UString methodSpec = SZCompressionMethodSpec(s);
     const bool usesOrderMode = SZCompressionMethodUsesOrderMode(methodSpec);
@@ -2553,89 +2670,84 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
     const bool methodOverride = SZHasMethodOverride(is7z, optionStrings);
 
     // Match upstream 7-Zip ZS GUI encoding for ZSTD fast levels.
-    SZAddCompressionPropertyUInt32(options.MethodMode.Properties,
-                                   L"x",
-                                   SZCompressionLevelPropertyValue(methodID, s.levelValue));
+    SZAddCompressionPropertyUInt32(
+        options.MethodMode.Properties, L"x",
+        SZCompressionLevelPropertyValue(methodID, s.levelValue));
 
     if (!methodSpec.IsEmpty() && !methodOverride) {
-        SZAddCompressionProperty(options.MethodMode.Properties,
-                                 is7z ? L"0" : L"m",
-                                 methodSpec);
+        SZAddCompressionProperty(options.MethodMode.Properties, is7z ? L"0" : L"m",
+            methodSpec);
     }
 
     if (s.dictionarySize > 0) {
-        const wchar_t *propertyName = usesOrderMode
-            ? (is7z ? L"0mem" : L"mem")
-            : (is7z ? L"0d" : L"d");
-        SZAddCompressionPropertySize(options.MethodMode.Properties,
-                                     propertyName,
-                                     (UInt64)s.dictionarySize);
+        const wchar_t* propertyName = usesOrderMode ? (is7z ? L"0mem" : L"mem") : (is7z ? L"0d" : L"d");
+        SZAddCompressionPropertySize(options.MethodMode.Properties, propertyName,
+            (UInt64)s.dictionarySize);
     }
 
     if (s.wordSize > 0) {
-        const wchar_t *propertyName = usesOrderMode
-            ? (is7z ? L"0o" : L"o")
-            : (is7z ? L"0fb" : L"fb");
-        SZAddCompressionPropertyUInt32(options.MethodMode.Properties,
-                                       propertyName,
-                                       s.wordSize);
+        const wchar_t* propertyName = usesOrderMode ? (is7z ? L"0o" : L"o") : (is7z ? L"0fb" : L"fb");
+        SZAddCompressionPropertyUInt32(options.MethodMode.Properties, propertyName,
+            s.wordSize);
     }
 
     const UString encryptionProperty = SZCompressionEncryptionProperty(s);
     if (!encryptionProperty.IsEmpty()) {
-        SZAddCompressionProperty(options.MethodMode.Properties,
-                                 L"em",
-                                 encryptionProperty);
+        SZAddCompressionProperty(options.MethodMode.Properties, L"em",
+            encryptionProperty);
     }
 
     if (s.numThreads > 0) {
-        CProperty p2; p2.Name = L"mt";
-        wchar_t buf[16]; swprintf(buf, 16, L"%u", (unsigned)s.numThreads);
+        CProperty p2;
+        p2.Name = L"mt";
+        wchar_t buf[16];
+        swprintf(buf, 16, L"%u", (unsigned)s.numThreads);
         p2.Value = buf;
         options.MethodMode.Properties.Add(p2);
     }
     if ((s.format == SZArchiveFormat7z || s.format == SZArchiveFormatXz) && s.solidMode) {
-        CProperty p2; p2.Name = L"s"; p2.Value = L"on";
+        CProperty p2;
+        p2.Name = L"s";
+        p2.Value = L"on";
         options.MethodMode.Properties.Add(p2);
     }
     if (s.encryptFileNames && s.format == SZArchiveFormat7z && s.password.length > 0) {
-        CProperty p2; p2.Name = L"he"; p2.Value = L"on";
+        CProperty p2;
+        p2.Name = L"he";
+        p2.Value = L"on";
         options.MethodMode.Properties.Add(p2);
     }
 
     if (s.storeModificationTime != SZCompressionBoolSettingNotDefined) {
-        SZAddCompressionPropertyBool(options.MethodMode.Properties,
-                                     L"tm",
-                                     s.storeModificationTime == SZCompressionBoolSettingOn);
+        SZAddCompressionPropertyBool(options.MethodMode.Properties, L"tm",
+            s.storeModificationTime == SZCompressionBoolSettingOn);
     }
     if (s.storeCreationTime != SZCompressionBoolSettingNotDefined) {
-        SZAddCompressionPropertyBool(options.MethodMode.Properties,
-                                     L"tc",
-                                     s.storeCreationTime == SZCompressionBoolSettingOn);
+        SZAddCompressionPropertyBool(options.MethodMode.Properties, L"tc",
+            s.storeCreationTime == SZCompressionBoolSettingOn);
     }
     if (s.storeAccessTime != SZCompressionBoolSettingNotDefined) {
-        SZAddCompressionPropertyBool(options.MethodMode.Properties,
-                                     L"ta",
-                                     s.storeAccessTime == SZCompressionBoolSettingOn);
+        SZAddCompressionPropertyBool(options.MethodMode.Properties, L"ta",
+            s.storeAccessTime == SZCompressionBoolSettingOn);
     }
     if (s.timePrecision != SZCompressionTimePrecisionAutomatic) {
-        SZAddCompressionPropertyUInt32(options.MethodMode.Properties,
-                                       L"tp",
-                                       (UInt32)s.timePrecision);
+        SZAddCompressionPropertyUInt32(options.MethodMode.Properties, L"tp",
+            (UInt32)s.timePrecision);
     }
     if (s.memoryUsage.length > 0) {
-        SZAddCompressionProperty(options.MethodMode.Properties,
-                                 L"memuse",
-                                 ToU(s.memoryUsage));
+        SZAddCompressionProperty(options.MethodMode.Properties, L"memuse",
+            ToU(s.memoryUsage));
     }
 
     if (optionStrings.Size() > 0) {
-        SZParseAndAddCompressionProperties(options.MethodMode.Properties, optionStrings);
+        SZParseAndAddCompressionProperties(options.MethodMode.Properties,
+            optionStrings);
     }
 
     if (s.splitVolumes.length > 0) {
         if (!SZParseVolumeSizes(ToU(s.splitVolumes), options.VolumesSizes)) {
-            if (error) *error = SZMakeError(-1, @"Invalid split volume sizes.");
+            if (error)
+                *error = SZMakeError(-1, @"Invalid split volume sizes.");
             return NO;
         }
     } else if (s.splitVolumeSize > 0) {
@@ -2643,19 +2755,21 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
     }
 
     if (s.createSFX && options.VolumesSizes.Size() > 0) {
-        if (error) *error = SZMakeError(-1, @"Windows SFX archives cannot be split into volumes.");
+        if (error)
+            *error = SZMakeError(
+                -1, @"Windows SFX archives cannot be split into volumes.");
         return NO;
     }
 
     NWildcard::CCensor censor;
-    for (NSString *srcPath in src) {
+    for (NSString* srcPath in src) {
         censor.AddPreItem_NoWildcard(ToU(srcPath));
     }
     if (s.excludeMacResourceFiles) {
         SZAddMacResourceFileExcludes(censor);
     }
 
-    SZOperationSession *resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
+    SZOperationSession* resolvedSession = session ?: SZMakeDefaultOperationSession(nil);
     SZUpdateCallbackUI callbackUI;
     callbackUI.Session = resolvedSession;
     if (s.password.length > 0) {
@@ -2672,12 +2786,16 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
         errorInfo, &openCallbackUI, &callbackUI, true);
 
     if (r != S_OK) {
-        NSString *desc;
-        if (r == E_ABORT) desc = @"Compression was cancelled";
+        NSString* desc;
+        if (r == E_ABORT)
+            desc = @"Compression was cancelled";
         else if (errorInfo.Message.Len() > 0)
             desc = [NSString stringWithUTF8String:errorInfo.Message.Ptr()];
-        else desc = [NSString stringWithFormat:@"Compression failed (0x%08X)", (unsigned)r];
-        if (error) *error = SZMakeError(r, desc);
+        else
+            desc = [NSString
+                stringWithFormat:@"Compression failed (0x%08X)", (unsigned)r];
+        if (error)
+            *error = SZMakeError(r, desc);
         return NO;
     }
     return YES;
@@ -2685,14 +2803,18 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
 
 // MARK: - Formats
 
-+ (NSArray<SZFormatInfo *> *)supportedFormats {
-    CCodecs *codecs = SZGetCodecs(); if (!codecs) return @[];
-    NSMutableArray *arr = [NSMutableArray array];
++ (NSArray<SZFormatInfo*>*)supportedFormats {
+    CCodecs* codecs = SZGetCodecs();
+    if (!codecs)
+        return @[];
+    NSMutableArray* arr = [NSMutableArray array];
     for (unsigned i = 0; i < codecs->Formats.Size(); i++) {
-        const CArcInfoEx &ai = codecs->Formats[i];
-        SZFormatInfo *info = [SZFormatInfo new]; info.name = ToNS(ai.Name);
-        NSMutableArray *exts = [NSMutableArray array];
-        for (unsigned j = 0; j < ai.Exts.Size(); j++) [exts addObject:ToNS(ai.Exts[j].Ext)];
+        const CArcInfoEx& ai = codecs->Formats[i];
+        SZFormatInfo* info = [SZFormatInfo new];
+        info.name = ToNS(ai.Name);
+        NSMutableArray* exts = [NSMutableArray array];
+        for (unsigned j = 0; j < ai.Exts.Size(); j++)
+            [exts addObject:ToNS(ai.Exts[j].Ext)];
         info.extensions = exts;
         info.canWrite = ai.UpdateEnabled;
         info.supportsSymbolicLinks = ai.Flags_SymLinks();
@@ -2730,13 +2852,22 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
 
 // MARK: - Hash
 
-+ (NSDictionary<NSString*,NSString*> *)calculateHashForPath:(NSString *)path error:(NSError **)error {
++ (NSDictionary<NSString*, NSString*>*)calculateHashForPath:(NSString*)path
+                                                      error:
+                                                          (NSError**)error {
     return [self calculateHashForPath:path session:nil error:error];
 }
 
-+ (NSDictionary<NSString*,NSString*> *)calculateHashForPath:(NSString *)path session:(SZOperationSession *)session error:(NSError **)error {
-    CCodecs *codecs = SZGetCodecs();
-    if (!codecs) { if (error) *error = SZMakeError(-1, @"Failed to init codecs"); return nil; }
++ (NSDictionary<NSString*, NSString*>*)
+    calculateHashForPath:(NSString*)path
+                 session:(SZOperationSession*)session
+                   error:(NSError**)error {
+    CCodecs* codecs = SZGetCodecs();
+    if (!codecs) {
+        if (error)
+            *error = SZMakeError(-1, @"Failed to init codecs");
+        return nil;
+    }
 
     CHashOptions options;
     options.Methods.Add(UString(L"CRC32"));
@@ -2757,23 +2888,26 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
 
     class HashCB : public IHashCallbackUI {
     public:
-        __unsafe_unretained SZOperationSession *session;
-        NSMutableDictionary *results;
+        __unsafe_unretained SZOperationSession* session;
+        NSMutableDictionary* results;
         UString failureDescription;
         UString failureReason;
         HRESULT failureResult;
         UInt64 totalSize;
 
-        HashCB(SZOperationSession *resolvedSession):
-            session(resolvedSession),
-            results([NSMutableDictionary dictionary]),
-            failureResult(S_OK),
-            totalSize(0) {}
+        HashCB(SZOperationSession* resolvedSession)
+            : session(resolvedSession)
+            , results([NSMutableDictionary dictionary])
+            , failureResult(S_OK)
+            , totalSize(0) {
+        }
 
         bool HasFailure() const { return failureResult != S_OK; }
 
         HRESULT StartScanning() override { return CheckBreak(); }
-        HRESULT FinishScanning(const CDirItemsStat &) override { return CheckBreak(); }
+        HRESULT FinishScanning(const CDirItemsStat&) override {
+            return CheckBreak();
+        }
         HRESULT SetNumFiles(UInt64) override { return CheckBreak(); }
         HRESULT SetTotal(UInt64 size) override {
             totalSize = size;
@@ -2783,7 +2917,7 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
             }
             return CheckBreak();
         }
-        HRESULT SetCompleted(const UInt64 *completed) override {
+        HRESULT SetCompleted(const UInt64* completed) override {
             if (session && completed && totalSize > 0) {
                 UInt64 value = *completed;
                 if (value > totalSize) {
@@ -2797,38 +2931,42 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
         HRESULT CheckBreak() override {
             return (session && [session shouldCancel]) ? E_ABORT : S_OK;
         }
-        HRESULT BeforeFirstFile(const CHashBundle &) override { return CheckBreak(); }
-        HRESULT GetStream(const wchar_t *name, bool) override {
+        HRESULT BeforeFirstFile(const CHashBundle&) override {
+            return CheckBreak();
+        }
+        HRESULT GetStream(const wchar_t* name, bool) override {
             if (session && name) {
                 [session reportCurrentFileName:ToNS(UString(name))];
             }
             return CheckBreak();
         }
-        HRESULT OpenFileError(const FString &path, DWORD errorCode) override {
+        HRESULT OpenFileError(const FString& path, DWORD errorCode) override {
             RecordFailure(L"Unable to open file for hashing.", path, errorCode);
             return S_FALSE;
         }
-        HRESULT SetOperationResult(UInt64, const CHashBundle &hb, bool) override {
+        HRESULT SetOperationResult(UInt64, const CHashBundle& hb, bool) override {
             for (unsigned i = 0; i < hb.Hashers.Size(); i++) {
-                const CHasherState &h = hb.Hashers[i];
+                const CHasherState& h = hb.Hashers[i];
                 char hex[256];
                 HashHexToString(hex, h.Digests[0], h.DigestSize);
-                results[[NSString stringWithUTF8String:h.Name.Ptr()]] = [NSString stringWithUTF8String:hex];
+                results[[NSString stringWithUTF8String:h.Name.Ptr()]] =
+                    [NSString stringWithUTF8String:hex];
             }
             return S_OK;
         }
-        HRESULT AfterLastFile(CHashBundle &) override {
+        HRESULT AfterLastFile(CHashBundle&) override {
             if (session && totalSize > 0) {
                 [session reportProgressFraction:1.0];
                 [session reportBytesCompleted:totalSize total:totalSize];
             }
             return CheckBreak();
         }
-        HRESULT ScanError(const FString &path, DWORD errorCode) override {
+        HRESULT ScanError(const FString& path, DWORD errorCode) override {
             RecordFailure(L"Unable to scan file for hashing.", path, errorCode);
             return S_FALSE;
         }
-        HRESULT ScanProgress(const CDirItemsStat &, const FString &path, bool) override {
+        HRESULT ScanProgress(const CDirItemsStat&, const FString& path,
+            bool) override {
             if (session && !path.IsEmpty()) {
                 [session reportCurrentFileName:ToNS(fs2us(path))];
             }
@@ -2836,7 +2974,8 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
         }
 
     private:
-        void RecordFailure(const wchar_t *description, const FString &path, DWORD errorCode) {
+        void RecordFailure(const wchar_t* description, const FString& path,
+            DWORD errorCode) {
             if (HasFailure()) {
                 return;
             }
@@ -2859,16 +2998,21 @@ static bool SZParseVolumeSizes(const UString &text, CRecordVector<UInt64> &value
 
     if (cb.HasFailure()) {
         if (error) {
-            NSString *description = cb.failureDescription.IsEmpty() ? @"Hash calculation failed" : ToNS(cb.failureDescription);
-            NSString *reason = cb.failureReason.IsEmpty() ? nil : ToNS(cb.failureReason);
+            NSString* description = cb.failureDescription.IsEmpty()
+                ? @"Hash calculation failed"
+                : ToNS(cb.failureDescription);
+            NSString* reason = cb.failureReason.IsEmpty() ? nil : ToNS(cb.failureReason);
             *error = SZMakeDetailedError(cb.failureResult, description, reason);
         }
         return nil;
     }
 
     if (r != S_OK) {
-        NSString *reason = errorInfo.IsEmpty() ? nil : [NSString stringWithUTF8String:errorInfo.Ptr()];
-        if (error) *error = SZMakeDetailedError(r, @"Hash calculation failed", reason);
+        NSString* reason = errorInfo.IsEmpty()
+            ? nil
+            : [NSString stringWithUTF8String:errorInfo.Ptr()];
+        if (error)
+            *error = SZMakeDetailedError(r, @"Hash calculation failed", reason);
         return nil;
     }
 

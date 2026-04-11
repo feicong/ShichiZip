@@ -6,17 +6,19 @@ enum FileManagerExternalOpenRouter {
     private static let archiveLikeExtensions: Set<String> = [
         "7z", "apk", "ar", "arj", "bz2", "cab", "cpio", "deb", "dmg", "gz", "gzip",
         "img", "ipa", "iso", "jar", "lz", "lzma", "pkg", "rar", "rpm", "tar", "tbz",
-        "tbz2", "tgz", "txz", "war", "xar", "xz", "z", "zip"
+        "tbz2", "tgz", "txz", "war", "xar", "xz", "z", "zip",
     ]
 
     static func preferredExternalApplicationURL(for url: URL,
-                                                workspace: NSWorkspace = .shared) -> URL? {
+                                                workspace: NSWorkspace = .shared) -> URL?
+    {
         let currentAppURL = currentApplicationURL()
 
         if let defaultAppURL = workspace.urlForApplication(toOpen: url)?
             .resolvingSymlinksInPath()
             .standardizedFileURL,
-           defaultAppURL != currentAppURL {
+            defaultAppURL != currentAppURL
+        {
             return defaultAppURL
         }
 

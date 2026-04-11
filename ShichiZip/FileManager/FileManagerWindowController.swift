@@ -16,9 +16,10 @@ private final class FileManagerQuickLookItem: NSObject, QLPreviewItem {
          title: String?,
          sourceFrameOnScreen: NSRect,
          transitionImage: NSImage?,
-         transitionContentRect: NSRect) {
-        self.previewItemURL = url
-        self.previewItemTitle = title
+         transitionContentRect: NSRect)
+    {
+        previewItemURL = url
+        previewItemTitle = title
         self.sourceFrameOnScreen = sourceFrameOnScreen
         self.transitionImage = transitionImage
         self.transitionContentRect = transitionContentRect
@@ -32,13 +33,14 @@ private final class FileOperationDestinationPicker: NSObject {
 
     init(ownerWindow: NSWindow?,
          pathField: NSComboBox,
-         baseDirectory: URL) {
+         baseDirectory: URL)
+    {
         self.ownerWindow = ownerWindow
         self.pathField = pathField
         self.baseDirectory = baseDirectory.standardizedFileURL
     }
 
-    @objc func browse(_ sender: Any?) {
+    @objc func browse(_: Any?) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -168,7 +170,8 @@ enum FileManagerViewPreferences {
     }
 
     static func makeDateFormatter(dateStyle: DateFormatter.Style,
-                                  timeStyle: DateFormatter.Style) -> DateFormatter {
+                                  timeStyle: DateFormatter.Style) -> DateFormatter
+    {
         let cacheKey = "\(dateStyle.rawValue)|\(timeStyle.rawValue)|\(usesUTCTimestamps ? 1 : 0)"
         if let formatter = styleFormatterCache[cacheKey] {
             return formatter
@@ -291,7 +294,6 @@ private enum FileManagerHashAlgorithm {
 
 /// Dual-pane file manager window replicating 7-Zip File Manager
 class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserInterfaceValidations, NSMenuItemValidation {
-
     private static let maxArchiveQuickLookItemSize: UInt64 = 128 * 1024 * 1024
     private static let maxArchiveQuickLookCombinedSize: UInt64 = 256 * 1024 * 1024
     private static let maxSolidArchiveQuickLookSize: UInt64 = 512 * 1024 * 1024
@@ -371,7 +373,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             }
             updatedEntries.insert(displayPath, at: 0)
             if updatedEntries.count > maxEntries {
-                updatedEntries.removeSubrange(maxEntries..<updatedEntries.count)
+                updatedEntries.removeSubrange(maxEntries ..< updatedEntries.count)
             }
             defaults.set(updatedEntries, forKey: entriesKey)
         }
@@ -452,7 +454,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.focusFileList()
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         autoRefreshTimer?.invalidate()
         autoRefreshTimer = nil
         closeQuickLookPreview()
@@ -514,7 +516,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func toolbarImage(systemSymbolName name: String,
-                              accessibilityDescription: String) -> NSImage? {
+                              accessibilityDescription: String) -> NSImage?
+    {
         NSImage(systemSymbolName: name, accessibilityDescription: accessibilityDescription)
     }
 
@@ -614,7 +617,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
-    @objc func openSelectedItem(_ sender: Any?) {
+    @objc func openSelectedItem(_: Any?) {
         activePane.openSelection()
     }
 
@@ -630,7 +633,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func toggleQuickLookPreview(for pane: FileManagerPaneController) {
         if isQuickLookVisible,
-           quickLookPreviewSourcePane === pane {
+           quickLookPreviewSourcePane === pane
+        {
             closeQuickLookPreview()
             return
         }
@@ -645,7 +649,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func requestQuickLookPreview(for pane: FileManagerPaneController,
-                                         userInitiated: Bool) {
+                                         userInitiated: Bool)
+    {
         let shouldPresentPanel = userInitiated || isQuickLookVisible
         guard pane.canQuickLookSelection else {
             if !userInitiated {
@@ -685,7 +690,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func applyQuickLookPreview(_ preview: FileManagerQuickLookPreparedPreview,
                                        sourcePane: FileManagerPaneController,
-                                       shouldPresentPanel: Bool) {
+                                       shouldPresentPanel: Bool)
+    {
         clearQuickLookPreviewResources()
         quickLookPreviewSourcePane = sourcePane
         quickLookPreviewTemporaryDirectories = preview.temporaryDirectories
@@ -716,7 +722,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func installQuickLookPanelKeyObserver(for panel: QLPreviewPanel,
-                                                  sourcePane: FileManagerPaneController) {
+                                                  sourcePane: FileManagerPaneController)
+    {
         if let quickLookPanelKeyObserver {
             NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
             self.quickLookPanelKeyObserver = nil
@@ -744,7 +751,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
         if QLPreviewPanel.sharedPreviewPanelExists() {
             if let panel = QLPreviewPanel.shared(),
-               panel.isVisible {
+               panel.isVisible
+            {
                 panel.orderOut(nil)
             }
         }
@@ -785,11 +793,13 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let parentDirectory = standardizedURLs[0].deletingLastPathComponent().standardizedFileURL
         let targetPane: FileManagerPaneController
         if !leftPane.isVirtualLocation,
-           leftPane.currentDirectoryURL.standardizedFileURL == parentDirectory {
+           leftPane.currentDirectoryURL.standardizedFileURL == parentDirectory
+        {
             targetPane = leftPane
         } else if isDualPane,
                   !rightPane.isVirtualLocation,
-                  rightPane.currentDirectoryURL.standardizedFileURL == parentDirectory {
+                  rightPane.currentDirectoryURL.standardizedFileURL == parentDirectory
+        {
             targetPane = rightPane
         } else {
             targetPane = activePane
@@ -813,21 +823,25 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let targetPane: FileManagerPaneController
         if isDirectory.boolValue,
            !leftPane.isVirtualLocation,
-           leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL {
+           leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL
+        {
             targetPane = leftPane
         } else if isDirectory.boolValue,
                   isDualPane,
                   !rightPane.isVirtualLocation,
-                  rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL {
+                  rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL
+        {
             targetPane = rightPane
         } else if !isDirectory.boolValue,
                   !leftPane.isVirtualLocation,
-                  leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL {
+                  leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL
+        {
             targetPane = leftPane
         } else if !isDirectory.boolValue,
                   isDualPane,
                   !rightPane.isVirtualLocation,
-                  rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL {
+                  rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL
+        {
             targetPane = rightPane
         } else {
             targetPane = activePane
@@ -840,7 +854,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         return opened
     }
 
-    @objc func toggleDualPane(_ sender: Any?) {
+    @objc func toggleDualPane(_: Any?) {
         let wasRightPaneActive = isDualPane && activePane === rightPane
         isDualPane.toggle()
         PanePreferences.setShowsDualPane(isDualPane)
@@ -883,7 +897,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         pendingEvenSplitLayout = false
     }
 
-    @objc func addToArchive(_ sender: Any?) {
+    @objc func addToArchive(_: Any?) {
         let activePane = self.activePane
         guard activePane.canAddSelectedItemsToArchive() else {
             if activePane.isVirtualLocation {
@@ -911,10 +925,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 let selectedURLs = openPanel.urls.map(\.standardizedFileURL)
                 guard !selectedURLs.isEmpty else { return }
                 activePane.beginConfirmedArchiveTransfer(selectedURLs,
-                                                        to: target,
-                                                        operation: .copy,
-                                                        sourcePane: nil,
-                                                        parentWindow: self?.window)
+                                                         to: target,
+                                                         operation: .copy,
+                                                         sourcePane: nil,
+                                                         parentWindow: self?.window)
             }
 
             if let window {
@@ -939,7 +953,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             guard let self, let parentWindow = self.window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
-                                                     parentWindow: parentWindow) { session in
+                                                     parentWindow: parentWindow)
+                { session in
                     try SZArchive.create(atPath: result.archiveURL.path,
                                          fromPaths: selectedURLs.map(\.path),
                                          settings: result.settings,
@@ -952,7 +967,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
-    @objc func extractArchive(_ sender: Any?) {
+    @objc func extractArchive(_: Any?) {
         let activePane = self.activePane
         guard activePane.canExtractSelectionOrArchive() else { return }
 
@@ -966,12 +981,13 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 var pathPrefixToStrip: String?
 
                 try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
-                                                     parentWindow: parentWindow) { session in
+                                                     parentWindow: parentWindow)
+                { session in
                     if activePane.isVirtualLocation {
                         extractedItems = activePane.selectedOrDisplayedArchiveEntriesForExtraction()
                         pathPrefixToStrip = activePane.pathPrefixToStripForCurrentExtraction(destinationURL: extractResult.destinationURL,
-                                                                                            pathMode: extractResult.pathMode,
-                                                                                            eliminateDuplicates: extractResult.eliminateDuplicates)
+                                                                                             pathMode: extractResult.pathMode,
+                                                                                             eliminateDuplicates: extractResult.eliminateDuplicates)
                         try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: extractResult.destinationURL,
                                                                                       session: session,
                                                                                       overwriteMode: extractResult.overwriteMode,
@@ -997,9 +1013,9 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                         settings.password = extractResult.password
                         settings.preserveNtSecurityInfo = extractResult.preserveNtSecurityInfo
                         pathPrefixToStrip = self.archiveExtractionPathPrefixToStrip(for: archiveItems,
-                                                                                   destinationURL: extractResult.destinationURL,
-                                                                                   pathMode: extractResult.pathMode,
-                                                                                   eliminateDuplicates: extractResult.eliminateDuplicates)
+                                                                                    destinationURL: extractResult.destinationURL,
+                                                                                    pathMode: extractResult.pathMode,
+                                                                                    eliminateDuplicates: extractResult.eliminateDuplicates)
                         settings.pathPrefixToStrip = pathPrefixToStrip
                         try archive.extract(toPath: extractResult.destinationURL.path,
                                             settings: settings,
@@ -1012,12 +1028,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 let postProcessError: Error?
                 do {
                     postProcessResult = try ArchiveExtractionPostProcessor.finalizeExtraction(sourceArchiveURL: sourceArchiveURL,
-                                                                                            extractedItems: extractedItems,
-                                                                                            destinationURL: extractResult.destinationURL,
-                                                                                            pathMode: extractResult.pathMode,
-                                                                                            pathPrefixToStrip: pathPrefixToStrip,
-                                                                                            moveSourceArchiveToTrash: extractResult.moveArchiveToTrashAfterExtraction,
-                                                                                            inheritSourceQuarantine: extractResult.inheritDownloadedFileQuarantine)
+                                                                                              extractedItems: extractedItems,
+                                                                                              destinationURL: extractResult.destinationURL,
+                                                                                              pathMode: extractResult.pathMode,
+                                                                                              pathPrefixToStrip: pathPrefixToStrip,
+                                                                                              moveSourceArchiveToTrash: extractResult.moveArchiveToTrashAfterExtraction,
+                                                                                              inheritSourceQuarantine: extractResult.inheritDownloadedFileQuarantine)
                     postProcessError = nil
                 } catch {
                     postProcessResult = ArchiveExtractionPostProcessResult(movedSourceArchiveToTrash: false)
@@ -1025,7 +1041,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 }
                 self.refreshPaneDisplayingDirectory(extractResult.destinationURL)
                 if postProcessResult.movedSourceArchiveToTrash,
-                   let sourceArchiveURL {
+                   let sourceArchiveURL
+                {
                     self.refreshPaneDisplayingDirectory(sourceArchiveURL.deletingLastPathComponent())
                 }
                 NSWorkspace.shared.open(extractResult.destinationURL)
@@ -1038,7 +1055,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
-    @objc func testArchive(_ sender: Any?) {
+    @objc func testArchive(_: Any?) {
         let activePane = self.activePane
         guard activePane.canTestArchiveSelection() else { return }
 
@@ -1046,7 +1063,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             guard let self, let parentWindow = self.window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
-                                                     parentWindow: parentWindow) { session in
+                                                     parentWindow: parentWindow)
+                { session in
                     if activePane.isVirtualLocation {
                         try activePane.testCurrentArchive(session: session)
                     } else {
@@ -1070,89 +1088,90 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
-    @objc func openSelectedItemInside(_ sender: Any?) {
+    @objc func openSelectedItemInside(_: Any?) {
         activePane.openSelectionInside(.defaultBehavior)
     }
 
-    @objc func openSelectedItemInsideWildcard(_ sender: Any?) {
+    @objc func openSelectedItemInsideWildcard(_: Any?) {
         activePane.openSelectionInside(.wildcard)
     }
 
-    @objc func openSelectedItemInsideParser(_ sender: Any?) {
+    @objc func openSelectedItemInsideParser(_: Any?) {
         activePane.openSelectionInside(.parser)
     }
 
-    @objc func openSelectedItemOutside(_ sender: Any?) {
+    @objc func openSelectedItemOutside(_: Any?) {
         activePane.openSelectionOutside()
     }
 
-    @objc func goUpOneLevel(_ sender: Any?) {
+    @objc func goUpOneLevel(_: Any?) {
         activePane.goUpOneLevel()
     }
 
-    @objc func renameSelection(_ sender: Any?) {
+    @objc func renameSelection(_: Any?) {
         activePane.renameSelection()
     }
 
-    @objc func showProperties(_ sender: Any?) {
+    @objc func showProperties(_: Any?) {
         activePane.showSelectedItemProperties()
     }
 
-    @objc func extractHere(_ sender: Any?) {
+    @objc func extractHere(_: Any?) {
         activePane.extractSelectionHere()
     }
 
-    @objc func refreshActivePane(_ sender: Any?) {
+    @objc func refreshActivePane(_: Any?) {
         activePane.refresh()
     }
 
-    @objc func showCRC32Hash(_ sender: Any?) {
+    @objc func showCRC32Hash(_: Any?) {
         presentSelectionHash(.crc32)
     }
 
-    @objc func showAllHashes(_ sender: Any?) {
+    @objc func showAllHashes(_: Any?) {
         presentSelectionHash(.all)
     }
 
-    @objc func showCRC64Hash(_ sender: Any?) {
+    @objc func showCRC64Hash(_: Any?) {
         presentSelectionHash(.crc64)
     }
 
-    @objc func showXXH64Hash(_ sender: Any?) {
+    @objc func showXXH64Hash(_: Any?) {
         presentSelectionHash(.xxh64)
     }
 
-    @objc func showMD5Hash(_ sender: Any?) {
+    @objc func showMD5Hash(_: Any?) {
         presentSelectionHash(.md5)
     }
 
-    @objc func showSHA1Hash(_ sender: Any?) {
+    @objc func showSHA1Hash(_: Any?) {
         presentSelectionHash(.sha1)
     }
 
-    @objc func showSHA256Hash(_ sender: Any?) {
+    @objc func showSHA256Hash(_: Any?) {
         presentSelectionHash(.sha256)
     }
 
-    @objc func showSHA384Hash(_ sender: Any?) {
+    @objc func showSHA384Hash(_: Any?) {
         presentSelectionHash(.sha384)
     }
 
-    @objc func showSHA512Hash(_ sender: Any?) {
+    @objc func showSHA512Hash(_: Any?) {
         presentSelectionHash(.sha512)
     }
 
-    @objc func showSHA3256Hash(_ sender: Any?) {
+    @objc func showSHA3256Hash(_: Any?) {
         presentSelectionHash(.sha3256)
     }
 
-    @objc func showBLAKE2spHash(_ sender: Any?) {
+    @objc func showBLAKE2spHash(_: Any?) {
         presentSelectionHash(.blake2sp)
     }
 
     private func firstResponderSupportsTextEditingAction(_ action: Selector) -> Bool {
         guard let firstResponder = window?.firstResponder as? NSResponder,
-              firstResponder is NSTextView else {
+              firstResponder is NSTextView
+        else {
             return false
         }
 
@@ -1161,7 +1180,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     @discardableResult
     private func dispatchTextEditingActionIfPossible(_ action: Selector,
-                                                     sender: Any?) -> Bool {
+                                                     sender: Any?) -> Bool
+    {
         guard firstResponderSupportsTextEditingAction(action) else {
             return false
         }
@@ -1176,67 +1196,67 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.selectAllItems()
     }
 
-    @objc func deselectAllItems(_ sender: Any?) {
+    @objc func deselectAllItems(_: Any?) {
         activePane.deselectAllItems()
     }
 
-    @objc func invertSelection(_ sender: Any?) {
+    @objc func invertSelection(_: Any?) {
         activePane.invertSelection()
     }
 
-    @objc func sortByName(_ sender: Any?) {
+    @objc func sortByName(_: Any?) {
         activePane.sortByName()
     }
 
-    @objc func sortBySize(_ sender: Any?) {
+    @objc func sortBySize(_: Any?) {
         activePane.sortBySize()
     }
 
-    @objc func sortByType(_ sender: Any?) {
+    @objc func sortByType(_: Any?) {
         activePane.sortByType()
     }
 
-    @objc func sortByModifiedDate(_ sender: Any?) {
+    @objc func sortByModifiedDate(_: Any?) {
         activePane.sortByModifiedDate()
     }
 
-    @objc func sortByCreatedDate(_ sender: Any?) {
+    @objc func sortByCreatedDate(_: Any?) {
         activePane.sortByCreatedDate()
     }
 
-    @objc func showTimestampDay(_ sender: Any?) {
+    @objc func showTimestampDay(_: Any?) {
         FileManagerViewPreferences.setTimestampDisplayLevel(.day)
     }
 
-    @objc func showTimestampMinute(_ sender: Any?) {
+    @objc func showTimestampMinute(_: Any?) {
         FileManagerViewPreferences.setTimestampDisplayLevel(.minute)
     }
 
-    @objc func showTimestampSecond(_ sender: Any?) {
+    @objc func showTimestampSecond(_: Any?) {
         FileManagerViewPreferences.setTimestampDisplayLevel(.second)
     }
 
-    @objc func showTimestampNTFS(_ sender: Any?) {
+    @objc func showTimestampNTFS(_: Any?) {
         FileManagerViewPreferences.setTimestampDisplayLevel(.ntfs)
     }
 
-    @objc func showTimestampNanoseconds(_ sender: Any?) {
+    @objc func showTimestampNanoseconds(_: Any?) {
         FileManagerViewPreferences.setTimestampDisplayLevel(.nanoseconds)
     }
 
-    @objc func toggleTimestampUTC(_ sender: Any?) {
+    @objc func toggleTimestampUTC(_: Any?) {
         FileManagerViewPreferences.setUsesUTCTimestamps(!FileManagerViewPreferences.usesUTCTimestamps)
     }
 
-    @objc func toggleAutoRefresh(_ sender: Any?) {
+    @objc func toggleAutoRefresh(_: Any?) {
         FileManagerViewPreferences.setAutoRefreshEnabled(!FileManagerViewPreferences.autoRefreshEnabled)
     }
 
-    @objc func openRootFolder(_ sender: Any?) {
+    @objc func openRootFolder(_: Any?) {
         activePane.openRootFolder()
     }
 
-    @objc func showFoldersHistory(_ sender: Any?) {
+    @objc func showFoldersHistory(_: Any?) {
         let pane = activePane
         let entries = pane.recentDirectoryHistory()
         guard !entries.isEmpty, let window else { return }
@@ -1254,24 +1274,25 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
     }
 
-    @objc func toggleArchiveToolbar(_ sender: Any?) {
+    @objc func toggleArchiveToolbar(_: Any?) {
         ToolbarPreferences.setShowsArchiveToolbar(!ToolbarPreferences.showsArchiveToolbar)
         setupToolbar()
     }
 
-    @objc func toggleStandardToolbar(_ sender: Any?) {
+    @objc func toggleStandardToolbar(_: Any?) {
         ToolbarPreferences.setShowsStandardToolbar(!ToolbarPreferences.showsStandardToolbar)
         setupToolbar()
     }
 
-    @objc func toggleToolbarButtonText(_ sender: Any?) {
+    @objc func toggleToolbarButtonText(_: Any?) {
         ToolbarPreferences.setShowsButtonText(!ToolbarPreferences.showsButtonText)
         applyToolbarPresentation()
     }
 
     @objc func openFavoriteSlot(_ sender: Any?) {
         guard let menuItem = sender as? NSMenuItem,
-              let url = FileManagerFavoriteStore.url(for: menuItem.tag) else {
+              let url = FileManagerFavoriteStore.url(for: menuItem.tag)
+        else {
             return
         }
 
@@ -1283,7 +1304,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         FileManagerFavoriteStore.set(url: activePane.currentDirectoryURL, for: menuItem.tag)
     }
 
-    @objc func switchPanes(_ sender: Any?) {
+    @objc func switchPanes(_: Any?) {
         guard isDualPane else { return }
         if activePane === leftPane {
             rightPane.focusFileList()
@@ -1315,7 +1336,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func paneContainingFirstResponder() -> FileManagerPaneController? {
         guard isDualPane,
-              let firstResponder = window?.firstResponder as? NSView else {
+              let firstResponder = window?.firstResponder as? NSView
+        else {
             return nil
         }
 
@@ -1336,11 +1358,11 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     // MARK: - Copy/Move (PanelCopy.cpp pattern)
 
-    @objc func copyFiles(_ sender: Any?) {
+    @objc func copyFiles(_: Any?) {
         performFileOperation(move: false)
     }
 
-    @objc func moveFiles(_ sender: Any?) {
+    @objc func moveFiles(_: Any?) {
         performFileOperation(move: true)
     }
 
@@ -1362,7 +1384,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                     guard let self, let parentWindow = self.window else { return }
                     do {
                         try await ArchiveOperationRunner.run(operationTitle: "Copying selected archive items...",
-                                                             parentWindow: parentWindow) { session in
+                                                             parentWindow: parentWindow)
+                        { session in
                             try pane.extractSelectedArchiveItems(to: destURL,
                                                                  session: session,
                                                                  overwriteMode: .ask)
@@ -1392,29 +1415,30 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 guard let self, let parentWindow = self.window else { return }
                 do {
                     try await ArchiveOperationRunner.run(operationTitle: "\(operation) \(sourceURLs.count) item(s)...",
-                                                         parentWindow: parentWindow) { session in
+                                                         parentWindow: parentWindow)
+                    { session in
                         try pane.transferFileSystemItemURLs(sourceURLs,
                                                             to: destURL,
                                                             operation: dragOperation,
                                                             session: session)
                     }
                     self.refreshAfterFilesystemTransfer(from: pane,
-                                                       to: destURL,
-                                                       operation: dragOperation)
+                                                        to: destURL,
+                                                        operation: dragOperation)
                 } catch {
                     self.showErrorAlert(error)
                 }
             }
         case let .archive(archiveURL, subdir):
             performArchiveDestinationTransfer(sourceURLs,
-                                             from: pane,
-                                             toArchiveURL: archiveURL,
-                                             subdir: subdir,
-                                             move: move)
+                                              from: pane,
+                                              toArchiveURL: archiveURL,
+                                              subdir: subdir,
+                                              move: move)
         }
     }
 
-    @objc func createFolder(_ sender: Any?) {
+    @objc func createFolder(_: Any?) {
         guard activePane.canCreateFolderHere() else {
             if activePane.isVirtualLocation {
                 showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to create folders inside it.")
@@ -1427,13 +1451,14 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                          title: "Create Folder",
                          message: "Enter folder name.",
                          placeholder: "New Folder",
-                         confirmTitle: "Create") { [weak self] value in
+                         confirmTitle: "Create")
+        { [weak self] value in
             guard let name = value, !name.isEmpty else { return }
             self?.activePane.createFolder(named: name)
         }
     }
 
-    @objc func createFile(_ sender: Any?) {
+    @objc func createFile(_: Any?) {
         guard activePane.canCreateFileHere() else {
             showUnsupportedOperationAlert("Creating files inside an open archive is not implemented yet.")
             return
@@ -1444,13 +1469,14 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                          title: "Create File",
                          message: "Enter file name.",
                          placeholder: "New File.txt",
-                         confirmTitle: "Create") { [weak self] value in
+                         confirmTitle: "Create")
+        { [weak self] value in
             guard let name = value, !name.isEmpty else { return }
             self?.activePane.createFile(named: name)
         }
     }
 
-    @objc func deleteFiles(_ sender: Any?) {
+    @objc func deleteFiles(_: Any?) {
         let activePane = self.activePane
         guard activePane.canDeleteSelection() else { return }
         activePane.deleteSelection()
@@ -1466,9 +1492,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             guard let self else { return }
             do {
                 let hashValues = try await ArchiveOperationRunner.run(operationTitle: "Calculating checksum...",
-                                                                     initialFileName: itemPath,
-                                                                     parentWindow: self.window,
-                                                                     deferredDisplay: true) { session in
+                                                                      initialFileName: itemPath,
+                                                                      parentWindow: self.window,
+                                                                      deferredDisplay: true)
+                { session in
                     try SZArchive.calculateHash(forPath: itemPath, session: session)
                 }
                 let details = self.hashDetails(for: algorithm, hashValues: hashValues)
@@ -1483,7 +1510,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func hashDetails(for algorithm: FileManagerHashAlgorithm,
-                             hashValues: [String: String]) -> String {
+                             hashValues: [String: String]) -> String
+    {
         algorithm.displayedAlgorithms
             .map { currentAlgorithm in
                 let value = hashValues[currentAlgorithm.bridgeName] ?? "unavailable"
@@ -1525,15 +1553,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         case #selector(showProperties(_:)):
             return activePane.canShowSelectedItemProperties()
         case #selector(showCRC32Hash(_:)),
-               #selector(showAllHashes(_:)),
+             #selector(showAllHashes(_:)),
              #selector(showCRC64Hash(_:)),
-               #selector(showXXH64Hash(_:)),
-               #selector(showMD5Hash(_:)),
+             #selector(showXXH64Hash(_:)),
+             #selector(showMD5Hash(_:)),
              #selector(showSHA1Hash(_:)),
              #selector(showSHA256Hash(_:)),
-               #selector(showSHA384Hash(_:)),
-               #selector(showSHA512Hash(_:)),
-               #selector(showSHA3256Hash(_:)),
+             #selector(showSHA384Hash(_:)),
+             #selector(showSHA512Hash(_:)),
+             #selector(showSHA3256Hash(_:)),
              #selector(showBLAKE2spHash(_:)):
             return activePane.canCalculateSelectionHashes()
         case #selector(goUpOneLevel(_:)):
@@ -1552,12 +1580,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
              #selector(sortByModifiedDate(_:)),
              #selector(sortByCreatedDate(_:)):
             return true
-           case #selector(showTimestampDay(_:)),
-               #selector(showTimestampMinute(_:)),
-               #selector(showTimestampSecond(_:)),
-               #selector(showTimestampNTFS(_:)),
-               #selector(showTimestampNanoseconds(_:)),
-               #selector(toggleTimestampUTC(_:)),
+        case #selector(showTimestampDay(_:)),
+             #selector(showTimestampMinute(_:)),
+             #selector(showTimestampSecond(_:)),
+             #selector(showTimestampNTFS(_:)),
+             #selector(showTimestampNanoseconds(_:)),
+             #selector(toggleTimestampUTC(_:)),
              #selector(toggleAutoRefresh(_:)):
             return true
         case #selector(openRootFolder(_:)):
@@ -1627,7 +1655,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func suggestedArchiveAddSourceDirectory(for targetPane: FileManagerPaneController) -> URL {
         if let otherPane = inactivePane,
-           !otherPane.isVirtualLocation {
+           !otherPane.isVirtualLocation
+        {
             return otherPane.currentDirectoryURL.standardizedFileURL
         }
 
@@ -1681,10 +1710,12 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private func archiveExtractionPathPrefixToStrip(for items: [ArchiveItem],
                                                     destinationURL: URL,
                                                     pathMode: SZPathMode,
-                                                    eliminateDuplicates: Bool) -> String? {
+                                                    eliminateDuplicates: Bool) -> String?
+    {
         guard eliminateDuplicates,
               pathMode != .absolutePaths,
-              pathMode != .noPaths else {
+              pathMode != .noPaths
+        else {
             return nil
         }
 
@@ -1693,7 +1724,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func promptForFileOperationDestination(forMove move: Bool,
-                                                   sourcePane: FileManagerPaneController) -> FileOperationDestinationTarget? {
+                                                   sourcePane: FileManagerPaneController) -> FileOperationDestinationTarget?
+    {
         let title = move ? "Move" : "Copy"
         let actionTitle = move ? "Move" : "Copy"
         let labelTitle = move ? "Move to:" : "Copy to:"
@@ -1770,7 +1802,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func resolveDestinationTarget(from enteredPath: String,
-                                          relativeTo baseDirectory: URL) throws -> FileOperationDestinationTarget {
+                                          relativeTo baseDirectory: URL) throws -> FileOperationDestinationTarget
+    {
         guard !enteredPath.isEmpty else {
             throw NSError(domain: NSCocoaErrorDomain,
                           code: NSFileNoSuchFileError,
@@ -1799,7 +1832,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                               code: NSFileWriteInvalidFileNameError,
                               userInfo: [
                                   NSFilePathErrorKey: standardizedURL.path,
-                                  NSLocalizedDescriptionKey: "The destination path must be a folder or archive."
+                                  NSLocalizedDescriptionKey: "The destination path must be a folder or archive.",
                               ])
             }
             return .directory(standardizedURL)
@@ -1810,7 +1843,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                           code: NSFileNoSuchFileError,
                           userInfo: [
                               NSFilePathErrorKey: standardizedURL.path,
-                              NSLocalizedDescriptionKey: "The destination archive does not exist. Use Add to create a new archive."
+                              NSLocalizedDescriptionKey: "The destination archive does not exist. Use Add to create a new archive.",
                           ])
         }
 
@@ -1838,7 +1871,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                               code: NSFileWriteInvalidFileNameError,
                               userInfo: [
                                   NSFilePathErrorKey: prefixPath,
-                                  NSLocalizedDescriptionKey: "The destination path must be a folder or archive."
+                                  NSLocalizedDescriptionKey: "The destination path must be a folder or archive.",
                               ])
             }
 
@@ -1891,7 +1924,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func validateTransferDestination(_ destinationTarget: FileOperationDestinationTarget,
                                              for sourcePane: FileManagerPaneController,
-                                             move: Bool) -> Bool {
+                                             move: Bool) -> Bool
+    {
         switch destinationTarget {
         case let .archive(archiveURL, _):
             let selectedURLs = Set(sourcePane.selectedFileURLs().map(\.standardizedFileURL))
@@ -1905,19 +1939,19 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             }
             return true
         case let .directory(destinationURL):
-        let sourceDirectory = sourcePane.currentDirectoryURL.standardizedFileURL
-        let standardizedDestination = destinationURL.standardizedFileURL
+            let sourceDirectory = sourcePane.currentDirectoryURL.standardizedFileURL
+            let standardizedDestination = destinationURL.standardizedFileURL
 
-        guard sourceDirectory != standardizedDestination else {
-            let action = move ? "move" : "copy"
-            szPresentMessage(title: "Cannot \(action) files onto itself",
-                             message: "Choose a different destination folder.",
-                             style: .warning,
-                             for: window)
-            return false
-        }
+            guard sourceDirectory != standardizedDestination else {
+                let action = move ? "move" : "copy"
+                szPresentMessage(title: "Cannot \(action) files onto itself",
+                                 message: "Choose a different destination folder.",
+                                 style: .warning,
+                                 for: window)
+                return false
+            }
 
-        return true
+            return true
         }
     }
 
@@ -1925,7 +1959,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                                                    from sourcePane: FileManagerPaneController,
                                                    toArchiveURL archiveURL: URL,
                                                    subdir: String,
-                                                   move: Bool) {
+                                                   move: Bool)
+    {
         let operation: NSDragOperation = move ? .move : .copy
 
         if let (pane, target) = archiveDestinationTarget(for: archiveURL, subdir: subdir) {
@@ -1945,7 +1980,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             guard let self, let parentWindow = self.window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: operationTitle,
-                                                     parentWindow: parentWindow) { session in
+                                                     parentWindow: parentWindow)
+                { session in
                     let archive = SZArchive()
                     try archive.open(atPath: archiveURL.path, session: session)
                     defer { archive.close() }
@@ -1968,13 +2004,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func archiveDestinationTarget(for archiveURL: URL,
-                                          subdir: String) -> (pane: FileManagerPaneController, target: (archive: SZArchive, subdir: String))? {
+                                          subdir: String) -> (pane: FileManagerPaneController, target: (archive: SZArchive, subdir: String))?
+    {
         if let target = leftPane.currentArchiveMutationTarget(for: archiveURL, subdir: subdir) {
             return (leftPane, target)
         }
 
         if isDualPane,
-           let target = rightPane.currentArchiveMutationTarget(for: archiveURL, subdir: subdir) {
+           let target = rightPane.currentArchiveMutationTarget(for: archiveURL, subdir: subdir)
+        {
             return (rightPane, target)
         }
 
@@ -1982,7 +2020,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func archiveSelectionPaths(for sourceURLs: [URL],
-                                       targetSubdir: String) -> [String] {
+                                       targetSubdir: String) -> [String]
+    {
         var seenPaths = Set<String>()
         var selectionPaths: [String] = []
 
@@ -2000,14 +2039,16 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     private func refreshOpenArchiveDestinations(archiveURL: URL,
                                                 targetSubdir: String,
-                                                selectingPaths: [String]) {
+                                                selectingPaths: [String])
+    {
         if leftPane.currentArchiveMutationTarget(for: archiveURL, subdir: targetSubdir) != nil {
             leftPane.refreshArchiveAfterMutation(targetSubdir: targetSubdir,
                                                  selectingPaths: selectingPaths)
         }
 
         if isDualPane,
-           rightPane.currentArchiveMutationTarget(for: archiveURL, subdir: targetSubdir) != nil {
+           rightPane.currentArchiveMutationTarget(for: archiveURL, subdir: targetSubdir) != nil
+        {
             rightPane.refreshArchiveAfterMutation(targetSubdir: targetSubdir,
                                                   selectingPaths: selectingPaths)
         }
@@ -2017,20 +2058,23 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let standardizedDirectory = directoryURL.standardizedFileURL
 
         if !leftPane.isVirtualLocation,
-           leftPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory {
+           leftPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory
+        {
             leftPane.refresh()
         }
 
         if isDualPane,
            !rightPane.isVirtualLocation,
-           rightPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory {
+           rightPane.currentDirectoryURL.standardizedFileURL == standardizedDirectory
+        {
             rightPane.refresh()
         }
     }
 
     private func refreshAfterFilesystemTransfer(from sourcePane: FileManagerPaneController,
                                                 to destinationURL: URL,
-                                                operation: NSDragOperation) {
+                                                operation: NSDragOperation)
+    {
         refreshPaneDisplayingDirectory(destinationURL)
 
         if operation == .move {
@@ -2052,7 +2096,6 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 // MARK: - NSToolbarDelegate
 
 extension FileManagerWindowController: NSToolbarDelegate {
-
     static let addItem = NSToolbarItem.Identifier("fm_add")
     static let extractItem = NSToolbarItem.Identifier("fm_extract")
     static let testItem = NSToolbarItem.Identifier("fm_test")
@@ -2062,7 +2105,8 @@ extension FileManagerWindowController: NSToolbarDelegate {
     static let infoItem = NSToolbarItem.Identifier("fm_info")
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+                 willBeInsertedIntoToolbar _: Bool) -> NSToolbarItem?
+    {
         let item = NSToolbarItem(itemIdentifier: itemIdentifier)
 
         guard toolbarAllowedItemIdentifiers(toolbar).contains(itemIdentifier) else {
@@ -2074,7 +2118,7 @@ extension FileManagerWindowController: NSToolbarDelegate {
         return item
     }
 
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    func toolbarDefaultItemIdentifiers(_: NSToolbar) -> [NSToolbarItem.Identifier] {
         var identifiers: [NSToolbarItem.Identifier] = []
 
         if ToolbarPreferences.showsArchiveToolbar {
@@ -2091,7 +2135,7 @@ extension FileManagerWindowController: NSToolbarDelegate {
         return identifiers
     }
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    func toolbarAllowedItemIdentifiers(_: NSToolbar) -> [NSToolbarItem.Identifier] {
         [Self.addItem, Self.extractItem, Self.testItem,
          Self.copyItem, Self.moveItem, Self.deleteItem, Self.infoItem,
          .space, .flexibleSpace]
@@ -2116,7 +2160,8 @@ extension FileManagerWindowController: FileManagerPaneDelegate {
     func paneDidBecomeActive(_ pane: FileManagerPaneController) {
         setActivePane(pane)
         if isQuickLookVisible,
-           quickLookPreviewSourcePane !== pane {
+           quickLookPreviewSourcePane !== pane
+        {
             requestQuickLookPreview(for: pane,
                                     userInitiated: false)
         }
@@ -2165,7 +2210,7 @@ extension FileManagerWindowController: FileManagerPaneDelegate {
 }
 
 extension FileManagerWindowController: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
-    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+    override func acceptsPreviewPanelControl(_: QLPreviewPanel!) -> Bool {
         !quickLookPreviewItems.isEmpty
     }
 
@@ -2184,18 +2229,19 @@ extension FileManagerWindowController: QLPreviewPanelDataSource, QLPreviewPanelD
         clearQuickLookPreviewResources()
     }
 
-    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+    func numberOfPreviewItems(in _: QLPreviewPanel!) -> Int {
         quickLookPreviewItems.count
     }
 
-    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+    func previewPanel(_: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
         guard quickLookPreviewItems.indices.contains(index) else { return nil }
         return quickLookPreviewItems[index]
     }
 
-    func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+    func previewPanel(_: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
         guard let event,
-              event.type == .keyDown else {
+              event.type == .keyDown
+        else {
             return false
         }
 
@@ -2205,12 +2251,12 @@ extension FileManagerWindowController: QLPreviewPanelDataSource, QLPreviewPanelD
         return pane.handleQuickLookEvent(event)
     }
 
-    func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: any QLPreviewItem) -> NSRect {
+    func previewPanel(_: QLPreviewPanel!, sourceFrameOnScreenFor item: any QLPreviewItem) -> NSRect {
         guard let item = item as? FileManagerQuickLookItem else { return .zero }
         return item.sourceFrameOnScreen
     }
 
-    func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: any QLPreviewItem, contentRect: UnsafeMutablePointer<NSRect>) -> Any! {
+    func previewPanel(_: QLPreviewPanel!, transitionImageFor item: any QLPreviewItem, contentRect: UnsafeMutablePointer<NSRect>) -> Any! {
         guard let item = item as? FileManagerQuickLookItem else { return nil }
         contentRect.pointee = item.transitionContentRect
         return item.transitionImage

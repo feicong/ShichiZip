@@ -47,7 +47,8 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
     }
 
     func beginSheetModal(for window: NSWindow,
-                         completionHandler: @escaping (Result?) -> Void) {
+                         completionHandler: @escaping (Result?) -> Void)
+    {
         self.completionHandler = completionHandler
         hasCompleted = false
 
@@ -69,13 +70,14 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         }
     }
 
-    func numberOfRows(in tableView: NSTableView) -> Int {
+    func numberOfRows(in _: NSTableView) -> Int {
         entries.count
     }
 
     func tableView(_ tableView: NSTableView,
-                   viewFor tableColumn: NSTableColumn?,
-                   row: Int) -> NSView? {
+                   viewFor _: NSTableColumn?,
+                   row: Int) -> NSView?
+    {
         guard row >= 0, row < entries.count else { return nil }
 
         let cellIdentifier = NSUserInterfaceItemIdentifier("FolderHistoryCell")
@@ -104,20 +106,20 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         return cell
     }
 
-    func tableViewSelectionDidChange(_ notification: Notification) {
+    func tableViewSelectionDidChange(_: Notification) {
         updateControls()
     }
 
-    @objc private func openSelection(_ sender: Any?) {
+    @objc private func openSelection(_: Any?) {
         guard !entries.isEmpty else { return }
         dialogController?.finish(withButtonIndex: ButtonIndex.open)
     }
 
-    @objc private func cancel(_ sender: Any?) {
+    @objc private func cancel(_: Any?) {
         dialogController?.finish(withButtonIndex: ButtonIndex.cancel)
     }
 
-    @objc private func deleteSelection(_ sender: Any?) {
+    @objc private func deleteSelection(_: Any?) {
         let selectedRow = tableView.selectedRow
         guard selectedRow >= 0, selectedRow < entries.count else { return }
 
@@ -134,7 +136,7 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         updateControls()
     }
 
-    @objc private func clearHistory(_ sender: Any?) {
+    @objc private func clearHistory(_: Any?) {
         guard !entries.isEmpty else { return }
         entries.removeAll()
         tableView.reloadData()

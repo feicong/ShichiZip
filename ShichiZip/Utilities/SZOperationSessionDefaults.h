@@ -5,6 +5,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-FOUNDATION_EXPORT SZOperationSession *SZMakeDefaultOperationSession(id<SZProgressDelegate> _Nullable progressDelegate);
+FOUNDATION_EXPORT SZOperationSession* SZMakeDefaultOperationSession(id<SZProgressDelegate> _Nullable progressDelegate);
 
 NS_ASSUME_NONNULL_END

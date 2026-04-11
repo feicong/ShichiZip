@@ -1,6 +1,6 @@
 import Cocoa
 
-// SZOperationSession synchronizes its mutable state internally and routes UI callbacks to the main thread.
+/// SZOperationSession synchronizes its mutable state internally and routes UI callbacks to the main thread.
 extension SZOperationSession: @unchecked Sendable {}
 
 enum ArchiveOperationRunner {
@@ -9,11 +9,12 @@ enum ArchiveOperationRunner {
                                     initialFileName: String? = nil,
                                     parentWindow: NSWindow? = nil,
                                     deferredDisplay: Bool = false,
-                                    work: @escaping (SZOperationSession) throws -> T) throws -> T {
+                                    work: @escaping (SZOperationSession) throws -> T) throws -> T
+    {
         let coordinator = ArchiveOperationCoordinator(operationTitle: operationTitle,
-                                                     initialFileName: initialFileName,
-                                                     parentWindow: parentWindow,
-                                                     deferredDisplay: deferredDisplay)
+                                                      initialFileName: initialFileName,
+                                                      parentWindow: parentWindow,
+                                                      deferredDisplay: deferredDisplay)
         coordinator.start()
 
         let resultLock = NSLock()
@@ -51,11 +52,12 @@ enum ArchiveOperationRunner {
                        initialFileName: String? = nil,
                        parentWindow: NSWindow? = nil,
                        deferredDisplay: Bool = false,
-                       work: @escaping (SZOperationSession) throws -> T) async throws -> T {
+                       work: @escaping (SZOperationSession) throws -> T) async throws -> T
+    {
         let coordinator = ArchiveOperationCoordinator(operationTitle: operationTitle,
-                                                     initialFileName: initialFileName,
-                                                     parentWindow: parentWindow,
-                                                     deferredDisplay: deferredDisplay)
+                                                      initialFileName: initialFileName,
+                                                      parentWindow: parentWindow,
+                                                      deferredDisplay: deferredDisplay)
         coordinator.start()
         defer { coordinator.finish() }
 

@@ -4,64 +4,109 @@
 #pragma once
 
 // Workaround for BOOL typedef conflict between 7-Zip (int) and ObjC (bool on arm64)
-#import <Foundation/Foundation.h>
 #import "SZArchive.h"
 #import "SZOperationSession.h"
+#import <Foundation/Foundation.h>
 
+#ifdef __cplusplus
 #define BOOL BOOL_7Z_COMPAT
-#include "CPP/Common/MyWindows.h"
-#undef BOOL
-
-#include "CPP/Common/MyString.h"
+#if __has_include("CPP/Common/MyWindows.h")
+#include "C/7zCrc.h"
+#include "CPP/7zip/Archive/IArchive.h"
+#include "CPP/7zip/Common/FileStreams.h"
+#include "CPP/7zip/Common/StreamObjects.h"
+#include "CPP/7zip/ICoder.h"
+#include "CPP/7zip/IPassword.h"
+#include "CPP/7zip/PropID.h"
+#include "CPP/7zip/UI/Common/IFileExtractCallback.h"
+#include "CPP/7zip/UI/Common/LoadCodecs.h"
+#include "CPP/7zip/UI/Common/OpenArchive.h"
 #include "CPP/Common/IntToString.h"
+#include "CPP/Common/MyString.h"
+#include "CPP/Common/MyWindows.h"
 #include "CPP/Windows/FileDir.h"
 #include "CPP/Windows/FileFind.h"
 #include "CPP/Windows/FileName.h"
 #include "CPP/Windows/PropVariant.h"
 #include "CPP/Windows/PropVariantConv.h"
-#include "CPP/7zip/Common/FileStreams.h"
-#include "CPP/7zip/Common/StreamObjects.h"
-#include "CPP/7zip/Archive/IArchive.h"
-#include "CPP/7zip/IPassword.h"
-#include "CPP/7zip/ICoder.h"
-#include "CPP/7zip/UI/Common/LoadCodecs.h"
-#include "CPP/7zip/UI/Common/OpenArchive.h"
-#include "CPP/7zip/UI/Common/IFileExtractCallback.h"
-#include "CPP/7zip/PropID.h"
 #include "CPP/Windows/TimeUtils.h"
-#include "C/7zCrc.h"
+#elif __has_include("../../vendor/7zip/CPP/Common/MyWindows.h")
+#include "../../vendor/7zip/C/7zCrc.h"
+#include "../../vendor/7zip/CPP/7zip/Archive/IArchive.h"
+#include "../../vendor/7zip/CPP/7zip/Common/FileStreams.h"
+#include "../../vendor/7zip/CPP/7zip/Common/StreamObjects.h"
+#include "../../vendor/7zip/CPP/7zip/ICoder.h"
+#include "../../vendor/7zip/CPP/7zip/IPassword.h"
+#include "../../vendor/7zip/CPP/7zip/PropID.h"
+#include "../../vendor/7zip/CPP/7zip/UI/Common/IFileExtractCallback.h"
+#include "../../vendor/7zip/CPP/7zip/UI/Common/LoadCodecs.h"
+#include "../../vendor/7zip/CPP/7zip/UI/Common/OpenArchive.h"
+#include "../../vendor/7zip/CPP/Common/IntToString.h"
+#include "../../vendor/7zip/CPP/Common/MyString.h"
+#include "../../vendor/7zip/CPP/Common/MyWindows.h"
+#include "../../vendor/7zip/CPP/Windows/FileDir.h"
+#include "../../vendor/7zip/CPP/Windows/FileFind.h"
+#include "../../vendor/7zip/CPP/Windows/FileName.h"
+#include "../../vendor/7zip/CPP/Windows/PropVariant.h"
+#include "../../vendor/7zip/CPP/Windows/PropVariantConv.h"
+#include "../../vendor/7zip/CPP/Windows/TimeUtils.h"
+#elif __has_include("../../vendor/7zip-zstd/CPP/Common/MyWindows.h")
+#include "../../vendor/7zip-zstd/C/7zCrc.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/Archive/IArchive.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/Common/FileStreams.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/Common/StreamObjects.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/ICoder.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/IPassword.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/PropID.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/UI/Common/IFileExtractCallback.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/UI/Common/LoadCodecs.h"
+#include "../../vendor/7zip-zstd/CPP/7zip/UI/Common/OpenArchive.h"
+#include "../../vendor/7zip-zstd/CPP/Common/IntToString.h"
+#include "../../vendor/7zip-zstd/CPP/Common/MyString.h"
+#include "../../vendor/7zip-zstd/CPP/Common/MyWindows.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/FileDir.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/FileFind.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/FileName.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/PropVariant.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/PropVariantConv.h"
+#include "../../vendor/7zip-zstd/CPP/Windows/TimeUtils.h"
+#else
+#error "7-Zip headers not found"
+#endif
+#undef BOOL
+#endif
 
-#include <string>
-#include <vector>
+NS_ASSUME_NONNULL_BEGIN
 
 // ============================================================
 // Error helpers
 // ============================================================
 
-extern NSString * const SZArchiveErrorDomain;
+extern NSString* const SZArchiveErrorDomain;
 
-static inline NSError *SZMakeError(NSInteger code, NSString *desc) {
-    return [NSError errorWithDomain:SZArchiveErrorDomain code:code
-                           userInfo:@{NSLocalizedDescriptionKey: desc}];
+static inline NSError* SZMakeError(NSInteger code, NSString* desc) {
+    return [NSError errorWithDomain:SZArchiveErrorDomain
+                               code:code
+                           userInfo:@ { NSLocalizedDescriptionKey : desc }];
 }
 
-static inline NSError *SZMakeDetailedError(NSInteger code, NSString *desc, NSString * _Nullable failureReason) {
+static inline NSError* SZMakeDetailedError(NSInteger code, NSString* desc, NSString* _Nullable failureReason) {
     if (!failureReason || failureReason.length == 0) {
         return SZMakeError(code, desc);
     }
 
     return [NSError errorWithDomain:SZArchiveErrorDomain
                                code:code
-                           userInfo:@{
-                               NSLocalizedDescriptionKey: desc,
-                               NSLocalizedFailureReasonErrorKey: failureReason,
+                           userInfo:@ {
+                               NSLocalizedDescriptionKey : desc,
+                               NSLocalizedFailureReasonErrorKey : failureReason,
                            }];
 }
 
-static NSString * const SZSettingsDidChangeNotificationName = @"SZSettingsDidChange";
-static NSString * const SZSettingsDidChangeKeyUserInfoKey = @"key";
-static NSString * const SZExtractionMemoryLimitEnabledPreferenceKey = @"MemLimitEnabled";
-static NSString * const SZExtractionMemoryLimitGBPreferenceKey = @"MemLimitGB";
+static NSString* const SZSettingsDidChangeNotificationName = @"SZSettingsDidChange";
+static NSString* const SZSettingsDidChangeKeyUserInfoKey = @"key";
+static NSString* const SZExtractionMemoryLimitEnabledPreferenceKey = @"MemLimitEnabled";
+static NSString* const SZExtractionMemoryLimitGBPreferenceKey = @"MemLimitGB";
 
 static inline uint32_t SZRoundUpByteCountToGB(uint64_t byteCount) {
     if (byteCount == 0) {
@@ -85,15 +130,15 @@ static inline uint64_t SZConfiguredExtractionMemoryLimitBytes(void) {
     return ((uint64_t)SZConfiguredExtractionMemoryLimitGB()) << 30;
 }
 
-static inline void SZPostSettingsDidChange(NSString *key) {
+static inline void SZPostSettingsDidChange(NSString* key) {
     [[NSNotificationCenter defaultCenter] postNotificationName:SZSettingsDidChangeNotificationName
                                                         object:nil
-                                                      userInfo:@{SZSettingsDidChangeKeyUserInfoKey: key}];
+                                                      userInfo:@ { SZSettingsDidChangeKeyUserInfoKey : key }];
 }
 
 static inline void SZPersistExtractionMemoryLimitGB(uint32_t limitGB) {
     const NSInteger resolvedLimitGB = MAX((NSInteger)limitGB, 1);
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
     [defaults setBool:YES forKey:SZExtractionMemoryLimitEnabledPreferenceKey];
     [defaults setInteger:resolvedLimitGB forKey:SZExtractionMemoryLimitGBPreferenceKey];
     SZPostSettingsDidChange(SZExtractionMemoryLimitEnabledPreferenceKey);
@@ -104,14 +149,16 @@ static inline void SZPersistExtractionMemoryLimitGB(uint32_t limitGB) {
 // Codec manager singleton
 // ============================================================
 
-CCodecs *SZGetCodecs(void);
+#ifdef __cplusplus
+CCodecs* _Nullable SZGetCodecs(void);
 
 // ============================================================
 // String conversion: UString <-> NSString
 // ============================================================
 
-static inline UString ToU(NSString *s) {
-    if (!s) return UString();
+static inline UString ToU(NSString* _Nullable s) {
+    if (!s)
+        return UString();
     NSUInteger len = [s length];
     UString u;
     u.Empty();
@@ -121,8 +168,8 @@ static inline UString ToU(NSString *s) {
     return u;
 }
 
-static inline NSString *ToNS(const UString &u) {
-    NSMutableString *s = [NSMutableString stringWithCapacity:u.Len()];
+static inline NSString* ToNS(const UString& u) {
+    NSMutableString* s = [NSMutableString stringWithCapacity:u.Len()];
     for (unsigned i = 0; i < u.Len(); i++) {
         unichar ch = (unichar)u[i];
         [s appendString:[NSString stringWithCharacters:&ch length:1]];
@@ -134,33 +181,43 @@ static inline NSString *ToNS(const UString &u) {
 // Archive property helpers
 // ============================================================
 
-static inline NSString *ItemStr(IInArchive *ar, UInt32 i, PROPID p) {
+static inline NSString* _Nullable ItemStr(IInArchive* _Nonnull ar, UInt32 i, PROPID p) {
     NWindows::NCOM::CPropVariant v;
-    if (ar->GetProperty(i, p, &v) != S_OK) return nil;
-    if (v.vt == VT_BSTR && v.bstrVal) return ToNS(UString(v.bstrVal));
+    if (ar->GetProperty(i, p, &v) != S_OK)
+        return nil;
+    if (v.vt == VT_BSTR && v.bstrVal)
+        return ToNS(UString(v.bstrVal));
     return nil;
 }
 
-static inline uint64_t ItemU64(IInArchive *ar, UInt32 i, PROPID p) {
+static inline uint64_t ItemU64(IInArchive* _Nonnull ar, UInt32 i, PROPID p) {
     NWindows::NCOM::CPropVariant v;
-    if (ar->GetProperty(i, p, &v) != S_OK) return 0;
-    if (v.vt == VT_UI8) return v.uhVal.QuadPart;
-    if (v.vt == VT_UI4) return v.ulVal;
+    if (ar->GetProperty(i, p, &v) != S_OK)
+        return 0;
+    if (v.vt == VT_UI8)
+        return v.uhVal.QuadPart;
+    if (v.vt == VT_UI4)
+        return v.ulVal;
     return 0;
 }
 
-static inline int ItemBool(IInArchive *ar, UInt32 i, PROPID p) {
+static inline int ItemBool(IInArchive* _Nonnull ar, UInt32 i, PROPID p) {
     NWindows::NCOM::CPropVariant v;
-    if (ar->GetProperty(i, p, &v) != S_OK) return 0;
+    if (ar->GetProperty(i, p, &v) != S_OK)
+        return 0;
     return (v.vt == VT_BOOL && v.boolVal != VARIANT_FALSE) ? 1 : 0;
 }
 
-static inline NSDate *ItemDate(IInArchive *ar, UInt32 i, PROPID p) {
+static inline NSDate* _Nullable ItemDate(IInArchive* _Nonnull ar, UInt32 i, PROPID p) {
     NWindows::NCOM::CPropVariant v;
-    if (ar->GetProperty(i, p, &v) != S_OK || v.vt != VT_FILETIME) return nil;
+    if (ar->GetProperty(i, p, &v) != S_OK || v.vt != VT_FILETIME)
+        return nil;
     uint64_t ft = ((uint64_t)v.filetime.dwHighDateTime << 32) | v.filetime.dwLowDateTime;
     static const uint64_t EPOCH_DIFF = 116444736000000000ULL;
-    if (ft < EPOCH_DIFF) return nil;
+    if (ft < EPOCH_DIFF)
+        return nil;
     return [NSDate dateWithTimeIntervalSince1970:(double)(ft - EPOCH_DIFF) / 10000000.0];
 }
+#endif
 
+NS_ASSUME_NONNULL_END

@@ -52,7 +52,8 @@ struct ArchiveItem {
 
     static func duplicateRootPrefixToStrip(for items: [ArchiveItem],
                                            destinationLeafName: String,
-                                           removingPrefix prefix: String? = nil) -> String? {
+                                           removingPrefix prefix: String? = nil) -> String?
+    {
         let trimmedLeafName = destinationLeafName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedLeafName.isEmpty else { return nil }
 
@@ -77,7 +78,7 @@ struct ArchiveItem {
                 return nil
             }
 
-            if relativeComponents.count == 1 && !item.isDirectory {
+            if relativeComponents.count == 1, !item.isDirectory {
                 return nil
             }
         }
@@ -89,7 +90,8 @@ struct ArchiveItem {
     static func extractedOutputURLs(for items: [ArchiveItem],
                                     destinationURL: URL,
                                     pathMode: SZPathMode,
-                                    pathPrefixToStrip: String?) -> [URL] {
+                                    pathPrefixToStrip: String?) -> [URL]
+    {
         let prefixComponents = pathPrefixToStrip.map(Self.derivePathParts(from:)) ?? []
         var seenPaths = Set<String>()
         var outputURLs: [URL] = []
@@ -112,7 +114,8 @@ struct ArchiveItem {
     private static func extractedOutputURLs(for item: ArchiveItem,
                                             destinationURL: URL,
                                             pathMode: SZPathMode,
-                                            prefixComponents: [String]) -> [URL] {
+                                            prefixComponents: [String]) -> [URL]
+    {
         let components = item.pathParts.isEmpty ? derivePathParts(from: item.path) : item.pathParts
         let relativeComponents = removingPrefixComponents(prefixComponents, from: components)
 
@@ -143,12 +146,13 @@ struct ArchiveItem {
 
     private static func relativeOutputURLs(from relativeComponents: [String],
                                            destinationURL: URL,
-                                           leafIsDirectory: Bool) -> [URL] {
+                                           leafIsDirectory: Bool) -> [URL]
+    {
         guard !relativeComponents.isEmpty else { return [] }
 
         var urls: [URL] = []
         if relativeComponents.count > 1 {
-            for depth in 1..<relativeComponents.count {
+            for depth in 1 ..< relativeComponents.count {
                 let directoryPath = NSString.path(withComponents: Array(relativeComponents.prefix(depth)))
                 urls.append(destinationURL.appendingPathComponent(directoryPath, isDirectory: true))
             }
@@ -160,9 +164,11 @@ struct ArchiveItem {
     }
 
     private static func removingPrefixComponents(_ prefixComponents: [String],
-                                                 from components: [String]) -> [String] {
+                                                 from components: [String]) -> [String]
+    {
         guard !prefixComponents.isEmpty,
-              components.count >= prefixComponents.count else {
+              components.count >= prefixComponents.count
+        else {
             return components
         }
 
@@ -182,27 +188,28 @@ struct ArchiveItem {
     init(from entry: SZArchiveEntry) {
         let normalizedEntryPathParts = Self.normalizedPathParts(entry.pathParts)
         let preservesAbsoluteRoot = entry.path.isEmpty && entry.pathParts.first == ""
-        self.index = Int(entry.index)
-        self.path = entry.path.isEmpty
+        index = Int(entry.index)
+        path = entry.path.isEmpty
             ? (preservesAbsoluteRoot ? "/" : "") + normalizedEntryPathParts.joined(separator: "/")
             : entry.path
-        self.pathParts = normalizedEntryPathParts.isEmpty ? Self.derivePathParts(from: self.path) : normalizedEntryPathParts
-        self.name = self.pathParts.last ?? Self.deriveName(from: self.path)
-        self.size = entry.size
-        self.packedSize = entry.packedSize
-        self.modifiedDate = entry.modifiedDate
-        self.createdDate = entry.createdDate
-        self.crc = entry.crc
-        self.isDirectory = entry.isDirectory
-        self.isEncrypted = entry.isEncrypted
-        self.method = entry.method ?? ""
-        self.attributes = entry.attributes
-        self.comment = entry.comment ?? ""
+        pathParts = normalizedEntryPathParts.isEmpty ? Self.derivePathParts(from: path) : normalizedEntryPathParts
+        name = pathParts.last ?? Self.deriveName(from: path)
+        size = entry.size
+        packedSize = entry.packedSize
+        modifiedDate = entry.modifiedDate
+        createdDate = entry.createdDate
+        crc = entry.crc
+        isDirectory = entry.isDirectory
+        isEncrypted = entry.isEncrypted
+        method = entry.method ?? ""
+        attributes = entry.attributes
+        comment = entry.comment ?? ""
     }
 
     init(index: Int, path: String, pathParts: [String] = [], name: String, size: UInt64, packedSize: UInt64,
          modifiedDate: Date?, createdDate: Date?, crc: UInt32, isDirectory: Bool,
-         isEncrypted: Bool, method: String, attributes: UInt32, comment: String) {
+         isEncrypted: Bool, method: String, attributes: UInt32, comment: String)
+    {
         self.index = index; self.path = path
         self.pathParts = pathParts.isEmpty ? Self.derivePathParts(from: path) : pathParts
         self.name = name

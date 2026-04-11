@@ -2,7 +2,6 @@ import Cocoa
 
 /// Progress dialog shown during extraction/compression operations
 class ProgressDialogController: NSWindowController, SZProgressDelegate {
-
     private static let metricsUpdateInterval: TimeInterval = 0.3
     static let deferredPresentationDelay: TimeInterval = 0.5
 
@@ -185,7 +184,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         }
     }
 
-    @objc private func cancelClicked(_ sender: Any?) {
+    @objc private func cancelClicked(_: Any?) {
         cancelled = true
         cancelButton.isEnabled = false
         cancelButton.title = "Cancelling..."
@@ -212,7 +211,8 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         let now = Date().timeIntervalSinceReferenceDate
         let isFinalUpdate = total > 0 && completed >= total
         if !isFinalUpdate && lastMetricsUpdateTime > 0 &&
-            now - lastMetricsUpdateTime < Self.metricsUpdateInterval {
+            now - lastMetricsUpdateTime < Self.metricsUpdateInterval
+        {
             return
         }
         lastMetricsUpdateTime = now
@@ -231,7 +231,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
                 speedLabel.stringValue = "Speed: \(speedStr)/s"
 
                 let elapsedStr = formatDuration(elapsed)
-                if total > 0 && completed > 0 {
+                if total > 0, completed > 0 {
                     let remaining = elapsed * Double(total - completed) / Double(completed)
                     let remainStr = formatDuration(remaining)
                     elapsedLabel.stringValue = "Elapsed: \(elapsedStr)  Remaining: \(remainStr)"
@@ -270,11 +270,11 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         cancelButton.title = "Finalizing..."
     }
 
-    @objc func progressDidUpdateSpeed(_ bytesPerSecond: Double) {
+    @objc func progressDidUpdateSpeed(_: Double) {
         // Could show speed in UI
     }
 
-    @objc func progressDidUpdateCompressionRatio(_ ratio: Double) {
+    @objc func progressDidUpdateCompressionRatio(_: Double) {
         // Could show ratio in UI
     }
 }

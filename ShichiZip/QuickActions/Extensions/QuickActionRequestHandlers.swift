@@ -25,21 +25,27 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
                 }
                 Self.log("workspace open success=\(didLaunch) url=\(launchURL.absoluteString)")
 
-                DispatchQueue.main.async {
-                    if didLaunch {
-                        context.completeRequest(returningItems: nil, completionHandler: nil)
-                    } else {
-                        ShichiZipQuickActionTransport.releasePayload(for: launchURL)
-                        context.cancelRequest(withError: ShichiZipQuickActionError.launchFailed)
-                    }
+                if didLaunch {
+                    await completeRequest(on: context)
+                } else {
+                    ShichiZipQuickActionTransport.releasePayload(for: launchURL)
+                    await cancelRequest(on: context, error: ShichiZipQuickActionError.launchFailed)
                 }
             } catch {
                 type(of: self).log("canceling with error=\(String(describing: error))")
-                DispatchQueue.main.async {
-                    context.cancelRequest(withError: error)
-                }
+                await cancelRequest(on: context, error: error)
             }
         }
+    }
+
+    @MainActor
+    private func completeRequest(on context: NSExtensionContext) {
+        context.completeRequest(returningItems: nil, completionHandler: nil)
+    }
+
+    @MainActor
+    private func cancelRequest(on context: NSExtensionContext, error: Error) {
+        context.cancelRequest(withError: error)
     }
 
     func makeRequest(from fileURLs: [URL]) throws -> ShichiZipQuickActionRequest {
@@ -69,7 +75,7 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         var urls: [URL] = []
         for (index, itemProvider) in itemProviders.enumerated() {
             log("provider[\(index)] registeredTypeIdentifiers=\(itemProvider.registeredTypeIdentifiers.joined(separator: ", "))")
-            urls.append(try await loadFileURL(from: itemProvider))
+            try urls.append(await loadFileURL(from: itemProvider))
         }
 
         return urls.map(\.standardizedFileURL)
@@ -128,7 +134,7 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            _ = itemProvider.loadObject(ofClass: NSURL.self) { object, error in
+            itemProvider.loadObject(ofClass: NSURL.self) { object, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -149,7 +155,8 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         var identifiers = itemProvider.registeredTypeIdentifiers
 
         if itemProvider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier),
-           !identifiers.contains(UTType.fileURL.identifier) {
+           !identifiers.contains(UTType.fileURL.identifier)
+        {
             identifiers.insert(UTType.fileURL.identifier, at: 0)
         }
 
@@ -157,7 +164,8 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
     }
 
     private class func loadInPlaceFileURL(from itemProvider: NSItemProvider,
-                                          typeIdentifier: String) async throws -> URL? {
+                                          typeIdentifier: String) async throws -> URL?
+    {
         try await withCheckedThrowingContinuation { continuation in
             itemProvider.loadInPlaceFileRepresentation(forTypeIdentifier: typeIdentifier) { url, _, error in
                 if let error {
@@ -171,7 +179,8 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
     }
 
     private class func loadFileURLRepresentation(from itemProvider: NSItemProvider,
-                                                 typeIdentifier: String) async throws -> URL? {
+                                                 typeIdentifier: String) async throws -> URL?
+    {
         try await withCheckedThrowingContinuation { continuation in
             itemProvider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { url, error in
                 if let error {
@@ -185,9 +194,10 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
     }
 
     private class func loadItemFileURL(from itemProvider: NSItemProvider,
-                                       typeIdentifier: String) async throws -> URL? {
+                                       typeIdentifier: String) async throws -> URL?
+    {
         try await withCheckedThrowingContinuation { continuation in
-            _ = itemProvider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
+            itemProvider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -205,11 +215,11 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         }
     }
 
-
     private class func loadDataFileURL(from itemProvider: NSItemProvider,
-                                       typeIdentifier: String) async throws -> URL? {
+                                       typeIdentifier: String) async throws -> URL?
+    {
         try await withCheckedThrowingContinuation { continuation in
-            _ = itemProvider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
+            itemProvider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -261,7 +271,8 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         }
 
         if let data = item as? Data,
-           let url = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSURL.self, from: data) as URL? {
+           let url = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSURL.self, from: data) as URL?
+        {
             return url
         }
 
@@ -270,7 +281,8 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
             if let bookmarkURL = try? URL(resolvingBookmarkData: data,
                                           options: [.withoutUI, .withoutMounting],
                                           relativeTo: nil,
-                                          bookmarkDataIsStale: &isStale) {
+                                          bookmarkDataIsStale: &isStale)
+            {
                 return bookmarkURL
             }
 

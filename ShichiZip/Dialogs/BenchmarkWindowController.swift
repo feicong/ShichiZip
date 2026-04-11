@@ -2,7 +2,6 @@ import Cocoa
 import Darwin
 
 class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
-
     private struct DictionaryOption {
         let size: UInt64
         let title: String
@@ -39,9 +38,17 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
     private var threadOptions: [UInt32] = []
     private var passOptions: [UInt32] = []
 
-    private var logicalCPUCount: Int { max(1, ProcessInfo.processInfo.processorCount) }
-    private var physicalMemoryBytes: UInt64 { ProcessInfo.processInfo.physicalMemory }
-    private var memoryLimitBytes: UInt64 { (physicalMemoryBytes / 16) * 15 }
+    private var logicalCPUCount: Int {
+        max(1, ProcessInfo.processInfo.processorCount)
+    }
+
+    private var physicalMemoryBytes: UInt64 {
+        ProcessInfo.processInfo.physicalMemory
+    }
+
+    private var memoryLimitBytes: UInt64 {
+        (physicalMemoryBytes / 16) * 15
+    }
 
     convenience init() {
         let window = NSWindow(
@@ -66,7 +73,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         cancelBenchmark()
     }
 
@@ -255,7 +262,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         grid.addRow(with: [compressTitle, label("Current"), cCurSize, cCurSpeed, cCurUsage, cCurRpu, cCurRating])
         grid.addRow(with: [NSView(), label("Resulting"), cResSize, cResSpeed, cResUsage, cResRpu, cResRating])
 
-        grid.addRow(with: (0..<7).map { _ in NSView() })
+        grid.addRow(with: (0 ..< 7).map { _ in NSView() })
 
         dCurSize = metricField(); dCurSpeed = metricField(); dCurUsage = metricField(); dCurRpu = metricField(); dCurRating = metricField()
         dResSize = metricField(); dResSpeed = metricField(); dResUsage = metricField(); dResRpu = metricField(); dResRating = metricField()
@@ -279,7 +286,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         let totalTitle = label("Total Rating")
         totalTitle.font = .boldSystemFont(ofSize: 12)
         totalGrid.addRow(with: [totalTitle, NSView(), NSView(), NSView(), totUsage, totRpu, totRating])
-        for index in 2...6 {
+        for index in 2 ... 6 {
             totalGrid.column(at: index).width = 85
         }
         stack.addArrangedSubview(totalGrid)
@@ -339,7 +346,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
             stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 14),
             stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
             stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
         ])
 
         applyDefaultSelections()
@@ -364,7 +371,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    @objc private func paramChanged(_ sender: Any?) {
+    @objc private func paramChanged(_: Any?) {
         updateMemUsage()
         if isRunningBenchmark {
             requestRestart()
@@ -379,11 +386,11 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         memLabel.textColor = isMemoryUsageOK(usage) ? .labelColor : .systemRed
     }
 
-    @objc private func restartClicked(_ sender: Any?) {
+    @objc private func restartClicked(_: Any?) {
         requestRestart()
     }
 
-    @objc private func stopClicked(_ sender: Any?) {
+    @objc private func stopClicked(_: Any?) {
         pendingRestart = false
         guard isRunningBenchmark, !isStoppingBenchmark else { return }
         isStoppingBenchmark = true
@@ -392,7 +399,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         SZArchive.stopBenchmark()
     }
 
-    @objc private func closeClicked(_ sender: Any?) {
+    @objc private func closeClicked(_: Any?) {
         cancelBenchmark()
         window?.close()
     }
@@ -416,7 +423,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         pendingRestart = false
         elapsedTimer?.invalidate()
         elapsedTimer = nil
-        if isRunningBenchmark && !isStoppingBenchmark {
+        if isRunningBenchmark, !isStoppingBenchmark {
             isStoppingBenchmark = true
             SZArchive.stopBenchmark()
         }
@@ -428,7 +435,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
             cResSize, cResSpeed, cResUsage, cResRpu, cResRating,
             dCurSize, dCurSpeed, dCurUsage, dCurRpu, dCurRating,
             dResSize, dResSpeed, dResUsage, dResRpu, dResRating,
-            totUsage, totRpu, totRating
+            totUsage, totRpu, totRating,
         ]
         allFields.forEach { $0?.stringValue = "..." }
         elapsedL?.stringValue = "0 s"
@@ -626,7 +633,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         while value <= UInt32(maxThreads) {
             options.append(value)
             let next = value + (value < 2 ? 1 : 2)
-            if value <= preferred, (preferred < next || next > UInt32(maxThreads)) {
+            if value <= preferred, preferred < next || next > UInt32(maxThreads) {
                 if value != preferred {
                     options.append(preferred)
                 }
@@ -680,11 +687,11 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
     private static func arch() -> String {
         #if arch(arm64)
-        return "Apple Silicon (arm64)"
+            return "Apple Silicon (arm64)"
         #elseif arch(x86_64)
-        return "Intel (x86_64)"
+            return "Intel (x86_64)"
         #else
-        return "Unknown"
+            return "Unknown"
         #endif
     }
 

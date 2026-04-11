@@ -35,7 +35,8 @@ func szPresentError(_ error: Error, for window: NSWindow?) {
 func szPresentMessage(title: String,
                       message: String = "",
                       style: SZDialogStyle = .informational,
-                      for window: NSWindow?) {
+                      for window: NSWindow?)
+{
     let present = {
         SZDialogPresenter.presentMessage(with: style,
                                          title: title,
@@ -54,7 +55,8 @@ func szPresentMessage(title: String,
 func szRunChoiceDialog(title: String,
                        message: String,
                        style: SZDialogStyle = .informational,
-                       buttons: [String]) -> Int {
+                       buttons: [String]) -> Int
+{
     SZDialogPresenter.runMessage(with: style,
                                  title: title,
                                  message: message,
@@ -63,7 +65,8 @@ func szRunChoiceDialog(title: String,
 
 func szPromptForPasswordSync(title: String,
                              message: String? = nil,
-                             initialValue: String? = nil) -> String? {
+                             initialValue: String? = nil) -> String?
+{
     var password: NSString?
     let confirmed = SZDialogPresenter.promptForPassword(withTitle: title,
                                                         message: message,
@@ -78,7 +81,8 @@ func szBeginConfirmation(on window: NSWindow,
                          message: String,
                          confirmTitle: String,
                          style: SZDialogStyle = .warning,
-                         completion: @escaping (Bool) -> Void) {
+                         completion: @escaping (Bool) -> Void)
+{
     let controller = SZModalDialogController(style: style,
                                              title: title,
                                              message: message,
@@ -98,7 +102,8 @@ func szBeginTextInput(on window: NSWindow,
                       placeholder: String? = nil,
                       confirmTitle: String,
                       style: SZDialogStyle = .informational,
-                      completion: @escaping (String?) -> Void) {
+                      completion: @escaping (String?) -> Void)
+{
     let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
     inputField.stringValue = initialValue
     inputField.placeholderString = placeholder
@@ -120,7 +125,8 @@ func szShowDetailsDialog(title: String,
                          details: String,
                          detailsHeight: CGFloat = 220,
                          style: SZDialogStyle = .informational,
-                         for window: NSWindow?) {
+                         for window: NSWindow?)
+{
     let present = {
         let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 380, height: detailsHeight))
         textView.string = details

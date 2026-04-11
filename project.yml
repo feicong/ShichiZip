@@ -103,11 +103,7 @@ targets:
           - "SHICHIZIP_ZS_VARIANT=0"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS:
           - "$(inherited)"
-        OTHER_CPLUSPLUSFLAGS:
-          - "$(inherited)"
-          - "-Wno-everything"  # 7-Zip headers generate many warnings
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
-        GCC_WARN_INHIBIT_ALL_WARNINGS: true
 
   ShichiZipZS:
     type: application
@@ -206,11 +202,7 @@ targets:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS:
           - "$(inherited)"
           - "SHICHIZIP_ZS_VARIANT"
-        OTHER_CPLUSPLUSFLAGS:
-          - "$(inherited)"
-          - "-Wno-everything"
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
-        GCC_WARN_INHIBIT_ALL_WARNINGS: true
 
   ShichiZipShowInFileManagerAction:
     type: app-extension

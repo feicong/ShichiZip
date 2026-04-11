@@ -2,7 +2,7 @@
 
 #import "../Bridge/SZArchive.h"
 
-static NSString * const SZShowPasswordPreferenceKey = @"SZShowPasswordInPrompts";
+static NSString* const SZShowPasswordPreferenceKey = @"SZShowPasswordInPrompts";
 
 static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     if (byteCount == 0) {
@@ -15,11 +15,11 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
 @interface SZPasswordAccessoryController : NSViewController
 
-- (instancetype)initWithInitialValue:(nullable NSString *)initialValue;
+- (instancetype)initWithInitialValue:(nullable NSString*)initialValue;
 
-@property (nonatomic, readonly) NSString *password;
+@property (nonatomic, readonly) NSString* password;
 @property (nonatomic, readonly) BOOL showsPassword;
-@property (nonatomic, readonly) NSView *preferredFirstResponderView;
+@property (nonatomic, readonly) NSView* preferredFirstResponderView;
 
 @end
 
@@ -27,8 +27,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
 - (instancetype)initWithRequiredBytes:(uint64_t)requiredBytes
                     currentLimitBytes:(uint64_t)currentLimitBytes
-                          archivePath:(nullable NSString *)archivePath
-                             filePath:(nullable NSString *)filePath
+                          archivePath:(nullable NSString*)archivePath
+                             filePath:(nullable NSString*)filePath
                          showRemember:(BOOL)showRemember;
 
 @property (nonatomic, readonly) BOOL saveLimit;
@@ -36,19 +36,19 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 @property (nonatomic, readonly) BOOL rememberChoice;
 @property (nonatomic, readonly) uint32_t limitGB;
 @property (nonatomic, readonly) BOOL installedRAMIsInsufficient;
-@property (nonatomic, readonly) NSView *preferredFirstResponderView;
+@property (nonatomic, readonly) NSView* preferredFirstResponderView;
 
 @end
 
 @implementation SZPasswordAccessoryController {
-    NSSecureTextField *_secureField;
-    NSTextField *_plainField;
-    NSButton *_showPasswordButton;
+    NSSecureTextField* _secureField;
+    NSTextField* _plainField;
+    NSButton* _showPasswordButton;
 }
 
-- (instancetype)initWithInitialValue:(NSString *)initialValue {
+- (instancetype)initWithInitialValue:(NSString*)initialValue {
     if ((self = [super initWithNibName:nil bundle:nil])) {
-        NSString *password = initialValue ?: @"";
+        NSString* password = initialValue ?: @"";
 
         _secureField = [[NSSecureTextField alloc] initWithFrame:NSZeroRect];
         _secureField.translatesAutoresizingMaskIntoConstraints = NO;
@@ -69,7 +69,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 }
 
 - (void)loadView {
-    NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 56)];
+    NSView* container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 56)];
 
     [container addSubview:_secureField];
     [container addSubview:_plainField];
@@ -86,7 +86,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
         [_plainField.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
         [_plainField.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
 
-        [_showPasswordButton.topAnchor constraintEqualToAnchor:_secureField.bottomAnchor constant:8],
+        [_showPasswordButton.topAnchor constraintEqualToAnchor:_secureField.bottomAnchor
+                                                      constant:8],
         [_showPasswordButton.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
         [_showPasswordButton.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
     ]];
@@ -95,13 +96,13 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     [self syncVisibility];
 }
 
-- (void)togglePasswordVisibility:(__unused NSButton *)sender {
-    NSString *currentPassword = self.password;
+- (void)togglePasswordVisibility:(__unused NSButton*)sender {
+    NSString* currentPassword = self.password;
     _secureField.stringValue = currentPassword;
     _plainField.stringValue = currentPassword;
     [self syncVisibility];
 
-    NSView *firstResponder = self.preferredFirstResponderView;
+    NSView* firstResponder = self.preferredFirstResponderView;
     if (firstResponder) {
         [self.view.window makeFirstResponder:firstResponder];
     }
@@ -113,7 +114,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _plainField.hidden = !showPassword;
 }
 
-- (NSString *)password {
+- (NSString*)password {
     return _showPasswordButton.state == NSControlStateValueOn ? _plainField.stringValue : _secureField.stringValue;
 }
 
@@ -121,7 +122,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     return _showPasswordButton.state == NSControlStateValueOn;
 }
 
-- (NSView *)preferredFirstResponderView {
+- (NSView*)preferredFirstResponderView {
     return self.showsPassword ? _plainField : _secureField;
 }
 
@@ -135,20 +136,20 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     uint32_t _currentLimitGB;
     uint32_t _installedRAMGB;
     BOOL _showRemember;
-    NSButton *_saveLimitButton;
-    NSTextField *_limitField;
-    NSTextField *_limitUnitLabel;
-    NSButton *_allowButton;
-    NSButton *_skipButton;
-    NSButton *_rememberButton;
-    NSString *_archivePath;
-    NSString *_filePath;
+    NSButton* _saveLimitButton;
+    NSTextField* _limitField;
+    NSTextField* _limitUnitLabel;
+    NSButton* _allowButton;
+    NSButton* _skipButton;
+    NSButton* _rememberButton;
+    NSString* _archivePath;
+    NSString* _filePath;
 }
 
 - (instancetype)initWithRequiredBytes:(uint64_t)requiredBytes
                     currentLimitBytes:(uint64_t)currentLimitBytes
-                          archivePath:(NSString *)archivePath
-                             filePath:(NSString *)filePath
+                          archivePath:(NSString*)archivePath
+                             filePath:(NSString*)filePath
                          showRemember:(BOOL)showRemember {
     if ((self = [super initWithNibName:nil bundle:nil])) {
         _requiredGB = SZDialogRoundUpByteCountToGB(requiredBytes);
@@ -165,8 +166,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     return _installedRAMGB > 0 && _requiredGB > _installedRAMGB;
 }
 
-- (NSTextField *)detailLabelWithString:(NSString *)stringValue {
-    NSTextField *label = [NSTextField wrappingLabelWithString:stringValue];
+- (NSTextField*)detailLabelWithString:(NSString*)stringValue {
+    NSTextField* label = [NSTextField wrappingLabelWithString:stringValue];
     label.translatesAutoresizingMaskIntoConstraints = NO;
     label.font = [NSFont systemFontOfSize:12];
     label.textColor = NSColor.secondaryLabelColor;
@@ -175,8 +176,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     return label;
 }
 
-- (NSButton *)radioButtonWithTitle:(NSString *)title action:(SEL)action {
-    NSButton *button = [[NSButton alloc] initWithFrame:NSZeroRect];
+- (NSButton*)radioButtonWithTitle:(NSString*)title action:(SEL)action {
+    NSButton* button = [[NSButton alloc] initWithFrame:NSZeroRect];
     button.translatesAutoresizingMaskIntoConstraints = NO;
     button.buttonType = NSButtonTypeRadio;
     button.title = title;
@@ -186,16 +187,16 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 }
 
 - (void)loadView {
-    NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 380, 220)];
+    NSView* container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 380, 220)];
 
-    NSStackView *stack = [[NSStackView alloc] init];
+    NSStackView* stack = [[NSStackView alloc] init];
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     stack.alignment = NSLayoutAttributeLeading;
     stack.spacing = 12;
     [container addSubview:stack];
 
-    NSStackView *detailsStack = [[NSStackView alloc] init];
+    NSStackView* detailsStack = [[NSStackView alloc] init];
     detailsStack.translatesAutoresizingMaskIntoConstraints = NO;
     detailsStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     detailsStack.alignment = NSLayoutAttributeLeading;
@@ -214,7 +215,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _saveLimitButton = [NSButton checkboxWithTitle:@"Change allowed limit for next operations" target:self action:@selector(toggleSaveLimit:)];
     _saveLimitButton.translatesAutoresizingMaskIntoConstraints = NO;
 
-    NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+    NSNumberFormatter* formatter = [[NSNumberFormatter alloc] init];
     formatter.numberStyle = NSNumberFormatterDecimalStyle;
     formatter.minimum = @1;
     formatter.maximum = @16384;
@@ -233,7 +234,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _limitUnitLabel.textColor = NSColor.secondaryLabelColor;
     _limitUnitLabel.enabled = NO;
 
-    NSStackView *limitStack = [[NSStackView alloc] init];
+    NSStackView* limitStack = [[NSStackView alloc] init];
     limitStack.translatesAutoresizingMaskIntoConstraints = NO;
     limitStack.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     limitStack.alignment = NSLayoutAttributeCenterY;
@@ -246,7 +247,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     ]];
     [stack addArrangedSubview:limitStack];
 
-    NSTextField *actionLabel = [NSTextField labelWithString:@"If the archive needs more than the current limit:"];
+    NSTextField* actionLabel = [NSTextField labelWithString:@"If the archive needs more than the current limit:"];
     actionLabel.translatesAutoresizingMaskIntoConstraints = NO;
     actionLabel.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
     [stack addArrangedSubview:actionLabel];
@@ -256,7 +257,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _allowButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOff : NSControlStateValueOn;
     _skipButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOn : NSControlStateValueOff;
 
-    NSStackView *actionStack = [[NSStackView alloc] init];
+    NSStackView* actionStack = [[NSStackView alloc] init];
     actionStack.translatesAutoresizingMaskIntoConstraints = NO;
     actionStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     actionStack.alignment = NSLayoutAttributeLeading;
@@ -283,7 +284,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     self.view = container;
 }
 
-- (void)toggleSaveLimit:(NSButton *)sender {
+- (void)toggleSaveLimit:(NSButton*)sender {
     const BOOL enabled = sender.state == NSControlStateValueOn;
     _limitField.enabled = enabled;
     _limitUnitLabel.enabled = enabled;
@@ -292,7 +293,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     }
 }
 
-- (void)selectActionButton:(NSButton *)sender {
+- (void)selectActionButton:(NSButton*)sender {
     const BOOL shouldSkip = sender == _skipButton;
     _allowButton.state = shouldSkip ? NSControlStateValueOff : NSControlStateValueOn;
     _skipButton.state = shouldSkip ? NSControlStateValueOn : NSControlStateValueOff;
@@ -319,7 +320,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     return value > 0 ? (uint32_t)value : MAX(_requiredGB, 1u);
 }
 
-- (NSView *)preferredFirstResponderView {
+- (NSView*)preferredFirstResponderView {
     return _allowButton;
 }
 
@@ -329,25 +330,25 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
 + (SZDialogStyle)dialogStyleForPromptStyle:(SZOperationPromptStyle)promptStyle {
     switch (promptStyle) {
-        case SZOperationPromptStyleWarning:
-            return SZDialogStyleWarning;
-        case SZOperationPromptStyleCritical:
-            return SZDialogStyleCritical;
-        case SZOperationPromptStyleInformational:
-        default:
-            return SZDialogStyleInformational;
+    case SZOperationPromptStyleWarning:
+        return SZDialogStyleWarning;
+    case SZOperationPromptStyleCritical:
+        return SZDialogStyleCritical;
+    case SZOperationPromptStyleInformational:
+    default:
+        return SZDialogStyleInformational;
     }
 }
 
-+ (NSString *)errorDetailsForError:(NSError *)error {
-    NSMutableArray<NSString *> *parts = [NSMutableArray array];
++ (NSString*)errorDetailsForError:(NSError*)error {
+    NSMutableArray<NSString*>* parts = [NSMutableArray array];
 
-    NSString *failureReason = error.localizedFailureReason;
+    NSString* failureReason = error.localizedFailureReason;
     if (failureReason.length > 0 && ![failureReason isEqualToString:error.localizedDescription]) {
         [parts addObject:failureReason];
     }
 
-    NSString *recoverySuggestion = error.localizedRecoverySuggestion;
+    NSString* recoverySuggestion = error.localizedRecoverySuggestion;
     if (recoverySuggestion.length > 0) {
         [parts addObject:recoverySuggestion];
     }
@@ -355,9 +356,9 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     return [parts componentsJoinedByString:@"\n\n"];
 }
 
-+ (void)presentError:(NSError *)error forWindow:(NSWindow *)window {
-    NSString *title = error.localizedDescription.length > 0 ? error.localizedDescription : @"Operation Failed";
-    NSString *message = [self errorDetailsForError:error];
++ (void)presentError:(NSError*)error forWindow:(NSWindow*)window {
+    NSString* title = error.localizedDescription.length > 0 ? error.localizedDescription : @"Operation Failed";
+    NSString* message = [self errorDetailsForError:error];
     SZDialogStyle style = SZDialogStyleCritical;
     BOOL useDedicatedPopup = NO;
     if ([error.domain isEqualToString:SZArchiveErrorDomain] && error.code == SZArchiveErrorCodeWrongPassword) {
@@ -365,45 +366,43 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
         useDedicatedPopup = YES;
     }
 
-    SZModalDialogController *controller = [[SZModalDialogController alloc] initWithStyle:style
-                                                                                    title:title
-                                                                                  message:message
-                                                                             buttonTitles:@[@"OK"]
-                                                                            accessoryView:nil
-                                                                   preferredFirstResponder:nil
-                                                                        cancelButtonIndex:0];
+    SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:style
+                                                                                   title:title
+                                                                                 message:message
+                                                                            buttonTitles:@[ @"OK" ]
+                                                                           accessoryView:nil
+                                                                 preferredFirstResponder:nil
+                                                                       cancelButtonIndex:0];
     if (window && !useDedicatedPopup) {
-        [controller beginSheetModalForWindow:window completionHandler:^(__unused NSInteger selectedButtonIndex) {
-        }];
+        [controller beginSheetModalForWindow:window completionHandler:^(__unused NSInteger selectedButtonIndex) { }];
     } else {
         [controller runModal];
     }
 }
 
 + (void)presentMessageWithStyle:(SZDialogStyle)style
-                          title:(NSString *)title
-                        message:(NSString *)message
-                    buttonTitle:(NSString *)buttonTitle
-                      forWindow:(NSWindow *)window {
-    SZModalDialogController *controller = [[SZModalDialogController alloc] initWithStyle:style
-                                                                                    title:title
-                                                                                  message:message
-                                                                             buttonTitles:@[buttonTitle]
-                                                                            accessoryView:nil
-                                                                   preferredFirstResponder:nil
-                                                                        cancelButtonIndex:0];
+                          title:(NSString*)title
+                        message:(NSString*)message
+                    buttonTitle:(NSString*)buttonTitle
+                      forWindow:(NSWindow*)window {
+    SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:style
+                                                                                   title:title
+                                                                                 message:message
+                                                                            buttonTitles:@[ buttonTitle ]
+                                                                           accessoryView:nil
+                                                                 preferredFirstResponder:nil
+                                                                       cancelButtonIndex:0];
     if (window) {
-        [controller beginSheetModalForWindow:window completionHandler:^(__unused NSInteger selectedButtonIndex) {
-        }];
+        [controller beginSheetModalForWindow:window completionHandler:^(__unused NSInteger selectedButtonIndex) { }];
     } else {
         [controller runModal];
     }
 }
 
 + (NSInteger)runMessageWithStyle:(SZDialogStyle)style
-                              title:(NSString *)title
-                            message:(NSString *)message
-                       buttonTitles:(NSArray<NSString *> *)buttonTitles {
+                           title:(NSString*)title
+                         message:(NSString*)message
+                    buttonTitles:(NSArray<NSString*>*)buttonTitles {
     NSInteger cancelButtonIndex = buttonTitles.count > 0 ? (NSInteger)buttonTitles.count - 1 : 0;
     for (NSInteger index = 0; index < (NSInteger)buttonTitles.count; index++) {
         if ([buttonTitles[(NSUInteger)index] caseInsensitiveCompare:@"Cancel"] == NSOrderedSame) {
@@ -412,28 +411,28 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
         }
     }
 
-    SZModalDialogController *controller = [[SZModalDialogController alloc] initWithStyle:style
-                                                                                    title:title
-                                                                                  message:message
-                                                                             buttonTitles:buttonTitles
-                                                                            accessoryView:nil
-                                                                   preferredFirstResponder:nil
-                                                                        cancelButtonIndex:cancelButtonIndex];
+    SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:style
+                                                                                   title:title
+                                                                                 message:message
+                                                                            buttonTitles:buttonTitles
+                                                                           accessoryView:nil
+                                                                 preferredFirstResponder:nil
+                                                                       cancelButtonIndex:cancelButtonIndex];
     return [controller runModal];
 }
 
-+ (BOOL)promptForPasswordWithTitle:(NSString *)title
-                           message:(NSString *)message
-                      initialValue:(NSString *)initialValue
-                           password:(NSString * _Nullable * _Nullable)password {
-    SZPasswordAccessoryController *accessoryController = [[SZPasswordAccessoryController alloc] initWithInitialValue:initialValue];
-    SZModalDialogController *controller = [[SZModalDialogController alloc] initWithStyle:SZDialogStyleWarning
-                                                                                    title:title
-                                                                                  message:message
-                                                                             buttonTitles:@[@"Cancel", @"OK"]
-                                                                            accessoryView:accessoryController.view
-                                                                   preferredFirstResponder:accessoryController.preferredFirstResponderView
-                                                                        cancelButtonIndex:0];
++ (BOOL)promptForPasswordWithTitle:(NSString*)title
+                           message:(NSString*)message
+                      initialValue:(NSString*)initialValue
+                          password:(NSString* _Nullable* _Nullable)password {
+    SZPasswordAccessoryController* accessoryController = [[SZPasswordAccessoryController alloc] initWithInitialValue:initialValue];
+    SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:SZDialogStyleWarning
+                                                                                   title:title
+                                                                                 message:message
+                                                                            buttonTitles:@[ @"Cancel", @"OK" ]
+                                                                           accessoryView:accessoryController.view
+                                                                 preferredFirstResponder:accessoryController.preferredFirstResponderView
+                                                                       cancelButtonIndex:0];
 
     NSInteger selectedButtonIndex = [controller runModal];
     if (selectedButtonIndex != 1) {
@@ -449,31 +448,31 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
 + (BOOL)promptForMemoryLimitWithRequiredBytes:(uint64_t)requiredBytes
                             currentLimitBytes:(uint64_t)currentLimitBytes
-                                  archivePath:(NSString *)archivePath
-                                     filePath:(NSString *)filePath
+                                  archivePath:(NSString*)archivePath
+                                     filePath:(NSString*)filePath
                                      testMode:(BOOL)testMode
                                  showRemember:(BOOL)showRemember
-                                       result:(SZMemoryLimitPromptResult * _Nullable * _Nullable)result {
-    SZMemoryLimitAccessoryController *accessoryController = [[SZMemoryLimitAccessoryController alloc] initWithRequiredBytes:requiredBytes
-                                                                                                         currentLimitBytes:currentLimitBytes
-                                                                                                               archivePath:archivePath
-                                                                                                                  filePath:filePath
-                                                                                                              showRemember:showRemember];
+                                       result:(SZMemoryLimitPromptResult* _Nullable* _Nullable)result {
+    SZMemoryLimitAccessoryController* accessoryController = [[SZMemoryLimitAccessoryController alloc] initWithRequiredBytes:requiredBytes
+                                                                                                          currentLimitBytes:currentLimitBytes
+                                                                                                                archivePath:archivePath
+                                                                                                                   filePath:filePath
+                                                                                                               showRemember:showRemember];
 
-    NSString *message = testMode
+    NSString* message = testMode
         ? @"This archive needs more memory to continue testing than the current limit allows."
         : @"This archive needs more memory to continue extracting than the current limit allows.";
     if (accessoryController.installedRAMIsInsufficient) {
         message = [message stringByAppendingString:@" Installed RAM may also be insufficient."];
     }
 
-    SZModalDialogController *controller = [[SZModalDialogController alloc] initWithStyle:(accessoryController.installedRAMIsInsufficient ? SZDialogStyleCritical : SZDialogStyleWarning)
-                                                                                    title:@"Memory Usage Limit Exceeded"
-                                                                                  message:message
-                                                                             buttonTitles:@[@"Cancel", @"Continue"]
-                                                                            accessoryView:accessoryController.view
-                                                                   preferredFirstResponder:accessoryController.preferredFirstResponderView
-                                                                        cancelButtonIndex:0];
+    SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:(accessoryController.installedRAMIsInsufficient ? SZDialogStyleCritical : SZDialogStyleWarning)
+                                                                                   title:@"Memory Usage Limit Exceeded"
+                                                                                 message:message
+                                                                            buttonTitles:@[ @"Cancel", @"Continue" ]
+                                                                           accessoryView:accessoryController.view
+                                                                 preferredFirstResponder:accessoryController.preferredFirstResponderView
+                                                                       cancelButtonIndex:0];
 
     NSInteger selectedButtonIndex = [controller runModal];
     if (selectedButtonIndex != 1) {
@@ -481,7 +480,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     }
 
     if (result) {
-        SZMemoryLimitPromptResult *promptResult = [SZMemoryLimitPromptResult new];
+        SZMemoryLimitPromptResult* promptResult = [SZMemoryLimitPromptResult new];
         promptResult.saveLimit = accessoryController.saveLimit;
         promptResult.skipArchive = accessoryController.skipArchive;
         promptResult.rememberChoice = accessoryController.rememberChoice;

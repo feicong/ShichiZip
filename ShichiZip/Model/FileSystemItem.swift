@@ -11,11 +11,11 @@ class FileSystemItem {
 
     init(url: URL) {
         self.url = url
-        self.name = url.lastPathComponent
+        name = url.lastPathComponent
 
         let resourceValues = try? url.resourceValues(forKeys: [
             .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey,
-            .contentModificationDateKey, .creationDateKey
+            .contentModificationDateKey, .creationDateKey,
         ])
 
         let resolvedDirectoryValue: Bool?
@@ -26,10 +26,10 @@ class FileSystemItem {
             resolvedDirectoryValue = nil
         }
 
-        self.isDirectory = resolvedDirectoryValue ?? resourceValues?.isDirectory ?? false
-        self.size = UInt64(resourceValues?.fileSize ?? 0)
-        self.modifiedDate = resourceValues?.contentModificationDate
-        self.createdDate = resourceValues?.creationDate
+        isDirectory = resolvedDirectoryValue ?? resourceValues?.isDirectory ?? false
+        size = UInt64(resourceValues?.fileSize ?? 0)
+        modifiedDate = resourceValues?.contentModificationDate
+        createdDate = resourceValues?.creationDate
     }
 
     var formattedSize: String {

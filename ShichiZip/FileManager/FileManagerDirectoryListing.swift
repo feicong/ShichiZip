@@ -3,7 +3,8 @@ import Foundation
 enum FileManagerDirectoryListing {
     static func contentsPreservingPresentedPath(for url: URL,
                                                 options: FileManager.DirectoryEnumerationOptions,
-                                                fileManager: FileManager = .default) throws -> [URL] {
+                                                fileManager: FileManager = .default) throws -> [URL]
+    {
         let resourceKeys: Set<URLResourceKey> = [
             .isDirectoryKey,
             .isSymbolicLinkKey,
@@ -16,7 +17,8 @@ enum FileManagerDirectoryListing {
         let listingURL: URL
         if resourceValues.isSymbolicLink == true,
            let resolvedIsDirectory = try url.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
-           resolvedIsDirectory {
+           resolvedIsDirectory
+        {
             listingURL = url.resolvingSymlinksInPath()
         } else {
             listingURL = url

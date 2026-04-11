@@ -10,20 +10,20 @@ typedef NS_ENUM(NSInteger, SZOperationPromptStyle) {
     SZOperationPromptStyleCritical,
 };
 
-typedef BOOL (^SZOperationPasswordRequestHandler)(NSString *title,
-                                                 NSString * _Nullable message,
-                                                 NSString * _Nullable initialValue,
-                                                 NSString * _Nullable * _Nullable password);
+typedef BOOL (^SZOperationPasswordRequestHandler)(NSString* title,
+    NSString* _Nullable message,
+    NSString* _Nullable initialValue,
+    NSString* _Nullable* _Nullable password);
 
 typedef NSInteger (^SZOperationChoiceRequestHandler)(SZOperationPromptStyle style,
-                                                     NSString *title,
-                                                     NSString * _Nullable message,
-                                                     NSArray<NSString *> *buttonTitles);
+    NSString* title,
+    NSString* _Nullable message,
+    NSArray<NSString*>* buttonTitles);
 
 @interface SZOperationSnapshot : NSObject
 
 @property (nonatomic, readonly) double progressFraction;
-@property (nonatomic, copy, readonly) NSString *currentFileName;
+@property (nonatomic, copy, readonly) NSString* currentFileName;
 @property (nonatomic, readonly) uint64_t bytesCompleted;
 @property (nonatomic, readonly) uint64_t bytesTotal;
 @property (nonatomic, readonly) uint64_t filesCompleted;
@@ -40,7 +40,7 @@ typedef NSInteger (^SZOperationChoiceRequestHandler)(SZOperationPromptStyle styl
 @property (nonatomic, copy, nullable) SZOperationChoiceRequestHandler choiceRequestHandler;
 
 @property (nonatomic, readonly) double progressFraction;
-@property (nonatomic, copy, readonly) NSString *currentFileName;
+@property (nonatomic, copy, readonly) NSString* currentFileName;
 @property (nonatomic, readonly) uint64_t bytesCompleted;
 @property (nonatomic, readonly) uint64_t bytesTotal;
 @property (nonatomic, readonly) uint64_t filesCompleted;
@@ -49,7 +49,7 @@ typedef NSInteger (^SZOperationChoiceRequestHandler)(SZOperationPromptStyle styl
 @property (nonatomic, readonly, getter=isCancellationRequested) BOOL cancellationRequested;
 
 - (void)reportProgressFraction:(double)fraction;
-- (void)reportCurrentFileName:(NSString *)fileName;
+- (void)reportCurrentFileName:(NSString*)fileName;
 - (void)reportBytesCompleted:(uint64_t)completed total:(uint64_t)total;
 - (void)reportFilesCompleted:(uint64_t)count;
 - (BOOL)shouldCancel;
@@ -57,15 +57,15 @@ typedef NSInteger (^SZOperationChoiceRequestHandler)(SZOperationPromptStyle styl
 - (void)clearCancellationRequest;
 - (void)prepareForUserInteraction;
 - (void)finishUserInteraction;
-- (SZOperationSnapshot *)snapshot;
-- (BOOL)requestPasswordWithTitle:(NSString *)title
-                         message:(nullable NSString *)message
-                    initialValue:(nullable NSString *)initialValue
-                        password:(NSString * _Nullable * _Nullable)password;
+- (SZOperationSnapshot*)snapshot;
+- (BOOL)requestPasswordWithTitle:(NSString*)title
+                         message:(nullable NSString*)message
+                    initialValue:(nullable NSString*)initialValue
+                        password:(NSString* _Nullable* _Nullable)password;
 - (NSInteger)requestChoiceWithStyle:(SZOperationPromptStyle)style
-                              title:(NSString *)title
-                            message:(nullable NSString *)message
-                       buttonTitles:(NSArray<NSString *> *)buttonTitles;
+                              title:(NSString*)title
+                            message:(nullable NSString*)message
+                       buttonTitles:(NSArray<NSString*>*)buttonTitles;
 
 @end
 

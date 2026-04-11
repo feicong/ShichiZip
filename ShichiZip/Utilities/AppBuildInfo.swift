@@ -14,14 +14,15 @@ enum AppBuildInfo {
 
     static func archiveCoreName(bundle: Bundle = .main) -> String {
         if let configuredName = infoString(archiveCoreNameKey, bundle: bundle),
-           !configuredName.isEmpty {
+           !configuredName.isEmpty
+        {
             return configuredName
         }
 
         #if SHICHIZIP_ZS_VARIANT
-        return "7-Zip-zstd"
+            return "7-Zip-zstd"
         #else
-        return "7-Zip"
+            return "7-Zip"
         #endif
     }
 

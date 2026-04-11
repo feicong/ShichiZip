@@ -644,7 +644,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\n\ninfo_plist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\ncommit_count=\"$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || printf '0')\"\nshort_hash=\"$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || printf 'unknown')\"\nlicense_source=\"${SRCROOT}/${SHICHIZIP_LICENSE_SOURCE_PATH}\"\nlicense_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt\"\nsfx_source=\"${SRCROOT}/${SHICHIZIP_SFX_SOURCE_PATH}\"\nsfx_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7z.sfx\"\n\nset_plist_value() {\n  local plist_path=\"$1\"\n  local key=\"$2\"\n  local value=\"$3\"\n\n  if /usr/libexec/PlistBuddy -c \"Print :${key}\" \"${plist_path}\" >/dev/null 2>&1; then\n    /usr/libexec/PlistBuddy -c \"Set :${key} ${value}\" \"${plist_path}\"\n  else\n    /usr/libexec/PlistBuddy -c \"Add :${key} string ${value}\" \"${plist_path}\"\n  fi\n}\n\nset_plist_value \"${info_plist}\" \"ShichiZipGitCommitCount\" \"${commit_count}\"\nset_plist_value \"${info_plist}\" \"ShichiZipGitShortHash\" \"${short_hash}\"\n\nmkdir -p \"$(dirname \"${license_dest}\")\"\ncp \"${license_source}\" \"${license_dest}\"\n\nif [ -f \"${sfx_source}\" ]; then\n  cp \"${sfx_source}\" \"${sfx_dest}\"\nfi\n";
+			shellScript = "set -eu\n\ninfo_plist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\ncommit_count=\"$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || printf '0')\"\nshort_hash=\"$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || printf 'unknown')\"\nlicense_source=\"${SRCROOT}/${SHICHIZIP_LICENSE_SOURCE_PATH}\"\nlicense_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt\"\nsfx_source=\"${SRCROOT}/${SHICHIZIP_SFX_SOURCE_PATH}\"\nsfx_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7z.sfx\"\n\nset_plist_value() {\n  local plist_path=\"$1\"\n  local key=\"$2\"\n  local value=\"$3\"\n\n  if /usr/libexec/PlistBuddy -c \"Print :${key}\" \"${plist_path}\" >/dev/null 2>&1; then\n    /usr/libexec/PlistBuddy -c \"Set :${key} ${value}\" \"${plist_path}\"\n  else\n    /usr/libexec/PlistBuddy -c \"Add :${key} string ${value}\" \"${plist_path}\"\n  fi\n}\n\nset_plist_value \"${info_plist}\" \"ShichiZipGitCommitCount\" \"${commit_count}\"\nset_plist_value \"${info_plist}\" \"ShichiZipGitShortHash\" \"${short_hash}\"\n\nmkdir -p \"$(dirname \"${license_dest}\")\"\ncp \"${license_source}\" \"${license_dest}\"\n\nif [ ! -f \"${sfx_source}\" ]; then\n  echo \"Missing required SFX payload: ${sfx_source}\" >&2\n  exit 1\nfi\n\ncp \"${sfx_source}\" \"${sfx_dest}\"\n";
 		};
 		807B4DC42912EBCC6372573E /* Generate Build Metadata */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -663,7 +663,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\n\ninfo_plist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\ncommit_count=\"$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || printf '0')\"\nshort_hash=\"$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || printf 'unknown')\"\nlicense_source=\"${SRCROOT}/${SHICHIZIP_LICENSE_SOURCE_PATH}\"\nlicense_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt\"\nsfx_source=\"${SRCROOT}/${SHICHIZIP_SFX_SOURCE_PATH}\"\nsfx_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7z.sfx\"\n\nset_plist_value() {\n  local plist_path=\"$1\"\n  local key=\"$2\"\n  local value=\"$3\"\n\n  if /usr/libexec/PlistBuddy -c \"Print :${key}\" \"${plist_path}\" >/dev/null 2>&1; then\n    /usr/libexec/PlistBuddy -c \"Set :${key} ${value}\" \"${plist_path}\"\n  else\n    /usr/libexec/PlistBuddy -c \"Add :${key} string ${value}\" \"${plist_path}\"\n  fi\n}\n\nset_plist_value \"${info_plist}\" \"ShichiZipGitCommitCount\" \"${commit_count}\"\nset_plist_value \"${info_plist}\" \"ShichiZipGitShortHash\" \"${short_hash}\"\n\nmkdir -p \"$(dirname \"${license_dest}\")\"\ncp \"${license_source}\" \"${license_dest}\"\n\nif [ -f \"${sfx_source}\" ]; then\n  cp \"${sfx_source}\" \"${sfx_dest}\"\nfi\n";
+			shellScript = "set -eu\n\ninfo_plist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\ncommit_count=\"$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || printf '0')\"\nshort_hash=\"$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || printf 'unknown')\"\nlicense_source=\"${SRCROOT}/${SHICHIZIP_LICENSE_SOURCE_PATH}\"\nlicense_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt\"\nsfx_source=\"${SRCROOT}/${SHICHIZIP_SFX_SOURCE_PATH}\"\nsfx_dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7z.sfx\"\n\nset_plist_value() {\n  local plist_path=\"$1\"\n  local key=\"$2\"\n  local value=\"$3\"\n\n  if /usr/libexec/PlistBuddy -c \"Print :${key}\" \"${plist_path}\" >/dev/null 2>&1; then\n    /usr/libexec/PlistBuddy -c \"Set :${key} ${value}\" \"${plist_path}\"\n  else\n    /usr/libexec/PlistBuddy -c \"Add :${key} string ${value}\" \"${plist_path}\"\n  fi\n}\n\nset_plist_value \"${info_plist}\" \"ShichiZipGitCommitCount\" \"${commit_count}\"\nset_plist_value \"${info_plist}\" \"ShichiZipGitShortHash\" \"${short_hash}\"\n\nmkdir -p \"$(dirname \"${license_dest}\")\"\ncp \"${license_source}\" \"${license_dest}\"\n\nif [ ! -f \"${sfx_source}\" ]; then\n  echo \"Missing required SFX payload: ${sfx_source}\" >&2\n  exit 1\nfi\n\ncp \"${sfx_source}\" \"${sfx_dest}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -892,7 +892,6 @@
 					"NDEBUG=1",
 					"SHICHIZIP_ZS_VARIANT=1",
 				);
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/$(SEVENZ_VENDOR_ROOT)",
@@ -909,10 +908,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(inherited)",
-					"-Wno-everything",
-				);
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/build/lib/$(SEVENZ_LIBRARY_NAME)",
@@ -1069,7 +1064,6 @@
 					"NDEBUG=1",
 					"SHICHIZIP_ZS_VARIANT=0",
 				);
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/$(SEVENZ_VENDOR_ROOT)",
@@ -1086,10 +1080,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(inherited)",
-					"-Wno-everything",
-				);
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/build/lib/$(SEVENZ_LIBRARY_NAME)",
@@ -1301,7 +1291,6 @@
 					"NDEBUG=1",
 					"SHICHIZIP_ZS_VARIANT=0",
 				);
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/$(SEVENZ_VENDOR_ROOT)",
@@ -1318,10 +1307,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(inherited)",
-					"-Wno-everything",
-				);
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/build/lib/$(SEVENZ_LIBRARY_NAME)",
@@ -1456,7 +1441,6 @@
 					"NDEBUG=1",
 					"SHICHIZIP_ZS_VARIANT=1",
 				);
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/$(SEVENZ_VENDOR_ROOT)",
@@ -1473,10 +1457,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(inherited)",
-					"-Wno-everything",
-				);
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/build/lib/$(SEVENZ_LIBRARY_NAME)",

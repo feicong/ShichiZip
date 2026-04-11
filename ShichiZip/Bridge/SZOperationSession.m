@@ -20,7 +20,7 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 
 @interface SZOperationSession () {
     double _progressFraction;
-    NSString *_currentFileName;
+    NSString* _currentFileName;
     uint64_t _bytesCompleted;
     uint64_t _bytesTotal;
     uint64_t _filesCompleted;
@@ -34,19 +34,19 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 @interface SZOperationSnapshot ()
 
 - (instancetype)initWithProgressFraction:(double)progressFraction
-                         currentFileName:(NSString *)currentFileName
+                         currentFileName:(NSString*)currentFileName
                           bytesCompleted:(uint64_t)bytesCompleted
-                               bytesTotal:(uint64_t)bytesTotal
+                              bytesTotal:(uint64_t)bytesTotal
                           filesCompleted:(uint64_t)filesCompleted
-                        hasReportedProgress:(BOOL)hasReportedProgress
-                    waitingForUserInteraction:(BOOL)waitingForUserInteraction
-                      cancellationRequested:(BOOL)cancellationRequested;
+                     hasReportedProgress:(BOOL)hasReportedProgress
+               waitingForUserInteraction:(BOOL)waitingForUserInteraction
+                   cancellationRequested:(BOOL)cancellationRequested;
 
 @end
 
 @implementation SZOperationSnapshot {
     double _progressFraction;
-    NSString *_currentFileName;
+    NSString* _currentFileName;
     uint64_t _bytesCompleted;
     uint64_t _bytesTotal;
     uint64_t _filesCompleted;
@@ -56,13 +56,13 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (instancetype)initWithProgressFraction:(double)progressFraction
-                         currentFileName:(NSString *)currentFileName
+                         currentFileName:(NSString*)currentFileName
                           bytesCompleted:(uint64_t)bytesCompleted
-                               bytesTotal:(uint64_t)bytesTotal
+                              bytesTotal:(uint64_t)bytesTotal
                           filesCompleted:(uint64_t)filesCompleted
-                        hasReportedProgress:(BOOL)hasReportedProgress
-                    waitingForUserInteraction:(BOOL)waitingForUserInteraction
-                      cancellationRequested:(BOOL)cancellationRequested {
+                     hasReportedProgress:(BOOL)hasReportedProgress
+               waitingForUserInteraction:(BOOL)waitingForUserInteraction
+                   cancellationRequested:(BOOL)cancellationRequested {
     if ((self = [super init])) {
         _progressFraction = progressFraction;
         _currentFileName = [currentFileName copy] ?: @"";
@@ -80,7 +80,7 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
     return _progressFraction;
 }
 
-- (NSString *)currentFileName {
+- (NSString*)currentFileName {
     return [_currentFileName copy];
 }
 
@@ -120,56 +120,56 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (double)progressFraction {
-    @synchronized (self) {
+    @synchronized(self) {
         return _progressFraction;
     }
 }
 
-- (NSString *)currentFileName {
-    @synchronized (self) {
+- (NSString*)currentFileName {
+    @synchronized(self) {
         return [_currentFileName copy];
     }
 }
 
 - (uint64_t)bytesCompleted {
-    @synchronized (self) {
+    @synchronized(self) {
         return _bytesCompleted;
     }
 }
 
 - (uint64_t)bytesTotal {
-    @synchronized (self) {
+    @synchronized(self) {
         return _bytesTotal;
     }
 }
 
 - (uint64_t)filesCompleted {
-    @synchronized (self) {
+    @synchronized(self) {
         return _filesCompleted;
     }
 }
 
 - (BOOL)hasReportedProgress {
-    @synchronized (self) {
+    @synchronized(self) {
         return _hasReportedProgress;
     }
 }
 
 - (BOOL)isWaitingForUserInteraction {
-    @synchronized (self) {
+    @synchronized(self) {
         return _waitingForUserInteraction;
     }
 }
 
 - (BOOL)isCancellationRequested {
-    @synchronized (self) {
+    @synchronized(self) {
         return _cancellationRequested;
     }
 }
 
 - (void)reportProgressFraction:(double)fraction {
     const double clamped = MIN(MAX(fraction, 0.0), 1.0);
-    @synchronized (self) {
+    @synchronized(self) {
         _progressFraction = clamped;
         _hasReportedProgress = YES;
     }
@@ -184,9 +184,9 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
     });
 }
 
-- (void)reportCurrentFileName:(NSString *)fileName {
-    NSString *resolvedFileName = [fileName copy] ?: @"";
-    @synchronized (self) {
+- (void)reportCurrentFileName:(NSString*)fileName {
+    NSString* resolvedFileName = [fileName copy] ?: @"";
+    @synchronized(self) {
         _currentFileName = resolvedFileName;
     }
 
@@ -201,7 +201,7 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)reportBytesCompleted:(uint64_t)completed total:(uint64_t)total {
-    @synchronized (self) {
+    @synchronized(self) {
         _bytesCompleted = completed;
         _bytesTotal = total;
     }
@@ -217,7 +217,7 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)reportFilesCompleted:(uint64_t)count {
-    @synchronized (self) {
+    @synchronized(self) {
         _filesCompleted = count;
     }
 }
@@ -240,13 +240,13 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)requestCancel {
-    @synchronized (self) {
+    @synchronized(self) {
         _cancellationRequested = YES;
     }
 }
 
 - (void)clearCancellationRequest {
-    @synchronized (self) {
+    @synchronized(self) {
         _cancellationRequested = NO;
     }
 
@@ -261,7 +261,7 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)prepareForUserInteraction {
-    @synchronized (self) {
+    @synchronized(self) {
         _waitingForUserInteraction = YES;
     }
 
@@ -276,28 +276,29 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)finishUserInteraction {
-    @synchronized (self) {
+    @synchronized(self) {
         _waitingForUserInteraction = NO;
     }
 }
 
-- (SZOperationSnapshot *)snapshot {
-    @synchronized (self) {
-        return [[SZOperationSnapshot alloc] initWithProgressFraction:_progressFraction
-                                                     currentFileName:_currentFileName
-                                                      bytesCompleted:_bytesCompleted
-                                                           bytesTotal:_bytesTotal
-                                                      filesCompleted:_filesCompleted
-                                                    hasReportedProgress:_hasReportedProgress
-                                                waitingForUserInteraction:_waitingForUserInteraction
-                                                  cancellationRequested:_cancellationRequested];
+- (SZOperationSnapshot*)snapshot {
+    @synchronized(self) {
+        return [[SZOperationSnapshot alloc]
+             initWithProgressFraction:_progressFraction
+                      currentFileName:_currentFileName
+                       bytesCompleted:_bytesCompleted
+                           bytesTotal:_bytesTotal
+                       filesCompleted:_filesCompleted
+                  hasReportedProgress:_hasReportedProgress
+            waitingForUserInteraction:_waitingForUserInteraction
+                cancellationRequested:_cancellationRequested];
     }
 }
 
-- (BOOL)requestPasswordWithTitle:(NSString *)title
-                         message:(NSString *)message
-                    initialValue:(NSString *)initialValue
-                        password:(NSString * _Nullable * _Nullable)password {
+- (BOOL)requestPasswordWithTitle:(NSString*)title
+                         message:(NSString*)message
+                    initialValue:(NSString*)initialValue
+                        password:(NSString* _Nullable* _Nullable)password {
     [self prepareForUserInteraction];
 
     SZOperationPasswordRequestHandler handler = self.passwordRequestHandler;
@@ -307,9 +308,9 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
     }
 
     __block BOOL confirmed = NO;
-    __block NSString *resolvedPassword = nil;
+    __block NSString* resolvedPassword = nil;
     SZDispatchSyncOnMain(^{
-        NSString *promptPassword = nil;
+        NSString* promptPassword = nil;
         confirmed = handler(title, message, initialValue, &promptPassword);
         resolvedPassword = [promptPassword copy];
     });
@@ -323,9 +324,9 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (NSInteger)requestChoiceWithStyle:(SZOperationPromptStyle)style
-                              title:(NSString *)title
-                            message:(NSString *)message
-                       buttonTitles:(NSArray<NSString *> *)buttonTitles {
+                              title:(NSString*)title
+                            message:(NSString*)message
+                       buttonTitles:(NSArray<NSString*>*)buttonTitles {
     [self prepareForUserInteraction];
 
     NSInteger defaultChoice = buttonTitles.count > 0 ? (NSInteger)buttonTitles.count - 1 : 0;

@@ -122,7 +122,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -281,7 +281,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
                     let nsError = error as NSError
                     if directory.path != self.tempRoot.path,
                        nsError.domain == NSCocoaErrorDomain,
-                       nsError.code == CocoaError.fileReadNoSuchFile.rawValue {
+                       nsError.code == CocoaError.fileReadNoSuchFile.rawValue
+                    {
                         self.currentDirectory = self.tempRoot
                         self.reloadContents()
                         return
@@ -316,7 +317,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
     private static func loadItems(in directory: URL,
                                   tempRoot: URL,
-                                  fileManager: FileManager) throws -> [BrowserItem] {
+                                  fileManager: FileManager) throws -> [BrowserItem]
+    {
         let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey,
                                                  .isSymbolicLinkKey,
                                                  .contentModificationDateKey,
@@ -335,7 +337,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
     }
 
     private static func makeBrowserItem(for url: URL,
-                                        fileManager: FileManager) throws -> BrowserItem {
+                                        fileManager: FileManager) throws -> BrowserItem
+    {
         let values = try url.resourceValues(forKeys: [.isDirectoryKey,
                                                       .isSymbolicLinkKey,
                                                       .contentModificationDateKey,
@@ -362,7 +365,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
     }
 
     private static func summarizeDirectory(at url: URL,
-                                           fileManager: FileManager) -> DirectorySummary {
+                                           fileManager: FileManager) -> DirectorySummary
+    {
         let childKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey]
         guard let enumerator = fileManager.enumerator(at: url,
                                                       includingPropertiesForKeys: Array(childKeys),
@@ -423,7 +427,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
     private func compare(_ lhs: BrowserItem,
                          _ rhs: BrowserItem,
-                         key: String) -> ComparisonResult {
+                         key: String) -> ComparisonResult
+    {
         switch key {
         case Column.modified.rawValue:
             switch (lhs.modifiedDate, rhs.modifiedDate) {
@@ -455,13 +460,15 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
         case Column.name.rawValue:
             fallthrough
+
         default:
             return lhs.name.localizedStandardCompare(rhs.name)
         }
     }
 
     private func stringValue(for item: BrowserItem,
-                             column: Column) -> String {
+                             column: Column) -> String
+    {
         switch column {
         case .name:
             return item.name
@@ -482,23 +489,23 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         }
     }
 
-    @objc private func refreshContents(_ sender: Any?) {
+    @objc private func refreshContents(_: Any?) {
         reloadContents(selectingNames: Set(selectedItems().map(\.name)))
     }
 
-    @objc private func openParentFolder(_ sender: Any?) {
+    @objc private func openParentFolder(_: Any?) {
         guard currentDirectory.path != tempRoot.path else { return }
         let parent = currentDirectory.deletingLastPathComponent().standardizedFileURL
         currentDirectory = FileManagerTemporaryDirectorySupport.isInsideRoot(parent, fileManager: fileManager) ? parent : tempRoot
         reloadContents()
     }
 
-    @objc private func doubleClickRow(_ sender: Any?) {
+    @objc private func doubleClickRow(_: Any?) {
         let row = tableView.clickedRow
         guard items.indices.contains(row) else { return }
 
         let item = items[row]
-        if item.isDirectory && !item.isSymbolicLink {
+        if item.isDirectory, !item.isSymbolicLink {
             currentDirectory = item.url.standardizedFileURL
             reloadContents()
             return
@@ -507,7 +514,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         _ = NSWorkspace.shared.open(item.url)
     }
 
-    @objc private func deleteSelection(_ sender: Any?) {
+    @objc private func deleteSelection(_: Any?) {
         let selectedItems = selectedItems()
         guard !selectedItems.isEmpty,
               let window else { return }
@@ -527,7 +534,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
                             title: "Delete Temporary Files",
                             message: message,
                             confirmTitle: "Delete",
-                            style: .warning) { [weak self] confirmed in
+                            style: .warning)
+        { [weak self] confirmed in
             guard confirmed else { return }
             self?.performDelete(items: selectedItems)
         }
@@ -566,23 +574,25 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         }
     }
 
-    func numberOfRows(in tableView: NSTableView) -> Int {
+    func numberOfRows(in _: NSTableView) -> Int {
         items.count
     }
 
-    func tableViewSelectionDidChange(_ notification: Notification) {
+    func tableViewSelectionDidChange(_: Notification) {
         updateControls()
     }
 
     func tableView(_ tableView: NSTableView,
-                   sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+                   sortDescriptorsDidChange _: [NSSortDescriptor])
+    {
         items = sortedItems(items)
         tableView.reloadData()
     }
 
     func tableView(_ tableView: NSTableView,
                    viewFor tableColumn: NSTableColumn?,
-                   row: Int) -> NSView? {
+                   row: Int) -> NSView?
+    {
         guard items.indices.contains(row),
               let tableColumn,
               let column = Column(rawValue: tableColumn.identifier.rawValue)
@@ -611,7 +621,8 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
     private func makeCellView(for column: Column,
                               identifier: NSUserInterfaceItemIdentifier,
-                              tableView: NSTableView) -> NSTableCellView {
+                              tableView: NSTableView) -> NSTableCellView
+    {
         if let existing = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
             return existing
         }

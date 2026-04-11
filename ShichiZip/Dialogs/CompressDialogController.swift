@@ -6,7 +6,6 @@ struct CompressDialogResult {
 }
 
 final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
-
     private struct Option<Value: Equatable>: Equatable {
         let title: String
         let value: Value
@@ -35,7 +34,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
              dictionaryLabel: String,
              dictionaryOptions: [Option<UInt64>],
              wordLabel: String,
-             wordOptions: [Option<UInt32>]) {
+             wordOptions: [Option<UInt32>])
+        {
             self.title = title
             self.enumValue = enumValue
             self.methodName = methodName
@@ -133,7 +133,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             var updatedEntries = entries().filter { $0 != normalizedPath }
             updatedEntries.insert(normalizedPath, at: 0)
             if updatedEntries.count > maxEntries {
-                updatedEntries.removeSubrange(maxEntries..<updatedEntries.count)
+                updatedEntries.removeSubrange(maxEntries ..< updatedEntries.count)
             }
             defaults.set(updatedEntries, forKey: entriesKey)
         }
@@ -166,9 +166,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         private static let timePrecisionSetKey = "FileManager.CompressTimePrecisionSet"
 
         static func format(defaultValue: String,
-                           allowedValues: [String]) -> String {
+                           allowedValues: [String]) -> String
+        {
             guard let value = defaults.string(forKey: formatKey),
-                  allowedValues.contains(value) else {
+                  allowedValues.contains(value)
+            else {
                 return defaultValue
             }
             return value
@@ -176,7 +178,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         static func updateMode(defaultValue: SZCompressionUpdateMode) -> SZCompressionUpdateMode {
             guard let rawValue = defaults.object(forKey: updateModeKey) as? Int,
-                  let value = SZCompressionUpdateMode(rawValue: rawValue) else {
+                  let value = SZCompressionUpdateMode(rawValue: rawValue)
+            else {
                 return defaultValue
             }
             return value
@@ -184,7 +187,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         static func pathMode(defaultValue: SZCompressionPathMode) -> SZCompressionPathMode {
             guard let rawValue = defaults.object(forKey: pathModeKey) as? Int,
-                  let value = SZCompressionPathMode(rawValue: rawValue) else {
+                  let value = SZCompressionPathMode(rawValue: rawValue)
+            else {
                 return defaultValue
             }
             return value
@@ -232,7 +236,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         private static func bool(forKey key: String,
-                                 defaultValue: Bool) -> Bool {
+                                 defaultValue: Bool) -> Bool
+        {
             guard defaults.object(forKey: key) != nil else {
                 return defaultValue
             }
@@ -241,7 +246,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         private static func advancedBoolPairState(valueKey: String,
                                                   setKey: String,
-                                                  defaultValue: Bool) -> AdvancedBoolPairState {
+                                                  defaultValue: Bool) -> AdvancedBoolPairState
+        {
             let storedValueExists = defaults.object(forKey: valueKey) != nil
             let value = bool(forKey: valueKey, defaultValue: defaultValue)
 
@@ -330,7 +336,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                            deleteAfterCompression: Bool,
                            encryptNames: Bool,
                            showPassword: Bool,
-                           memoryUsage: String) {
+                           memoryUsage: String)
+        {
             defaults.set(format, forKey: formatKey)
             defaults.set(updateMode.rawValue, forKey: updateModeKey)
             defaults.set(pathMode.rawValue, forKey: pathModeKey)
@@ -351,14 +358,15 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         init(ownerWindow: NSWindow?,
              pathField: NSComboBox,
              baseDirectory: URL,
-             defaultFileNameProvider: @escaping () -> String) {
+             defaultFileNameProvider: @escaping () -> String)
+        {
             self.ownerWindow = ownerWindow
             self.pathField = pathField
             self.baseDirectory = baseDirectory.standardizedFileURL
             self.defaultFileNameProvider = defaultFileNameProvider
         }
 
-        @objc func browse(_ sender: Any?) {
+        @objc func browse(_: Any?) {
             let panel = NSSavePanel()
             panel.canCreateDirectories = true
             panel.directoryURL = suggestedDirectoryURL()
@@ -424,7 +432,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             self.handler = handler
         }
 
-        @objc func invoke(_ sender: Any?) {
+        @objc func invoke(_: Any?) {
             handler()
         }
     }
@@ -464,7 +472,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private static func levelOption(title: String,
                                     value: Int,
-                                    isDefault: Bool = false) -> LevelOption {
+                                    isDefault: Bool = false) -> LevelOption
+    {
         LevelOption(title: title,
                     levelValue: value,
                     isDefault: isDefault)
@@ -485,7 +494,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func numberedLevelTitle(_ value: Int,
-                                           namedLabel: String?) -> String {
+                                           namedLabel: String?) -> String
+    {
         let base = "Level \(value)"
         guard let namedLabel else {
             return base
@@ -496,7 +506,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func makeNumberedLevelOptions(range: ClosedRange<Int>,
                                                  namedLabels: [Int: String],
                                                  defaultValue: Int,
-                                                 highestTitle: String = "Highest") -> [LevelOption] {
+                                                 highestTitle: String = "Highest") -> [LevelOption]
+    {
         var options = range.map { value in
             levelOption(title: numberedLevelTitle(value, namedLabel: namedLabels[value]),
                         value: value,
@@ -539,7 +550,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private static func makeZstdLevelOptions() -> [LevelOption] {
         var options: [LevelOption] = []
-        for value in -64...22 where value != 0 {
+        for value in -64 ... 22 where value != 0 {
             options.append(levelOption(title: zstdLevelTitle(for: value),
                                        value: value,
                                        isDefault: value == 11))
@@ -551,28 +562,28 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static let levelOptions: [LevelOption] = makeStandardLevelOptions(includeStore: true)
     private static let nonStoreLevelOptions: [LevelOption] = makeStandardLevelOptions(includeStore: false)
     private static let storeOnlyLevelOptions: [LevelOption] = [
-        levelOption(title: "Store", value: 0, isDefault: true)
+        levelOption(title: "Store", value: 0, isDefault: true),
     ]
     private static let zstdLevelOptions: [LevelOption] = makeZstdLevelOptions()
-    private static let brotliLevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 0...11,
+    private static let brotliLevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 0 ... 11,
                                                                                     namedLabels: [0: "Store", 1: "Fastest", 3: "Fast", 6: "Normal", 9: "Maximum", 11: "Ultra"],
                                                                                     defaultValue: 6)
-    private static let lz4LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 1...12,
+    private static let lz4LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 1 ... 12,
                                                                                  namedLabels: [1: "Fastest", 3: "Fast", 6: "Normal", 9: "Maximum", 12: "Ultra"],
                                                                                  defaultValue: 6)
-    private static let lz5LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 1...15,
+    private static let lz5LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 1 ... 15,
                                                                                  namedLabels: [1: "Fastest", 3: "Fast", 7: "Normal", 11: "Maximum", 15: "Ultra"],
                                                                                  defaultValue: 7)
-    private static let lizardMethod1LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 10...19,
+    private static let lizardMethod1LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 10 ... 19,
                                                                                            namedLabels: [10: "Fastest", 13: "Fast", 15: "Normal", 17: "Maximum", 19: "Ultra"],
                                                                                            defaultValue: 15)
-    private static let lizardMethod2LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 20...29,
+    private static let lizardMethod2LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 20 ... 29,
                                                                                            namedLabels: [20: "Fastest", 23: "Fast", 25: "Normal", 27: "Maximum", 29: "Ultra"],
                                                                                            defaultValue: 25)
-    private static let lizardMethod3LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 30...39,
+    private static let lizardMethod3LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 30 ... 39,
                                                                                            namedLabels: [30: "Fastest", 33: "Fast", 35: "Normal", 37: "Maximum", 39: "Ultra"],
                                                                                            defaultValue: 35)
-    private static let lizardMethod4LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 40...49,
+    private static let lizardMethod4LevelOptions: [LevelOption] = makeNumberedLevelOptions(range: 40 ... 49,
                                                                                            namedLabels: [40: "Fastest", 43: "Fast", 45: "Normal", 47: "Maximum", 49: "Ultra"],
                                                                                            defaultValue: 45)
 
@@ -620,7 +631,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     ]
 
     private static let orderOptions: [Option<UInt32>] =
-        [Option(title: "Auto", value: 0)] + (2...32).map { Option(title: "\($0)", value: UInt32($0)) }
+        [Option(title: "Auto", value: 0)] + (2 ... 32).map { Option(title: "\($0)", value: UInt32($0)) }
 
     private static let updateModeOptions: [Option<SZCompressionUpdateMode>] = [
         Option(title: "Add and replace files", value: .add),
@@ -661,19 +672,19 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             MethodOption(title: "Deflate", enumValue: .deflate, methodName: "Deflate", dictionaryLabel: "Dictionary size:", dictionaryOptions: standardDictionaryOptions, wordLabel: "Word size:", wordOptions: standardWordOptions),
             MethodOption(title: "Deflate64", enumValue: .deflate64, methodName: "Deflate64", dictionaryLabel: "Dictionary size:", dictionaryOptions: standardDictionaryOptions, wordLabel: "Word size:", wordOptions: standardWordOptions),
         ]
-#if SHICHIZIP_ZS_VARIANT
-        methods += [
-            MethodOption(title: "ZSTD", enumValue: nil, methodName: "ZSTD", levelOptions: zstdLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "Brotli", enumValue: nil, methodName: "Brotli", levelOptions: brotliLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "LZ4", enumValue: nil, methodName: "LZ4", levelOptions: lz4LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "LZ5", enumValue: nil, methodName: "LZ5", levelOptions: lz5LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "Lizard FastLZ4", enumValue: nil, methodName: "Lizard-FastLZ4", levelOptions: lizardMethod1LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "Lizard LIZv1", enumValue: nil, methodName: "Lizard-LIZv1", levelOptions: lizardMethod2LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "Lizard FastLZ4 + Huffman", enumValue: nil, methodName: "Lizard-FastLZ4-Huffman", levelOptions: lizardMethod3LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "Lizard LIZv1 + Huffman", enumValue: nil, methodName: "Lizard-LIZv1-Huffman", levelOptions: lizardMethod4LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
-            MethodOption(title: "FLZMA2", enumValue: nil, methodName: "FLZMA2", dictionaryLabel: "Dictionary size:", dictionaryOptions: standardDictionaryOptions, wordLabel: "Word size:", wordOptions: standardWordOptions),
-        ]
-#endif
+        #if SHICHIZIP_ZS_VARIANT
+            methods += [
+                MethodOption(title: "ZSTD", enumValue: nil, methodName: "ZSTD", levelOptions: zstdLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "Brotli", enumValue: nil, methodName: "Brotli", levelOptions: brotliLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "LZ4", enumValue: nil, methodName: "LZ4", levelOptions: lz4LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "LZ5", enumValue: nil, methodName: "LZ5", levelOptions: lz5LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "Lizard FastLZ4", enumValue: nil, methodName: "Lizard-FastLZ4", levelOptions: lizardMethod1LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "Lizard LIZv1", enumValue: nil, methodName: "Lizard-LIZv1", levelOptions: lizardMethod2LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "Lizard FastLZ4 + Huffman", enumValue: nil, methodName: "Lizard-FastLZ4-Huffman", levelOptions: lizardMethod3LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "Lizard LIZv1 + Huffman", enumValue: nil, methodName: "Lizard-LIZv1-Huffman", levelOptions: lizardMethod4LevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []),
+                MethodOption(title: "FLZMA2", enumValue: nil, methodName: "FLZMA2", dictionaryLabel: "Dictionary size:", dictionaryOptions: standardDictionaryOptions, wordLabel: "Word size:", wordOptions: standardWordOptions),
+            ]
+        #endif
         methods.append(MethodOption(title: "Copy", enumValue: .copy, methodName: "Copy", levelOptions: storeOnlyLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []))
         return methods
     }()
@@ -686,9 +697,9 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             MethodOption(title: "LZMA", enumValue: .LZMA, methodName: "LZMA", dictionaryLabel: "Dictionary size:", dictionaryOptions: standardDictionaryOptions, wordLabel: "Word size:", wordOptions: standardWordOptions),
             MethodOption(title: "PPMd", enumValue: .ppMd, methodName: "PPMd", dictionaryLabel: "Memory usage:", dictionaryOptions: ppmdDictionaryOptions, wordLabel: "Order:", wordOptions: orderOptions),
         ]
-#if SHICHIZIP_ZS_VARIANT
-        methods.append(MethodOption(title: "ZSTD", enumValue: nil, methodName: "ZSTD", levelOptions: zstdLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []))
-#endif
+        #if SHICHIZIP_ZS_VARIANT
+            methods.append(MethodOption(title: "ZSTD", enumValue: nil, methodName: "ZSTD", levelOptions: zstdLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []))
+        #endif
         methods.append(MethodOption(title: "Copy", enumValue: .copy, methodName: "Copy", levelOptions: storeOnlyLevelOptions, dictionaryLabel: "Dictionary size:", dictionaryOptions: [], wordLabel: "Word size:", wordOptions: []))
         return methods
     }()
@@ -741,15 +752,15 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             FormatOption(title: "bzip2", codecName: "bzip2", format: .formatBZip2, defaultExtension: "bz2", levelOptions: nonStoreLevelOptions, methods: bzip2Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
             FormatOption(title: "xz", codecName: "xz", format: .formatXz, defaultExtension: "xz", levelOptions: nonStoreLevelOptions, methods: xzMethods, supportsSolid: true, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
         ]
-#if SHICHIZIP_ZS_VARIANT
-        formats += [
-            FormatOption(title: "zstd", codecName: "zstd", format: .formatZstd, defaultExtension: "zst", levelOptions: zstdLevelOptions, methods: zstdMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
-            FormatOption(title: "Brotli", codecName: "brotli", format: .formatBrotli, defaultExtension: "br", levelOptions: brotliLevelOptions, methods: brotliMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
-            FormatOption(title: "Lizard", codecName: "lizard", format: .formatLizard, defaultExtension: "liz", levelOptions: lizardMethod1LevelOptions, methods: lizardMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
-            FormatOption(title: "LZ4", codecName: "lz4", format: .formatLz4, defaultExtension: "lz4", levelOptions: lz4LevelOptions, methods: lz4Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
-            FormatOption(title: "LZ5", codecName: "lz5", format: .formatLz5, defaultExtension: "lz5", levelOptions: lz5LevelOptions, methods: lz5Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
-        ]
-#endif
+        #if SHICHIZIP_ZS_VARIANT
+            formats += [
+                FormatOption(title: "zstd", codecName: "zstd", format: .formatZstd, defaultExtension: "zst", levelOptions: zstdLevelOptions, methods: zstdMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+                FormatOption(title: "Brotli", codecName: "brotli", format: .formatBrotli, defaultExtension: "br", levelOptions: brotliLevelOptions, methods: brotliMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+                FormatOption(title: "Lizard", codecName: "lizard", format: .formatLizard, defaultExtension: "liz", levelOptions: lizardMethod1LevelOptions, methods: lizardMethods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+                FormatOption(title: "LZ4", codecName: "lz4", format: .formatLz4, defaultExtension: "lz4", levelOptions: lz4LevelOptions, methods: lz4Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+                FormatOption(title: "LZ5", codecName: "lz5", format: .formatLz5, defaultExtension: "lz5", levelOptions: lz5LevelOptions, methods: lz5Methods, supportsSolid: false, supportsThreads: true, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: true),
+            ]
+        #endif
         formats.append(FormatOption(title: "tar", codecName: "tar", format: .formatTar, defaultExtension: "tar", levelOptions: storeOnlyLevelOptions, methods: tarMethods, supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: false))
         formats.append(FormatOption(title: "wim", codecName: "wim", format: .formatWim, defaultExtension: "wim", levelOptions: storeOnlyLevelOptions, methods: [], supportsSolid: false, supportsThreads: false, encryptionOptions: [], supportsEncryptFileNames: false, keepsName: false))
         return formats
@@ -817,21 +828,22 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     init(sourceURLs: [URL],
          baseDirectory: URL? = nil,
-         message: String? = nil) {
+         message: String? = nil)
+    {
         let normalizedSourceURLs = sourceURLs.map { $0.standardizedFileURL }
         let resolvedBaseDirectory = (baseDirectory ?? Self.suggestedBaseDirectory(for: normalizedSourceURLs)).standardizedFileURL
         let supportedFormatInfoByName = Self.makeSupportedFormatInfoByName()
 
         self.sourceURLs = normalizedSourceURLs
         self.baseDirectory = resolvedBaseDirectory
-        self.suggestedBaseName = Self.suggestedArchiveBaseName(for: normalizedSourceURLs,
-                                                               baseDirectory: resolvedBaseDirectory)
-        self.supportedFormatInfoByName = supportedFormatInfoByName
-        self.availableFormats = Self.makeAvailableFormats(supportedFormatInfoByName: supportedFormatInfoByName,
-                                  sourceURLs: normalizedSourceURLs)
-        self.hasStoredAdvancedPreferences = DialogPreferences.hasStoredAdvancedOptions()
-        self.messageText = message ?? Self.defaultMessage(for: normalizedSourceURLs,
+        suggestedBaseName = Self.suggestedArchiveBaseName(for: normalizedSourceURLs,
                                                           baseDirectory: resolvedBaseDirectory)
+        self.supportedFormatInfoByName = supportedFormatInfoByName
+        availableFormats = Self.makeAvailableFormats(supportedFormatInfoByName: supportedFormatInfoByName,
+                                                     sourceURLs: normalizedSourceURLs)
+        hasStoredAdvancedPreferences = DialogPreferences.hasStoredAdvancedOptions()
+        messageText = message ?? Self.defaultMessage(for: normalizedSourceURLs,
+                                                     baseDirectory: resolvedBaseDirectory)
 
         super.init()
     }
@@ -857,7 +869,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         var selectedArchivePath = defaultArchiveURL(for: selectedFormatName).path
         var selectedMethodName = defaultMethodName(for: selectedFormatName)
         var selectedLevel = defaultLevel(for: selectedFormatName,
-                         methodName: selectedMethodName)
+                                         methodName: selectedMethodName)
         var selectedDictionarySize: UInt64 = 0
         var selectedWordSize: UInt32 = 0
         var selectedSolidMode = true
@@ -872,7 +884,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         var excludeMacResourceFiles = SZSettings.bool(.excludeMacResourceFilesByDefault)
         var advancedOptions = DialogPreferences.advancedOptions(
             defaults: defaultAdvancedOptionsState(for: formatOption(named: selectedFormatName) ?? availableFormats[0],
-                                                 methodName: selectedMethodName)
+                                                  methodName: selectedMethodName)
         )
         var advancedOptionsCustomized = hasStoredAdvancedPreferences
 
@@ -1148,8 +1160,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             self.plainConfirmPasswordField = plainConfirmPasswordField
             self.showPasswordCheckbox = showPasswordCheckbox
             self.advancedOptionsSummaryLabel = advancedOptionsSummaryLabel
-            self.advancedOptionsState = advancedOptions
-            self.advancedOptionsWereCustomized = advancedOptionsCustomized
+            advancedOptionsState = advancedOptions
+            advancedOptionsWereCustomized = advancedOptionsCustomized
 
             reloadFormatDependentControls(preferredLevel: selectedLevel,
                                           preferredMethodName: selectedMethodName,
@@ -1162,7 +1174,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
             let picker = ArchivePathPicker(ownerWindow: controller.window,
                                            pathField: archivePathField,
-                                           baseDirectory: baseDirectory) { [weak self] in
+                                           baseDirectory: baseDirectory)
+            { [weak self] in
                 self?.suggestedArchiveFileName() ?? "Archive.7z"
             }
             archivePathPicker = picker
@@ -1279,7 +1292,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     func controlTextDidChange(_ obj: Notification) {
         if let comboBox = obj.object as? NSComboBox,
-           comboBox === threadField {
+           comboBox === threadField
+        {
             refreshCompressionEstimateSummary()
             return
         }
@@ -1310,7 +1324,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         refreshOptionAvailability()
     }
 
-    @objc private func formatChanged(_ sender: Any?) {
+    @objc private func formatChanged(_: Any?) {
         updateArchivePathExtension()
         reloadFormatDependentControls(preferredLevel: nil,
                                       preferredMethodName: nil,
@@ -1321,14 +1335,15 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         if !advancedOptionsWereCustomized,
            !hasStoredAdvancedPreferences,
-           let format = selectedFormatOption() {
+           let format = selectedFormatOption()
+        {
             advancedOptionsState = defaultAdvancedOptionsState(for: format,
-                                                              methodName: selectedMethodOption()?.methodName)
+                                                               methodName: selectedMethodOption()?.methodName)
             refreshAdvancedOptionsSummary()
         }
     }
 
-    @objc private func methodChanged(_ sender: Any?) {
+    @objc private func methodChanged(_: Any?) {
         reloadFormatDependentControls(preferredLevel: nil,
                                       preferredMethodName: selectedMethodOption()?.methodName,
                                       preferredDictionarySize: selectedDictionaryOption()?.value,
@@ -1337,29 +1352,30 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         if !advancedOptionsWereCustomized,
            !hasStoredAdvancedPreferences,
-           let format = selectedFormatOption() {
+           let format = selectedFormatOption()
+        {
             advancedOptionsState = defaultAdvancedOptionsState(for: format,
-                                                              methodName: selectedMethodOption()?.methodName)
+                                                               methodName: selectedMethodOption()?.methodName)
             refreshAdvancedOptionsSummary()
         }
     }
 
-    @objc private func showPasswordToggled(_ sender: Any?) {
+    @objc private func showPasswordToggled(_: Any?) {
         syncPasswordFields()
         updatePasswordVisibilityUI(moveFocus: true)
         refreshOptionAvailability()
     }
 
-    @objc private func compressionSettingsChanged(_ sender: Any?) {
+    @objc private func compressionSettingsChanged(_: Any?) {
         refreshOptionAvailability()
     }
 
-    @objc private func createSFXToggled(_ sender: Any?) {
+    @objc private func createSFXToggled(_: Any?) {
         updateArchivePathExtension()
         refreshOptionAvailability()
     }
 
-    @objc private func showAdvancedOptions(_ sender: Any?) {
+    @objc private func showAdvancedOptions(_: Any?) {
         guard let format = selectedFormatOption() else {
             return
         }
@@ -1369,7 +1385,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                     baseState: advancedOptionsState).state
         guard let updatedState = runAdvancedOptionsModal(for: format,
                                                          method: selectedMethodOption(),
-                                                         initialState: initialState) else {
+                                                         initialState: initialState)
+        else {
             return
         }
 
@@ -1380,7 +1397,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func runAdvancedOptionsModal(for format: FormatOption,
                                          method: MethodOption?,
-                                         initialState: AdvancedOptionsState) -> AdvancedOptionsState? {
+                                         initialState: AdvancedOptionsState) -> AdvancedOptionsState?
+    {
         let baseCapabilities = baseAdvancedOptionsCapabilities(for: format,
                                                                methodName: method?.methodName)
         let effectiveInitialState = effectiveAdvancedOptions(for: format,
@@ -1407,7 +1425,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         func makeSetColumn(setCheckbox: NSButton,
-                           colonLabel: NSTextField) -> NSStackView {
+                           colonLabel: NSTextField) -> NSStackView
+        {
             let column = NSStackView(views: [setCheckbox, colonLabel])
             column.orientation = .horizontal
             column.alignment = .centerY
@@ -1417,7 +1436,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         func makeBoolPairRow(title: String,
-                             state: AdvancedBoolPairState) -> (setCheckbox: NSButton, colonLabel: NSTextField, setColumn: NSStackView, valueCheckbox: NSButton, row: NSStackView) {
+                             state: AdvancedBoolPairState) -> (setCheckbox: NSButton, colonLabel: NSTextField, setColumn: NSStackView, valueCheckbox: NSButton, row: NSStackView)
+        {
             let setCheckbox = makeSetCheckbox()
             setCheckbox.state = state.isSet ? .on : .off
 
@@ -1486,7 +1506,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         timePrecisionSetCheckbox.state = effectiveInitialState.timePrecision.isSet ? .on : .off
         let timePrecisionColonLabel = makeColonLabel()
         let timePrecisionSetColumn = makeSetColumn(setCheckbox: timePrecisionSetCheckbox,
-                               colonLabel: timePrecisionColonLabel)
+                                                   colonLabel: timePrecisionColonLabel)
 
         let timePrecisionLabel = NSTextField(labelWithString: "Timestamp precision:")
         timePrecisionLabel.textColor = .labelColor
@@ -1555,7 +1575,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         ])
 
         func configureSimpleCheckbox(_ checkbox: NSButton,
-                                     supported: Bool) {
+                                     supported: Bool)
+        {
             checkbox.isHidden = !supported
             checkbox.isEnabled = supported
         }
@@ -1563,7 +1584,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         func configureBoolPairRow(_ row: (setCheckbox: NSButton, colonLabel: NSTextField, setColumn: NSStackView, valueCheckbox: NSButton, row: NSStackView),
                                   supported: Bool,
                                   defaultValue: Bool,
-                                  showSetCheckbox: Bool) {
+                                  showSetCheckbox: Bool)
+        {
             row.row.isHidden = !supported
             row.valueCheckbox.isHidden = !supported
             row.setCheckbox.isHidden = !supported || !showSetCheckbox
@@ -1581,7 +1603,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         let refreshControls = {
             if !timePrecisionOptions.isEmpty,
-               timePrecisionSetCheckbox.state != .on {
+               timePrecisionSetCheckbox.state != .on
+            {
                 selectTimePrecision(baseCapabilities.defaultTimePrecision)
             }
 
@@ -1636,9 +1659,9 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             accessTimeRow.setCheckbox,
             archiveTimeRow.setCheckbox,
         ]
-        refreshControlsList.forEach {
-            $0.target = refreshHandler
-            $0.action = #selector(ActionHandler.invoke(_:))
+        for item in refreshControlsList {
+            item.target = refreshHandler
+            item.action = #selector(ActionHandler.invoke(_:))
         }
         timePrecisionPopup.target = refreshHandler
         timePrecisionPopup.action = #selector(ActionHandler.invoke(_:))
@@ -1681,7 +1704,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                preferredMethodName: String?,
                                                preferredDictionarySize: UInt64?,
                                                preferredWordSize: UInt32?,
-                                               preferredEncryption: SZEncryptionMethod?) {
+                                               preferredEncryption: SZEncryptionMethod?)
+    {
         guard let format = selectedFormatOption() else { return }
 
         if format.methods.isEmpty {
@@ -1690,7 +1714,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         } else {
             populate(methodPopup, with: format.methods.map(\.title))
             if let preferredMethodName,
-               let selectedIndex = format.methods.firstIndex(where: { $0.methodName == preferredMethodName }) {
+               let selectedIndex = format.methods.firstIndex(where: { $0.methodName == preferredMethodName })
+            {
                 methodPopup?.selectItem(at: selectedIndex)
             } else {
                 methodPopup?.selectItem(at: 0)
@@ -1701,7 +1726,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                         method: selectedMethodOption())
         populate(levelPopup, with: levelOptions.map(\.title))
         if let preferredLevel,
-           let selectedIndex = levelOptions.firstIndex(where: { $0.levelValue == preferredLevel }) {
+           let selectedIndex = levelOptions.firstIndex(where: { $0.levelValue == preferredLevel })
+        {
             levelPopup?.selectItem(at: selectedIndex)
         } else {
             levelPopup?.selectItem(at: defaultLevelIndex(for: format,
@@ -1714,7 +1740,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         } else {
             populate(encryptionPopup, with: format.encryptionOptions.map(\.title))
             if let preferredEncryption,
-               let selectedIndex = format.encryptionOptions.firstIndex(where: { $0.value == preferredEncryption }) {
+               let selectedIndex = format.encryptionOptions.firstIndex(where: { $0.value == preferredEncryption })
+            {
                 encryptionPopup?.selectItem(at: selectedIndex)
             } else {
                 encryptionPopup?.selectItem(at: 0)
@@ -1727,7 +1754,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func reloadMethodDependentControls(preferredDictionarySize: UInt64?,
-                                               preferredWordSize: UInt32?) {
+                                               preferredWordSize: UInt32?)
+    {
         let method = selectedMethodOption()
         dictionaryLabel?.stringValue = method?.dictionaryLabel ?? "Dictionary size:"
         wordLabel?.stringValue = method?.wordLabel ?? "Word size:"
@@ -1739,7 +1767,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         } else {
             populate(dictionaryPopup, with: dictionaryOptions.map(\.title))
             if let preferredDictionarySize,
-               let selectedIndex = dictionaryOptions.firstIndex(where: { $0.value == preferredDictionarySize }) {
+               let selectedIndex = dictionaryOptions.firstIndex(where: { $0.value == preferredDictionarySize })
+            {
                 dictionaryPopup?.selectItem(at: selectedIndex)
             } else {
                 dictionaryPopup?.selectItem(at: 0)
@@ -1753,7 +1782,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         } else {
             populate(wordPopup, with: wordOptions.map(\.title))
             if let preferredWordSize,
-               let selectedIndex = wordOptions.firstIndex(where: { $0.value == preferredWordSize }) {
+               let selectedIndex = wordOptions.firstIndex(where: { $0.value == preferredWordSize })
+            {
                 wordPopup?.selectItem(at: selectedIndex)
             } else {
                 wordPopup?.selectItem(at: 0)
@@ -1781,11 +1811,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                    memoryUsageSpec: memoryUsageSpec)
 
         refreshDynamicCompressionControlTitles(for: format,
-                                              method: method,
-                                              selectedDictionarySize: selectedDictionarySize,
-                                              selectedWordSize: selectedWordSize,
-                                              currentThreadText: currentThreadText,
-                                              estimate: estimate)
+                                               method: method,
+                                               selectedDictionarySize: selectedDictionarySize,
+                                               selectedWordSize: selectedWordSize,
+                                               currentThreadText: currentThreadText,
+                                               estimate: estimate)
 
         levelPopup?.isEnabled = levelOptions(for: format, method: method).count > 1
         methodPopup?.isEnabled = !format.methods.isEmpty
@@ -1854,7 +1884,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func refreshCompressionResourceSummary(for format: FormatOption,
-                                                   estimate: CompressionResourceEstimate) {
+                                                   estimate: CompressionResourceEstimate)
+    {
         threadInfoLabel?.stringValue = Self.cpuThreadSummary(forThreadedFormat: format.supportsThreads)
         threadInfoLabel?.isHidden = !format.supportsThreads
         let showsMemoryUsageControl = estimate.memoryUsageLimit != nil
@@ -1869,7 +1900,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         let exceedsMemoryLimit = {
             guard let compressionMemory = estimate.compressionMemory,
-                  let memoryUsageLimit = estimate.memoryUsageLimit else {
+                  let memoryUsageLimit = estimate.memoryUsageLimit
+            else {
                 return false
             }
             return compressionMemory > memoryUsageLimit
@@ -1899,15 +1931,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                              memoryUsageSpec: String,
                              openSharedFiles: Bool,
                              deleteAfterCompression: Bool,
-                             advancedOptions: AdvancedOptionsState) throws -> CompressDialogResult {
+                             advancedOptions: AdvancedOptionsState) throws -> CompressDialogResult
+    {
         let effectiveCreateSFX = createSFX && supportsSFX(for: format, method: method)
         if createSFX && !effectiveCreateSFX {
             let sfxSupportDescription: String
-#if SHICHIZIP_ZS_VARIANT
-            sfxSupportDescription = "Windows SFX is only available for 7z archives using Copy, LZMA, LZMA2, PPMd, FLZMA2, or ZSTD, and requires the bundled 7z.sfx module."
-#else
-            sfxSupportDescription = "Windows SFX is only available for 7z archives using Copy, LZMA, LZMA2, or PPMd, and requires the bundled 7z.sfx module."
-#endif
+            #if SHICHIZIP_ZS_VARIANT
+                sfxSupportDescription = "Windows SFX is only available for 7z archives using Copy, LZMA, LZMA2, PPMd, FLZMA2, or ZSTD, and requires the bundled 7z.sfx module."
+            #else
+                sfxSupportDescription = "Windows SFX is only available for 7z archives using Copy, LZMA, LZMA2, or PPMd, and requires the bundled 7z.sfx module."
+            #endif
             throw NSError(domain: NSCocoaErrorDomain,
                           code: NSUserCancelledError,
                           userInfo: [NSLocalizedDescriptionKey: sfxSupportDescription])
@@ -1970,7 +2003,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                    memoryUsageSpec: normalizedMemoryUsageSpec)
         if let compressionMemory = estimate.compressionMemory,
            let memoryUsageLimit = estimate.memoryUsageLimit,
-           compressionMemory > memoryUsageLimit {
+           compressionMemory > memoryUsageLimit
+        {
             throw NSError(domain: NSCocoaErrorDomain,
                           code: NSUserCancelledError,
                           userInfo: [NSLocalizedDescriptionKey: "Compression requires \(Self.memoryUsageText(for: compressionMemory)), which exceeds the selected memory usage limit of \(Self.memoryUsageText(for: memoryUsageLimit))."])
@@ -1982,7 +2016,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func validatePassword(_ password: String,
                                   confirmation: String,
                                   for format: FormatOption,
-                                  encryption: SZEncryptionMethod) throws -> String? {
+                                  encryption: SZEncryptionMethod) throws -> String?
+    {
         guard !password.isEmpty || !confirmation.isEmpty else {
             return nil
         }
@@ -2000,7 +2035,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                               userInfo: [NSLocalizedDescriptionKey: "ZIP passwords must use ASCII characters."])
             }
 
-            if encryption == .AES256 && password.utf8.count > 99 {
+            if encryption == .AES256, password.utf8.count > 99 {
                 throw NSError(domain: NSCocoaErrorDomain,
                               code: NSUserCancelledError,
                               userInfo: [NSLocalizedDescriptionKey: "ZIP AES passwords must be 99 bytes or fewer."])
@@ -2027,7 +2062,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func resolveArchiveURL(from archivePath: String,
                                    format: FormatOption,
-                                   createSFX: Bool) throws -> URL {
+                                   createSFX: Bool) throws -> URL
+    {
         let trimmedPath = archivePath.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedPath = normalizedArchivePath(from: trimmedPath,
                                                    format: format,
@@ -2050,14 +2086,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let parentDirectory = standardizedURL.deletingLastPathComponent()
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: parentDirectory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
+              isDirectory.boolValue
+        else {
             throw NSError(domain: NSCocoaErrorDomain,
                           code: NSUserCancelledError,
                           userInfo: [NSLocalizedDescriptionKey: "The destination folder does not exist."])
         }
 
         if FileManager.default.fileExists(atPath: standardizedURL.path, isDirectory: &isDirectory),
-           isDirectory.boolValue {
+           isDirectory.boolValue
+        {
             throw NSError(domain: NSCocoaErrorDomain,
                           code: NSUserCancelledError,
                           userInfo: [NSLocalizedDescriptionKey: "The archive path points to an existing folder."])
@@ -2068,7 +2106,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func normalizedArchivePath(from archivePath: String,
                                        format: FormatOption,
-                                       createSFX: Bool) -> String {
+                                       createSFX: Bool) -> String
+    {
         let trimmedPath = archivePath.isEmpty
             ? defaultArchiveURL(for: format.codecName, createSFX: createSFX).path
             : archivePath
@@ -2093,7 +2132,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func updateArchivePathExtension() {
         guard let archivePathField,
-              let format = selectedFormatOption() else {
+              let format = selectedFormatOption()
+        else {
             return
         }
 
@@ -2113,7 +2153,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         guard moveFocus,
               let window = currentDialogWindow,
               let textView = window.firstResponder as? NSTextView,
-              let owner = textView.delegate as? NSView else {
+              let owner = textView.delegate as? NSView
+        else {
             return
         }
 
@@ -2165,7 +2206,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func selectedLevelOption() -> LevelOption? {
         guard let format = selectedFormatOption(),
-              let levelPopup else {
+              let levelPopup
+        else {
             return nil
         }
         let levelOptions = levelOptions(for: format,
@@ -2180,7 +2222,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func selectedMethodOption() -> MethodOption? {
         guard let format = selectedFormatOption(),
               let methodPopup,
-              !format.methods.isEmpty else {
+              !format.methods.isEmpty
+        else {
             return nil
         }
         let index = methodPopup.indexOfSelectedItem
@@ -2193,7 +2236,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func selectedDictionaryOption() -> Option<UInt64>? {
         guard let method = selectedMethodOption(),
               let dictionaryPopup,
-              !method.dictionaryOptions.isEmpty else {
+              !method.dictionaryOptions.isEmpty
+        else {
             return nil
         }
         let index = dictionaryPopup.indexOfSelectedItem
@@ -2206,7 +2250,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func selectedWordOption() -> Option<UInt32>? {
         guard let method = selectedMethodOption(),
               let wordPopup,
-              !method.wordOptions.isEmpty else {
+              !method.wordOptions.isEmpty
+        else {
             return nil
         }
         let index = wordPopup.indexOfSelectedItem
@@ -2240,7 +2285,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func selectedEncryptionOption() -> Option<SZEncryptionMethod>? {
         guard let format = selectedFormatOption(),
               !format.encryptionOptions.isEmpty,
-              let encryptionPopup else {
+              let encryptionPopup
+        else {
             return nil
         }
         let index = encryptionPopup.indexOfSelectedItem
@@ -2250,19 +2296,22 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func selectedMemoryUsageSpecValue() -> String {
         guard let selectedItem = memoryUsagePopup?.selectedItem,
-              let spec = selectedItem.representedObject as? String else {
+              let spec = selectedItem.representedObject as? String
+        else {
             return ""
         }
         return Self.normalizedMemoryUsageSpec(spec)
     }
 
     private func supportsSFX(for format: FormatOption?,
-                             method: MethodOption?) -> Bool {
+                             method: MethodOption?) -> Bool
+    {
         guard let format else {
             return false
         }
         guard format.codecName.caseInsensitiveCompare("7z") == .orderedSame,
-              Self.hasBundledWindowsSfxModule() else {
+              Self.hasBundledWindowsSfxModule()
+        else {
             return false
         }
 
@@ -2273,17 +2322,18 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         switch method.methodName.lowercased() {
         case "copy", "lzma", "lzma2", "ppmd":
             return true
-#if SHICHIZIP_ZS_VARIANT
-        case "flzma2", "zstd":
-            return true
-#endif
+        #if SHICHIZIP_ZS_VARIANT
+            case "flzma2", "zstd":
+                return true
+        #endif
         default:
             return false
         }
     }
 
     private func effectiveCreateSFXState(for format: FormatOption? = nil,
-                                         method: MethodOption? = nil) -> Bool {
+                                         method: MethodOption? = nil) -> Bool
+    {
         guard createSFXCheckbox?.state == .on else {
             return false
         }
@@ -2292,12 +2342,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func archiveExtension(for format: FormatOption,
-                                  createSFX: Bool) -> String {
+                                  createSFX: Bool) -> String
+    {
         createSFX ? "exe" : format.defaultExtension
     }
 
     private func defaultArchiveURL(for formatName: String,
-                                   createSFX: Bool = false) -> URL {
+                                   createSFX: Bool = false) -> URL
+    {
         let format = formatOption(named: formatName) ?? availableFormats[0]
         let extensionName = archiveExtension(for: format, createSFX: createSFX)
         return baseDirectory.appendingPathComponent("\(suggestedBaseName).\(extensionName)")
@@ -2316,12 +2368,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func levelOptions(for format: FormatOption,
-                              method: MethodOption?) -> [LevelOption] {
+                              method: MethodOption?) -> [LevelOption]
+    {
         method?.levelOptions ?? format.levelOptions
     }
 
     private func defaultLevel(for formatName: String,
-                              methodName: String? = nil) -> Int {
+                              methodName: String? = nil) -> Int
+    {
         let format = formatOption(named: formatName) ?? availableFormats[0]
         let method = methodName.flatMap { name in
             format.methods.first(where: { $0.methodName == name })
@@ -2333,7 +2387,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func defaultLevelIndex(for format: FormatOption,
-                                   method: MethodOption? = nil) -> Int {
+                                   method: MethodOption? = nil) -> Int
+    {
         let levelOptions = levelOptions(for: format,
                                         method: method)
         if let defaultIndex = levelOptions.firstIndex(where: { $0.isDefault }) {
@@ -2363,7 +2418,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private static func populateMemoryUsagePopup(_ popup: NSPopUpButton,
                                                  with options: [Option<String>],
-                                                 selectedSpec: String) {
+                                                 selectedSpec: String)
+    {
         popup.removeAllItems()
 
         let normalizedSelectedSpec = normalizedMemoryUsageSpec(selectedSpec)
@@ -2384,14 +2440,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let preferredSelection = parseMemoryUsageSelection(normalizedPreferredSpec)
 
         var options: [Option<String>] = [
-            Option(title: memoryUsageOptionTitle(for: .auto), value: "")
+            Option(title: memoryUsageOptionTitle(for: .auto), value: ""),
         ]
 
         let percentChoices = stride(from: 10, through: 100, by: 10).map(UInt64.init)
         if case let .percent(preferredPercent) = preferredSelection {
             var insertedPreferred = false
             for percent in percentChoices {
-                if !insertedPreferred && preferredPercent <= percent {
+                if !insertedPreferred, preferredPercent <= percent {
                     if preferredPercent != percent {
                         options.append(Option(title: memoryUsageOptionTitle(for: .percent(preferredPercent)),
                                               value: normalizedPreferredSpec))
@@ -2406,9 +2462,9 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                       value: normalizedPreferredSpec))
             }
         } else {
-            percentChoices.forEach {
-                options.append(Option(title: memoryUsageOptionTitle(for: .percent($0)),
-                                      value: "\($0)%"))
+            for percentChoice in percentChoices {
+                options.append(Option(title: memoryUsageOptionTitle(for: .percent(percentChoice)),
+                                      value: "\(percentChoice)%"))
             }
         }
 
@@ -2416,7 +2472,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         if case let .bytes(preferredBytes) = preferredSelection {
             var insertedPreferred = false
             for bytes in byteChoices {
-                if !insertedPreferred && preferredBytes <= bytes {
+                if !insertedPreferred, preferredBytes <= bytes {
                     if preferredBytes != bytes {
                         options.append(Option(title: memoryUsageOptionTitle(for: .bytes(preferredBytes)),
                                               value: normalizedPreferredSpec))
@@ -2431,9 +2487,9 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                       value: normalizedPreferredSpec))
             }
         } else {
-            byteChoices.forEach {
-                options.append(Option(title: memoryUsageOptionTitle(for: .bytes($0)),
-                                      value: normalizedMemoryUsageSpec(forBytes: $0)))
+            for byteChoice in byteChoices {
+                options.append(Option(title: memoryUsageOptionTitle(for: .bytes(byteChoice)),
+                                      value: normalizedMemoryUsageSpec(forBytes: byteChoice)))
             }
         }
 
@@ -2532,7 +2588,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         var choices: [UInt64] = []
         choices.reserveCapacity(max(0, maxIndex - (27 * 2) + 1))
 
-        for index in (27 * 2)...maxIndex {
+        for index in (27 * 2) ... maxIndex {
             let base = UInt64(2 + (index & 1))
             let shift = index / 2
             choices.append(base << shift)
@@ -2544,9 +2600,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         Bundle.main.url(forResource: "7z", withExtension: "sfx") != nil
     }
 
-    private func selectOption<Value>(_ options: [Option<Value>],
-                                     selectedValue: Value,
-                                     on popup: NSPopUpButton) where Value: Equatable {
+    private func selectOption<Value: Equatable>(_ options: [Option<Value>],
+                                                selectedValue: Value,
+                                                on popup: NSPopUpButton)
+    {
         if let selectedIndex = options.firstIndex(where: { $0.value == selectedValue }) {
             popup.selectItem(at: selectedIndex)
         } else {
@@ -2556,7 +2613,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func makePathRow(label: String,
                              pathField: NSComboBox,
-                             browseButton: NSButton) -> NSView {
+                             browseButton: NSButton) -> NSView
+    {
         let labelField = NSTextField(labelWithString: label)
         labelField.alignment = .right
         labelField.font = .systemFont(ofSize: 12)
@@ -2571,7 +2629,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func makeFormRow(label: String,
-                             control: NSView) -> NSView {
+                             control: NSView) -> NSView
+    {
         makeFormRow(labelField: NSTextField(labelWithString: label),
                     control: control,
                     labelWidth: Self.formLabelWidth)
@@ -2579,14 +2638,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func makeFormRow(label: String,
                              control: NSView,
-                             labelWidth: CGFloat) -> NSView {
+                             labelWidth: CGFloat) -> NSView
+    {
         makeFormRow(labelField: NSTextField(labelWithString: label),
                     control: control,
                     labelWidth: labelWidth)
     }
 
     private func makeFormRow(labelField: NSTextField,
-                             control: NSView) -> NSView {
+                             control: NSView) -> NSView
+    {
         makeFormRow(labelField: labelField,
                     control: control,
                     labelWidth: Self.formLabelWidth)
@@ -2594,7 +2655,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func makeFormRow(labelField: NSTextField,
                              control: NSView,
-                             labelWidth: CGFloat) -> NSView {
+                             labelWidth: CGFloat) -> NSView
+    {
         labelField.alignment = .right
         labelField.font = .systemFont(ofSize: 12)
         labelField.setContentHuggingPriority(.required, for: .horizontal)
@@ -2627,7 +2689,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func makeTitledSection(title: String,
-                                   rows: [NSView]) -> NSView {
+                                   rows: [NSView]) -> NSView
+    {
         let titleLabel = NSTextField(labelWithString: title)
         titleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
         titleLabel.textColor = .secondaryLabelColor
@@ -2663,7 +2726,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func refreshAdvancedOptionsSummary() {
         guard let summaryLabel = advancedOptionsSummaryLabel,
-              let format = selectedFormatOption() else {
+              let format = selectedFormatOption()
+        else {
             advancedOptionsSummaryLabel?.stringValue = ""
             return
         }
@@ -2676,7 +2740,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func advancedOptionsSummary(for state: AdvancedOptionsState,
-                                        capabilities: AdvancedOptionsCapabilities) -> String {
+                                        capabilities: AdvancedOptionsCapabilities) -> String
+    {
         var parts: [String] = []
 
         if state.timePrecision.isSet {
@@ -2714,7 +2779,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func appendBoolPairSummary(_ name: String,
                                        state: AdvancedBoolPairState,
-                                       to parts: inout [String]) {
+                                       to parts: inout [String])
+    {
         guard state.isSet else {
             return
         }
@@ -2722,7 +2788,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func defaultAdvancedOptionsState(for format: FormatOption,
-                                             methodName: String?) -> AdvancedOptionsState {
+                                             methodName: String?) -> AdvancedOptionsState
+    {
         let capabilities = baseAdvancedOptionsCapabilities(for: format,
                                                            methodName: methodName)
         return AdvancedOptionsState(storeSymbolicLinks: false,
@@ -2743,11 +2810,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func baseAdvancedOptionsCapabilities(for format: FormatOption,
-                                                 methodName: String?) -> AdvancedOptionsCapabilities {
+                                                 methodName: String?) -> AdvancedOptionsCapabilities
+    {
         let info = supportedFormatInfoByName[format.codecName.lowercased()]
-                let supportedTimePrecisions = Self.knownTimePrecisionValues.filter { value in
+        let supportedTimePrecisions = Self.knownTimePrecisionValues.filter { value in
             guard let info,
-                  value.rawValue >= 0 else {
+                  value.rawValue >= 0
+            else {
                 return false
             }
             let bit = UInt32(value.rawValue)
@@ -2755,9 +2824,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         var defaultTimePrecision = info?.defaultTimePrecision ?? SZCompressionTimePrecision(rawValue: -1)!
-        if (defaultTimePrecision.rawValue < 0
-            || !supportedTimePrecisions.contains(where: { $0.rawValue == defaultTimePrecision.rawValue })),
-           let firstSupportedTimePrecision = supportedTimePrecisions.first {
+        if defaultTimePrecision.rawValue < 0
+            || !supportedTimePrecisions.contains(where: { $0.rawValue == defaultTimePrecision.rawValue }),
+            let firstSupportedTimePrecision = supportedTimePrecisions.first
+        {
             defaultTimePrecision = firstSupportedTimePrecision
         }
 
@@ -2791,12 +2861,14 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func adjustedAdvancedOptionsCapabilities(_ capabilities: AdvancedOptionsCapabilities,
                                                      timePrecision: SZCompressionTimePrecision,
                                                      format: FormatOption,
-                                                     methodName: String?) -> AdvancedOptionsCapabilities {
+                                                     methodName: String?) -> AdvancedOptionsCapabilities
+    {
         var adjustedCapabilities = capabilities
         let effectiveTimePrecision = timePrecision.rawValue < 0 ? capabilities.defaultTimePrecision : timePrecision
 
         if format.codecName.caseInsensitiveCompare("zip") == .orderedSame,
-           effectiveTimePrecision.rawValue != 0 {
+           effectiveTimePrecision.rawValue != 0
+        {
             adjustedCapabilities.supportsCreationTime = false
             adjustedCapabilities.defaultCreationTime = false
             adjustedCapabilities.supportsAccessTime = false
@@ -2816,7 +2888,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func effectiveAdvancedOptions(for format: FormatOption,
                                           method: MethodOption?,
-                                          baseState: AdvancedOptionsState) -> (state: AdvancedOptionsState, capabilities: AdvancedOptionsCapabilities) {
+                                          baseState: AdvancedOptionsState) -> (state: AdvancedOptionsState, capabilities: AdvancedOptionsCapabilities)
+    {
         let baseCapabilities = baseAdvancedOptionsCapabilities(for: format,
                                                                methodName: method?.methodName)
         var state = baseState
@@ -2858,18 +2931,21 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func optionsTypeDescription(for format: FormatOption,
-                                        method: MethodOption?) -> String {
+                                        method: MethodOption?) -> String
+    {
         var description = "Type: \(format.title)"
         if format.codecName.caseInsensitiveCompare("tar") == .orderedSame,
            let methodName = method?.methodName,
-           !methodName.isEmpty {
+           !methodName.isEmpty
+        {
             description += ": \(methodName)"
         }
         return description
     }
 
     private func compressionBool1Setting(for value: Bool,
-                                         supported: Bool) -> SZCompressionBoolSetting {
+                                         supported: Bool) -> SZCompressionBoolSetting
+    {
         guard supported, value else {
             return SZCompressionBoolSetting(rawValue: -1)!
         }
@@ -2877,7 +2953,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func compressionBoolPairSetting(for state: AdvancedBoolPairState,
-                                            supported: Bool) -> SZCompressionBoolSetting {
+                                            supported: Bool) -> SZCompressionBoolSetting
+    {
         guard supported, state.isSet else {
             return SZCompressionBoolSetting(rawValue: -1)!
         }
@@ -2886,7 +2963,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private func applyAdvancedOptions(_ state: AdvancedOptionsState,
                                       capabilities: AdvancedOptionsCapabilities,
-                                      to settings: SZCompressionSettings) {
+                                      to settings: SZCompressionSettings)
+    {
         settings.storeSymbolicLinks = compressionBool1Setting(for: state.storeSymbolicLinks,
                                                               supported: capabilities.supportsSymbolicLinks)
         settings.storeHardLinks = compressionBool1Setting(for: state.storeHardLinks,
@@ -2915,7 +2993,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                              level: Int,
                                              dictionarySize: UInt64,
                                              threadText: String?,
-                                             memoryUsageSpec: String) -> CompressionResourceEstimate {
+                                             memoryUsageSpec: String) -> CompressionResourceEstimate
+    {
         let settings = SZCompressionSettings()
         settings.format = format.format
         settings.level = Self.compressionEnumValue(for: level)
@@ -2927,7 +3006,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
         if let threadText,
            let explicitThreadCount = try? parseThreadCount(threadText),
-           explicitThreadCount > 0 {
+           explicitThreadCount > 0
+        {
             settings.numThreads = explicitThreadCount
         } else {
             settings.numThreads = 0
@@ -2972,7 +3052,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                         selectedDictionarySize: UInt64,
                                                         selectedWordSize: UInt32,
                                                         currentThreadText: String,
-                                                        estimate: CompressionResourceEstimate) {
+                                                        estimate: CompressionResourceEstimate)
+    {
         if let dictionaryPopup {
             if let method, !method.dictionaryOptions.isEmpty {
                 let titles = method.dictionaryOptions.enumerated().map { index, option in
@@ -3012,7 +3093,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         guard format.supportsThreads,
-              let threadField else {
+              let threadField
+        else {
             return
         }
 
@@ -3034,14 +3116,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func updatePopupTitlesIfNeeded(_ popup: NSPopUpButton,
-                                           titles: [String]) {
+                                           titles: [String])
+    {
         if popup.itemTitles != titles {
             populate(popup, with: titles)
         }
     }
 
     private func updateComboBoxItemsIfNeeded(_ comboBox: NSComboBox,
-                                             items: [String]) {
+                                             items: [String])
+    {
         if Self.comboBoxItems(from: comboBox) != items {
             comboBox.removeAllItems()
             comboBox.addItems(withObjectValues: items)
@@ -3049,19 +3133,21 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func comboBoxItems(from comboBox: NSComboBox) -> [String] {
-        (0..<comboBox.numberOfItems).compactMap { comboBox.itemObjectValue(at: $0) as? String }
+        (0 ..< comboBox.numberOfItems).compactMap { comboBox.itemObjectValue(at: $0) as? String }
     }
 
     private func currentThreadText() -> String {
         if let threadField,
-           threadField.indexOfSelectedItem == 0 {
+           threadField.indexOfSelectedItem == 0
+        {
             return "Auto"
         }
 
         if let threadField,
            threadField.indexOfSelectedItem >= 0,
            threadField.indexOfSelectedItem < threadField.numberOfItems,
-           let selectedItem = threadField.itemObjectValue(at: threadField.indexOfSelectedItem) as? String {
+           let selectedItem = threadField.itemObjectValue(at: threadField.indexOfSelectedItem) as? String
+        {
             return selectedItem
         }
         return threadField?.stringValue ?? "Auto"
@@ -3081,7 +3167,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func autoDictionaryTitle(for bytes: UInt64?,
-                                            fallback: String) -> String {
+                                            fallback: String) -> String
+    {
         guard let bytes, bytes > 0 else {
             return fallback
         }
@@ -3089,7 +3176,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func autoWordTitle(for value: UInt32?,
-                                      fallback: String) -> String {
+                                      fallback: String) -> String
+    {
         guard let value, value > 0 else {
             return fallback
         }
@@ -3104,7 +3192,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private func makePasswordContainer(secureField: NSSecureTextField,
-                                       plainField: NSTextField) -> NSView {
+                                       plainField: NSTextField) -> NSView
+    {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
         container.translatesAutoresizingMaskIntoConstraints = false
         secureField.translatesAutoresizingMaskIntoConstraints = false
@@ -3135,7 +3224,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func makeAvailableFormats(supportedFormatInfoByName: [String: SZFormatInfo],
-                                             sourceURLs: [URL]) -> [FormatOption] {
+                                             sourceURLs: [URL]) -> [FormatOption]
+    {
         let isSingleFile = isSingleFileSource(sourceURLs)
         let supportedNames = Set(
             supportedFormatInfoByName.values
@@ -3159,7 +3249,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
 
     private static func isSingleFileSource(_ sourceURLs: [URL]) -> Bool {
         guard sourceURLs.count == 1,
-              let sourceURL = sourceURLs.first else {
+              let sourceURL = sourceURLs.first
+        else {
             return false
         }
 
@@ -3190,7 +3281,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func suggestedArchiveBaseName(for sourceURLs: [URL],
-                                                 baseDirectory: URL) -> String {
+                                                 baseDirectory: URL) -> String
+    {
         guard let firstURL = sourceURLs.first?.standardizedFileURL else {
             return "Archive"
         }
@@ -3204,7 +3296,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             } else {
                 let fileName = firstURL.lastPathComponent
                 if let dotIndex = fileName.firstIndex(of: "."),
-                   fileName[fileName.index(after: dotIndex)...].contains(".") == false {
+                   fileName[fileName.index(after: dotIndex)...].contains(".") == false
+                {
                     baseName = String(fileName[..<dotIndex])
                 } else {
                     baseName = fileName
@@ -3227,7 +3320,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func uniquedSuggestedBaseName(_ baseName: String,
-                                                 sourceURLs: [URL]) -> String {
+                                                 sourceURLs: [URL]) -> String
+    {
         let selectedArchiveBaseNames = Set(sourceURLs.compactMap { url -> String? in
             let fileName = url.standardizedFileURL.lastPathComponent
             let pathExtension = (fileName as NSString).pathExtension.lowercased()
@@ -3249,7 +3343,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private static func defaultMessage(for sourceURLs: [URL],
-                                       baseDirectory: URL) -> String? {
+                                       baseDirectory: URL) -> String?
+    {
         if sourceURLs.count == 1 {
             return baseDirectory.path
         }
@@ -3259,6 +3354,6 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func threadChoices() -> [String] {
         let processorCount = max(1, ProcessInfo.processInfo.processorCount)
         let upperBound = min(max(processorCount * 2, 16), 1 << 14)
-        return (1...upperBound).map(String.init)
+        return (1 ... upperBound).map(String.init)
     }
 }

@@ -6,7 +6,8 @@ enum ShichiZipQuickActionAppInfo {
     static var hostAppDisplayName: String {
         if let configuredName = (Bundle.main.object(forInfoDictionaryKey: hostAppDisplayNameKey) as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-           !configuredName.isEmpty {
+            !configuredName.isEmpty
+        {
             return configuredName
         }
 
@@ -33,9 +34,9 @@ struct ShichiZipQuickActionRequest: Codable {
     let paths: [String]
 
     init(action: ShichiZipQuickAction, fileURLs: [URL]) {
-        self.version = Self.currentVersion
+        version = Self.currentVersion
         self.action = action
-        self.paths = fileURLs.map { $0.standardizedFileURL.path }
+        paths = fileURLs.map { $0.standardizedFileURL.path }
     }
 
     var fileURLs: [URL] {

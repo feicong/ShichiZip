@@ -29,11 +29,12 @@ final class FileManagerArchiveItemWorkflowService {
 
         init(owner: FileManagerArchiveItemWorkflowService,
              application: NSRunningApplication,
-             temporaryDirectory: URL) {
+             temporaryDirectory: URL)
+        {
             self.owner = owner
-            self.applicationProcessIdentifier = application.processIdentifier
+            applicationProcessIdentifier = application.processIdentifier
             self.temporaryDirectory = temporaryDirectory.standardizedFileURL
-            self.observer = NSWorkspace.shared.notificationCenter.addObserver(
+            observer = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didTerminateApplicationNotification,
                 object: nil,
                 queue: .main
@@ -48,7 +49,8 @@ final class FileManagerArchiveItemWorkflowService {
 
         private func handleTermination(_ notification: Notification) {
             guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                  application.processIdentifier == applicationProcessIdentifier else {
+                  application.processIdentifier == applicationProcessIdentifier
+            else {
                 return
             }
 
@@ -96,7 +98,8 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     func scheduleCleanup(_ url: URL,
-                         when application: NSRunningApplication) {
+                         when application: NSRunningApplication)
+    {
         let observer = TemporaryDirectoryCleanupObserver(owner: self,
                                                          application: application,
                                                          temporaryDirectory: url)
@@ -110,10 +113,11 @@ final class FileManagerArchiveItemWorkflowService {
               strategy: FileManagerArchiveItemOpenStrategy = .automatic,
               openArchiveInline: (URL, URL, String, URL, FileManagerNestedArchiveWriteBackInfo?, FileManagerArchiveOpenMode) -> FileManagerArchiveOpenResult,
               openExternally: (URL, URL, URL) -> Bool,
-              openExternallyIfPossible: (URL, URL) -> Bool) throws {
+              openExternallyIfPossible: (URL, URL) -> Bool) throws
+    {
         let stagedItem = try stage(item: item,
                                    context: context,
-                             temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.openArchivePrefix)
+                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.openArchivePrefix)
         let preferredApplicationURL = FileManagerExternalOpenRouter.preferredExternalApplicationURL(forArchiveItemPath: item.path)
 
         switch strategy {
@@ -139,7 +143,8 @@ final class FileManagerArchiveItemWorkflowService {
                                                        displayPathPrefix: context.displayPathPrefix),
                                      context.hostDirectory,
                                      nestedWriteBackInfo,
-                                     .defaultBehavior) {
+                                     .defaultBehavior)
+            {
             case .opened:
                 return
 
@@ -151,7 +156,8 @@ final class FileManagerArchiveItemWorkflowService {
                                            preferredApplicationURL,
                                            stagedItem.temporaryDirectory)
                     } else if !openExternallyIfPossible(stagedItem.fileURL,
-                                                        stagedItem.temporaryDirectory) {
+                                                        stagedItem.temporaryDirectory)
+                    {
                         cleanup(stagedItem.temporaryDirectory)
                         throw error
                     }
@@ -177,7 +183,8 @@ final class FileManagerArchiveItemWorkflowService {
                                                        displayPathPrefix: context.displayPathPrefix),
                                      context.hostDirectory,
                                      nestedWriteBackInfo,
-                                     openMode) {
+                                     openMode)
+            {
             case .opened, .cancelled:
                 return
             case let .unsupportedArchive(error), let .failed(error):
@@ -193,7 +200,8 @@ final class FileManagerArchiveItemWorkflowService {
             }
 
             if openExternallyIfPossible(stagedItem.fileURL,
-                                        stagedItem.temporaryDirectory) {
+                                        stagedItem.temporaryDirectory)
+            {
                 return
             }
 
@@ -205,14 +213,16 @@ final class FileManagerArchiveItemWorkflowService {
     func writePromise(for item: ArchiveItem,
                       context: FileManagerArchiveItemWorkflowContext,
                       to destinationURL: URL,
-                      session: SZOperationSession?) throws {
+                      session: SZOperationSession?) throws
+    {
         let standardizedDestinationURL = destinationURL.standardizedFileURL
 
         if !item.isDirectory,
            try extractPromiseDirectlyIfPossible(for: item,
-                                               context: context,
-                                               to: standardizedDestinationURL,
-                                               session: session) {
+                                                context: context,
+                                                to: standardizedDestinationURL,
+                                                session: session)
+        {
             return
         }
 
@@ -229,7 +239,8 @@ final class FileManagerArchiveItemWorkflowService {
 
     func stageQuickLookItems(_ items: [ArchiveItem],
                              context: FileManagerArchiveItemWorkflowContext,
-                             session: SZOperationSession?) throws -> FileManagerArchiveQuickLookPreview {
+                             session: SZOperationSession?) throws -> FileManagerArchiveQuickLookPreview
+    {
         guard !items.isEmpty else {
             throw extractionPreparationError()
         }
@@ -240,9 +251,9 @@ final class FileManagerArchiveItemWorkflowService {
             let settings = stagingExtractionSettings()
             let indices = items.map { NSNumber(value: $0.index) }
             try context.archive.extractEntries(indices,
-                                              toPath: temporaryDirectory.path,
-                                              settings: settings,
-                                              session: session)
+                                               toPath: temporaryDirectory.path,
+                                               settings: settings,
+                                               session: session)
 
             let fileURLs = items.map { temporaryDirectory.appendingPathComponent($0.path) }
             guard fileURLs.allSatisfy({ fileManager.fileExists(atPath: $0.path) }) else {
@@ -260,15 +271,16 @@ final class FileManagerArchiveItemWorkflowService {
     private func stage(item: ArchiveItem,
                        context: FileManagerArchiveItemWorkflowContext,
                        temporaryDirectoryPrefix: String,
-                       session: SZOperationSession? = nil) throws -> StagedArchiveItem {
+                       session: SZOperationSession? = nil) throws -> StagedArchiveItem
+    {
         let temporaryDirectory = try createTemporaryDirectory(prefix: temporaryDirectoryPrefix)
 
         do {
             let settings = stagingExtractionSettings()
             try context.archive.extractEntries([NSNumber(value: item.index)],
-                                              toPath: temporaryDirectory.path,
-                                              settings: settings,
-                                              session: session)
+                                               toPath: temporaryDirectory.path,
+                                               settings: settings,
+                                               session: session)
 
             let fileURL = temporaryDirectory.appendingPathComponent(item.path)
             guard fileManager.fileExists(atPath: fileURL.path) else {
@@ -285,7 +297,8 @@ final class FileManagerArchiveItemWorkflowService {
 
     private func stagePromiseItem(for item: ArchiveItem,
                                   context: FileManagerArchiveItemWorkflowContext,
-                                  session: SZOperationSession?) throws -> StagedArchiveItem {
+                                  session: SZOperationSession?) throws -> StagedArchiveItem
+    {
         let extractionIndices = promiseExtractionIndices(for: item,
                                                          context: context)
         guard !extractionIndices.isEmpty else {
@@ -297,9 +310,9 @@ final class FileManagerArchiveItemWorkflowService {
         do {
             let settings = stagingExtractionSettings()
             try context.archive.extractEntries(extractionIndices,
-                                              toPath: temporaryDirectory.path,
-                                              settings: settings,
-                                              session: session)
+                                               toPath: temporaryDirectory.path,
+                                               settings: settings,
+                                               session: session)
 
             let fileURL = temporaryDirectory.appendingPathComponent(item.path,
                                                                     isDirectory: item.isDirectory)
@@ -316,7 +329,8 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private func promiseExtractionIndices(for item: ArchiveItem,
-                                          context: FileManagerArchiveItemWorkflowContext) -> [NSNumber] {
+                                          context: FileManagerArchiveItemWorkflowContext) -> [NSNumber]
+    {
         let archiveItems = context.archive.entries().map { ArchiveItem(from: $0) }
         var indices = Set<Int>()
 
@@ -341,13 +355,15 @@ final class FileManagerArchiveItemWorkflowService {
 
     private func makeNestedArchiveWriteBackInfo(for item: ArchiveItem,
                                                 context: FileManagerArchiveItemWorkflowContext,
-                                                stagedArchiveURL: URL) throws -> FileManagerNestedArchiveWriteBackInfo? {
+                                                stagedArchiveURL: URL) throws -> FileManagerNestedArchiveWriteBackInfo?
+    {
         guard let parentTarget = context.mutationTarget else {
             return nil
         }
 
         guard let initialFingerprint = FileManagerArchiveFileFingerprint.captureIfPossible(for: stagedArchiveURL,
-                                                                                           fileManager: fileManager) else {
+                                                                                           fileManager: fileManager)
+        else {
             throw extractionPreparationError()
         }
 
@@ -359,13 +375,15 @@ final class FileManagerArchiveItemWorkflowService {
     private func extractPromiseDirectlyIfPossible(for item: ArchiveItem,
                                                   context: FileManagerArchiveItemWorkflowContext,
                                                   to destinationURL: URL,
-                                                  session: SZOperationSession?) throws -> Bool {
+                                                  session: SZOperationSession?) throws -> Bool
+    {
         let destinationDirectory = destinationURL.deletingLastPathComponent()
         let extractedURL = destinationDirectory.appendingPathComponent(item.name, isDirectory: false)
         let standardizedExtractedURL = extractedURL.standardizedFileURL
 
         if standardizedExtractedURL != destinationURL,
-           fileManager.fileExists(atPath: standardizedExtractedURL.path) {
+           fileManager.fileExists(atPath: standardizedExtractedURL.path)
+        {
             return false
         }
 
@@ -373,9 +391,9 @@ final class FileManagerArchiveItemWorkflowService {
 
         do {
             try context.archive.extractEntries([NSNumber(value: item.index)],
-                                              toPath: destinationDirectory.path,
-                                              settings: settings,
-                                              session: session)
+                                               toPath: destinationDirectory.path,
+                                               settings: settings,
+                                               session: session)
 
             guard fileManager.fileExists(atPath: standardizedExtractedURL.path) else {
                 throw extractionPreparationError()
@@ -389,7 +407,8 @@ final class FileManagerArchiveItemWorkflowService {
             return true
         } catch {
             if standardizedExtractedURL != destinationURL,
-               fileManager.fileExists(atPath: standardizedExtractedURL.path) {
+               fileManager.fileExists(atPath: standardizedExtractedURL.path)
+            {
                 try? fileManager.removeItem(at: standardizedExtractedURL)
             }
             throw error
@@ -446,7 +465,8 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private func nestedDisplayPath(for item: ArchiveItem,
-                                   displayPathPrefix: String) -> String {
+                                   displayPathPrefix: String) -> String
+    {
         displayPathPrefix + "/" + item.pathParts.joined(separator: "/")
     }
 
@@ -516,7 +536,8 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private func moveItemPreservingMetadata(from sourceURL: URL,
-                                            to destinationURL: URL) throws {
+                                            to destinationURL: URL) throws
+    {
         do {
             try fileManager.moveItem(at: sourceURL, to: destinationURL)
             return
@@ -531,7 +552,8 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private func copyItemPreservingMetadata(from sourceURL: URL,
-                                            to destinationURL: URL) throws {
+                                            to destinationURL: URL) throws
+    {
         let cloneResult = sourceURL.path.withCString { sourcePath in
             destinationURL.path.withCString { destinationPath in
                 copyfile(sourcePath,
