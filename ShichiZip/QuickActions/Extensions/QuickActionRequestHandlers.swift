@@ -3,6 +3,11 @@ import Foundation
 import UniformTypeIdentifiers
 
 class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
+    private enum LoadedFileReference {
+        case durable(URL)
+        case temporary(URL)
+    }
+
     class var quickAction: ShichiZipQuickAction {
         fatalError("Override quickAction in subclasses.")
     }
@@ -87,10 +92,16 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         }
 
         var firstError: Error?
+        var temporaryRepresentationURL: URL?
         for typeIdentifier in candidateTypeIdentifiers(for: itemProvider) {
             do {
-                if let fileURL = try await loadInPlaceFileURL(from: itemProvider, typeIdentifier: typeIdentifier) {
-                    return fileURL
+                if let fileReference = try await loadInPlaceFileURL(from: itemProvider, typeIdentifier: typeIdentifier) {
+                    switch fileReference {
+                    case let .durable(url):
+                        return url
+                    case let .temporary(url):
+                        temporaryRepresentationURL = temporaryRepresentationURL ?? url
+                    }
                 }
             } catch {
                 log("loadInPlace failed for type=\(typeIdentifier) error=\(String(describing: error))")
@@ -98,8 +109,10 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
             }
 
             do {
-                if let fileURL = try await loadFileURLRepresentation(from: itemProvider, typeIdentifier: typeIdentifier) {
-                    return fileURL
+                if let fileReference = try await loadFileURLRepresentation(from: itemProvider, typeIdentifier: typeIdentifier) {
+                    if case let .temporary(url) = fileReference {
+                        temporaryRepresentationURL = temporaryRepresentationURL ?? url
+                    }
                 }
             } catch {
                 log("loadFileRepresentation failed for type=\(typeIdentifier) error=\(String(describing: error))")
@@ -123,6 +136,11 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
                 log("loadDataRepresentation failed for type=\(typeIdentifier) error=\(String(describing: error))")
                 firstError = firstError ?? error
             }
+        }
+
+        if let temporaryRepresentationURL {
+            log("rejecting temporary file representation path=\(temporaryRepresentationURL.path)")
+            throw ShichiZipQuickActionError.temporaryRepresentationUnsupported(Self.quickAction)
         }
 
         throw firstError ?? ShichiZipQuickActionError.invalidPayload
@@ -164,22 +182,28 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
     }
 
     private class func loadInPlaceFileURL(from itemProvider: NSItemProvider,
-                                          typeIdentifier: String) async throws -> URL?
+                                          typeIdentifier: String) async throws -> LoadedFileReference?
     {
         try await withCheckedThrowingContinuation { continuation in
-            itemProvider.loadInPlaceFileRepresentation(forTypeIdentifier: typeIdentifier) { url, _, error in
+            itemProvider.loadInPlaceFileRepresentation(forTypeIdentifier: typeIdentifier) { url, isInPlace, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
                 }
 
-                continuation.resume(returning: url?.standardizedFileURL)
+                guard let url else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let standardizedURL = url.standardizedFileURL
+                continuation.resume(returning: isInPlace ? .durable(standardizedURL) : .temporary(standardizedURL))
             }
         }
     }
 
     private class func loadFileURLRepresentation(from itemProvider: NSItemProvider,
-                                                 typeIdentifier: String) async throws -> URL?
+                                                 typeIdentifier: String) async throws -> LoadedFileReference?
     {
         try await withCheckedThrowingContinuation { continuation in
             itemProvider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { url, error in
@@ -188,7 +212,7 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
                     return
                 }
 
-                continuation.resume(returning: url?.standardizedFileURL)
+                continuation.resume(returning: url.map { .temporary($0.standardizedFileURL) })
             }
         }
     }
