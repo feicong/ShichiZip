@@ -73,13 +73,17 @@ final class FileManagerArchiveItemWorkflowService {
     }
 
     private let fileManager: FileManager
+    private let quarantineInheritanceEnabled: () -> Bool
     private let temporaryDirectoriesLock = NSLock()
     private var temporaryDirectories: Set<URL> = []
     private let cleanupObserversLock = NSLock()
     private var cleanupObservers: [ObjectIdentifier: TemporaryDirectoryCleanupObserver] = [:]
 
-    init(fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default,
+         quarantineInheritanceEnabled: @escaping () -> Bool = { SZSettings.bool(.inheritDownloadedFileQuarantine) })
+    {
         self.fileManager = fileManager
+        self.quarantineInheritanceEnabled = quarantineInheritanceEnabled
     }
 
     func register(_ url: URL) {
@@ -468,7 +472,7 @@ final class FileManagerArchiveItemWorkflowService {
     private func configureQuarantineInheritance(on settings: SZExtractionSettings,
                                                 context: FileManagerArchiveItemWorkflowContext)
     {
-        guard SZSettings.bool(.inheritDownloadedFileQuarantine),
+        guard quarantineInheritanceEnabled(),
               let quarantineSourceArchivePath = context.quarantineSourceArchivePath,
               !quarantineSourceArchivePath.isEmpty
         else {

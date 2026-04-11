@@ -105,6 +105,26 @@ targets:
           - "$(inherited)"
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
 
+  ShichiZipTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ShichiZipTests
+    dependencies:
+      - target: ShichiZip
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZipTests
+        PRODUCT_NAME: ShichiZipTests
+        GENERATE_INFOPLIST_FILE: true
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        ARCHS: arm64
+        VALID_ARCHS: arm64
+        SWIFT_OBJC_BRIDGING_HEADER: ShichiZipTests/ShichiZipTests-Bridging-Header.h
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/ShichiZip.app/Contents/MacOS/ShichiZip
+        BUNDLE_LOADER: $(TEST_HOST)
+
   ShichiZipZS:
     type: application
     platform: macOS
