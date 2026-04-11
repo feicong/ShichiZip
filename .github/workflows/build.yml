@@ -28,11 +28,25 @@ jobs:
             test_scheme: ShichiZipTests
             app_bundle: ShichiZip.app
             artifact_prefix: ShichiZip
+            target_arch: arm64
+          - scheme: ShichiZip
+            make_target: lib-mainline
+            test_scheme: ShichiZipTests
+            app_bundle: ShichiZip.app
+            artifact_prefix: ShichiZip
+            target_arch: x86_64
           - scheme: ShichiZipZS
             make_target: lib-zs
             test_scheme: ""
             app_bundle: ShichiZip ZS.app
             artifact_prefix: ShichiZipZS
+            target_arch: arm64
+          - scheme: ShichiZipZS
+            make_target: lib-zs
+            test_scheme: ""
+            app_bundle: ShichiZip ZS.app
+            artifact_prefix: ShichiZipZS
+            target_arch: x86_64
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.0"
       XCODE_PROJECT: ShichiZip.xcodeproj
@@ -47,21 +61,8 @@ jobs:
       - name: Install build tools
         run: brew install xcodegen zig
 
-      - name: Detect host architecture
-        run: |
-          host_arch="$(uname -m)"
-          case "$host_arch" in
-            arm64|x86_64)
-              ;;
-            *)
-              echo "Unsupported architecture: $host_arch" >&2
-              exit 1
-              ;;
-          esac
-          echo "HOST_ARCH=$host_arch" >> "$GITHUB_ENV"
-
       - name: Build lib7zip
-        run: make -j"$(sysctl -n hw.ncpu)" TARGET_ARCH="${HOST_ARCH}" "${{ matrix.make_target }}"
+        run: make -j"$(sysctl -n hw.ncpu)" TARGET_ARCH="${{ matrix.target_arch }}" "${{ matrix.make_target }}"
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -77,8 +78,8 @@ jobs:
             -derivedDataPath "$derived_data_path" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            ARCHS="$HOST_ARCH" \
-            VALID_ARCHS="$HOST_ARCH" \
+            ARCHS="${{ matrix.target_arch }}" \
+            VALID_ARCHS="${{ matrix.target_arch }}" \
             build
 
       - name: Run tests
@@ -93,8 +94,8 @@ jobs:
             -derivedDataPath "$derived_data_path" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            ARCHS="$HOST_ARCH" \
-            VALID_ARCHS="$HOST_ARCH" \
+            ARCHS="${{ matrix.target_arch }}" \
+            VALID_ARCHS="${{ matrix.target_arch }}" \
             test
 
       - name: Ad hoc sign app bundle
@@ -119,7 +120,7 @@ jobs:
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
           app_path="${derived_data_path}/Build/Products/${XCODE_CONFIGURATION}/${{ matrix.app_bundle }}"
           artifact_dir="build/artifacts/${{ matrix.scheme }}"
-          artifact_path="${artifact_dir}/${{ matrix.artifact_prefix }}-${XCODE_CONFIGURATION}-${HOST_ARCH}.zip"
+          artifact_path="${artifact_dir}/${{ matrix.artifact_prefix }}-${XCODE_CONFIGURATION}-${{ matrix.target_arch }}.zip"
 
           test -d "$app_path"
           mkdir -p "$artifact_dir"
@@ -130,7 +131,7 @@ jobs:
       - name: Upload app artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_prefix }}-${{ env.XCODE_CONFIGURATION }}-macOS
+          name: ${{ matrix.artifact_prefix }}-${{ env.XCODE_CONFIGURATION }}-macOS-${{ matrix.target_arch }}
           path: ${{ steps.package_artifact.outputs.path }}
           if-no-files-found: error
           archive: false

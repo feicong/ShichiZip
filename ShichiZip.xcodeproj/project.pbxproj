@@ -905,7 +905,6 @@
 		016F5DEBA27FCAF84FAA6564 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -921,7 +920,6 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZipTests/ShichiZipTests-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShichiZip.app/Contents/MacOS/ShichiZip";
-				VALID_ARCHS = arm64;
 			};
 			name = Debug;
 		};
@@ -956,7 +954,6 @@
 		303932DB9404E7AAF2480BC2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++11";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -1009,7 +1006,6 @@
 				);
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZip/App/ShichiZip-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
-				VALID_ARCHS = arm64;
 			};
 			name = Release;
 		};
@@ -1128,7 +1124,6 @@
 		48DA5C731B9A3586882E1BFA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++11";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -1180,7 +1175,6 @@
 				);
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZip/App/ShichiZip-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
-				VALID_ARCHS = arm64;
 			};
 			name = Debug;
 		};
@@ -1355,7 +1349,6 @@
 		94BE3AE276063E7BE27CFAB1 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++11";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -1407,7 +1400,6 @@
 				);
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZip/App/ShichiZip-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
-				VALID_ARCHS = arm64;
 			};
 			name = Release;
 		};
@@ -1505,7 +1497,6 @@
 		C15B66D49F6966701261E91B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++11";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -1558,14 +1549,12 @@
 				);
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZip/App/ShichiZip-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
-				VALID_ARCHS = arm64;
 			};
 			name = Debug;
 		};
 		D0F0DAF73DF2A4BF4882CB8D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1581,7 +1570,6 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "ShichiZipTests/ShichiZipTests-Bridging-Header.h";
 				SWIFT_VERSION = 5.9;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShichiZip.app/Contents/MacOS/ShichiZip";
-				VALID_ARCHS = arm64;
 			};
 			name = Release;
 		};
