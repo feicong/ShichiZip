@@ -265,8 +265,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if let liveScrollEndObserver {
             NotificationCenter.default.removeObserver(liveScrollEndObserver)
         }
-        closeAllArchives()
-        archiveItemWorkflowService.cleanupAll()
+
+        let preservedTemporaryDirectories = preserveNestedArchiveTemporaryDirectories()
+        let didCloseAllArchives = closeAllArchives(showError: false)
+        if didCloseAllArchives {
+            archiveItemWorkflowService.cleanupAll()
+        } else {
+            preserveRemainingTemporaryDirectories(preservedTemporaryDirectories)
+        }
     }
 
     // MARK: - View Setup
@@ -1986,6 +1992,37 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
         archiveDisplayItems.removeAll()
         return true
+    }
+
+    @discardableResult
+    func prepareForClose(showError: Bool = true) -> Bool {
+        guard !isInsideArchive else {
+            let didClose = closeAllArchives(showError: showError)
+            if didClose, isViewLoaded {
+                reloadCurrentDirectoryPreservingSelection()
+            }
+            return didClose
+        }
+        return true
+    }
+
+    private func preserveNestedArchiveTemporaryDirectories() -> [URL] {
+        archiveStack.compactMap { level in
+            guard level.nestedWriteBackInfo != nil,
+                  let temporaryDirectory = level.temporaryDirectory
+            else {
+                return nil
+            }
+
+            archiveItemWorkflowService.unregister(temporaryDirectory)
+            return temporaryDirectory.standardizedFileURL
+        }
+    }
+
+    private func preserveRemainingTemporaryDirectories(_ urls: [URL]) {
+        for url in urls {
+            archiveItemWorkflowService.register(url)
+        }
     }
 
     private func reloadCurrentArchiveEntries(selectingPaths paths: [String] = []) {

@@ -454,6 +454,21 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.focusFileList()
     }
 
+    @discardableResult
+    func prepareForClose(showError: Bool = true) -> Bool {
+        let panes = isDualPane ? [leftPane, rightPane] : [leftPane]
+        for pane in panes {
+            guard pane?.prepareForClose(showError: showError) != false else {
+                return false
+            }
+        }
+        return true
+    }
+
+    func windowShouldClose(_: NSWindow) -> Bool {
+        prepareForClose(showError: true)
+    }
+
     func windowWillClose(_: Notification) {
         autoRefreshTimer?.invalidate()
         autoRefreshTimer = nil

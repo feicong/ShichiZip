@@ -90,6 +90,12 @@ final class FileManagerArchiveItemWorkflowService {
         _ = cleanupIfPossible(url)
     }
 
+    func unregister(_ url: URL?) {
+        guard let url else { return }
+        removeCleanupObservers(for: url)
+        forgetTemporaryDirectory(url.standardizedFileURL)
+    }
+
     func cleanupAll() {
         invalidateCleanupObservers()
         for url in trackedTemporaryDirectories() {

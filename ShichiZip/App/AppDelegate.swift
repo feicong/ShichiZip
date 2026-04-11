@@ -152,6 +152,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        let controllers = activeFileManagerWindowControllers()
+        for controller in controllers {
+            if !controller.prepareForClose() {
+                return .terminateCancel
+            }
+        }
+        return .terminateNow
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         SZSettings.bool(.quitAfterLastWindowClosed)
     }
@@ -341,6 +351,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return fileManagerWindowController!
+    }
+
+    private func activeFileManagerWindowControllers() -> [FileManagerWindowController] {
+        var controllers: [FileManagerWindowController] = []
+
+        if let fileManagerWindowController {
+            controllers.append(fileManagerWindowController)
+        }
+
+        for controller in additionalFileManagerWindows where !controllers.contains(where: { $0 === controller }) {
+            controllers.append(controller)
+        }
+
+        return controllers
     }
 
     private func handleQuickActionLaunchURL(_ url: URL) {
