@@ -142,6 +142,7 @@ private func szNormalizedDestinationDisplayPath(_ path: String) -> String {
 }
 
 enum FileManagerViewPreferences {
+    private static let formatterCacheLock = NSLock()
     private static var fixedFormatFormatterCache: [String: DateFormatter] = [:]
     private static var styleFormatterCache: [String: DateFormatter] = [:]
 
@@ -209,17 +210,15 @@ enum FileManagerViewPreferences {
     static func makeDateFormatter(dateStyle: DateFormatter.Style,
                                   timeStyle: DateFormatter.Style) -> DateFormatter
     {
-        let cacheKey = "\(dateStyle.rawValue)|\(timeStyle.rawValue)|\(usesUTCTimestamps ? 1 : 0)"
-        if let formatter = styleFormatterCache[cacheKey] {
+        let usesUTC = usesUTCTimestamps
+        let cacheKey = "\(dateStyle.rawValue)|\(timeStyle.rawValue)|\(usesUTC ? 1 : 0)"
+        return cachedFormatter(forKey: cacheKey, cache: &styleFormatterCache) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = dateStyle
+            formatter.timeStyle = timeStyle
+            formatter.timeZone = usesUTC ? TimeZone(secondsFromGMT: 0) : .current
             return formatter
         }
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = dateStyle
-        formatter.timeStyle = timeStyle
-        formatter.timeZone = usesUTCTimestamps ? TimeZone(secondsFromGMT: 0) : .current
-        styleFormatterCache[cacheKey] = formatter
-        return formatter
     }
 
     private static func set(_ value: Bool, forKey key: String) {
@@ -249,23 +248,48 @@ enum FileManagerViewPreferences {
     }
 
     private static func makeFixedFormatFormatter(format: String) -> DateFormatter {
-        let cacheKey = "\(format)|\(usesUTCTimestamps ? 1 : 0)"
-        if let formatter = fixedFormatFormatterCache[cacheKey] {
+        let usesUTC = usesUTCTimestamps
+        let cacheKey = "\(format)|\(usesUTC ? 1 : 0)"
+        return cachedFormatter(forKey: cacheKey, cache: &fixedFormatFormatterCache) {
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = format
+            formatter.timeZone = usesUTC ? TimeZone(secondsFromGMT: 0) : .current
             return formatter
         }
-
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = format
-        formatter.timeZone = usesUTCTimestamps ? TimeZone(secondsFromGMT: 0) : .current
-        fixedFormatFormatterCache[cacheKey] = formatter
-        return formatter
     }
 
     private static func resetFormatterCaches() {
-        fixedFormatFormatterCache.removeAll()
-        styleFormatterCache.removeAll()
+        withFormatterCacheLock {
+            fixedFormatFormatterCache.removeAll()
+            styleFormatterCache.removeAll()
+        }
+    }
+
+    private static func cachedFormatter(forKey key: String,
+                                        cache: inout [String: DateFormatter],
+                                        builder: () -> DateFormatter) -> DateFormatter
+    {
+        // DateFormatter is mutable and not thread-safe, so the cache stores
+        // prototypes and each caller gets an independent copy.
+        withFormatterCacheLock {
+            let formatter: DateFormatter
+            if let cached = cache[key] {
+                formatter = cached
+            } else {
+                let created = builder()
+                cache[key] = created
+                formatter = created
+            }
+            return formatter.copy() as! DateFormatter
+        }
+    }
+
+    private static func withFormatterCacheLock<T>(_ body: () -> T) -> T {
+        formatterCacheLock.lock()
+        defer { formatterCacheLock.unlock() }
+        return body()
     }
 }
 

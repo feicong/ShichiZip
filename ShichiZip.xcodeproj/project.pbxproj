@@ -91,6 +91,7 @@
 		C44DCC2A272B0564DE7C1180 /* ShichiZipShowInFileManagerAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B9C89302B67D839C0200FDF7 /* ShichiZipShowInFileManagerAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C73C2AD5976979EB6FEAA476 /* SZSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */; };
 		CC25E7829B0F9828F2D77A80 /* QuickActionRequestHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A258EE11DC87F3E1709B0582 /* QuickActionRequestHandlers.swift */; };
+		CDDB84BFFF6A861C960E54F0 /* FileManagerViewPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7308F2AFDBA865CE6735C2 /* FileManagerViewPreferencesTests.swift */; };
 		D1EFE263428E5A0EDAD8DA7C /* QuickActionRequestHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A258EE11DC87F3E1709B0582 /* QuickActionRequestHandlers.swift */; };
 		D31C83242FB9281D42DE5B61 /* FileManagerTemporaryDirectorySupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21E05B9DDAEF0F17D9CF282 /* FileManagerTemporaryDirectorySupport.swift */; };
 		D33844E6931D04F9C12964F0 /* ProgressDialogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86B7F4EB8AA8831BF2F6B97 /* ProgressDialogController.swift */; };
@@ -261,6 +262,7 @@
 		F8D3D317E3D1D15FB3C768A0 /* FileManagerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerWindowController.swift; sourceTree = "<group>"; };
 		FC8109FC18679384CCE1FCC9 /* SZArchive.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SZArchive.mm; sourceTree = "<group>"; };
 		FECEA4ECEDC8A862D8490673 /* DeleteTemporaryFilesWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteTemporaryFilesWindowController.swift; sourceTree = "<group>"; };
+		FF7308F2AFDBA865CE6735C2 /* FileManagerViewPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerViewPreferencesTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -414,6 +416,7 @@
 			isa = PBXGroup;
 			children = (
 				1C0B9CB3CF605BCEBC554B90 /* ArchiveOpenErrorClassificationTests.swift */,
+				FF7308F2AFDBA865CE6735C2 /* FileManagerViewPreferencesTests.swift */,
 				2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */,
 				98737207F41E39FE2CB71138 /* ShichiZipTests-Bridging-Header.h */,
 				2DBD201620236E7E186B4A2F /* TransferPathValidationTests.swift */,
@@ -937,6 +940,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				583E5205A6A6EF417A465BB2 /* ArchiveOpenErrorClassificationTests.swift in Sources */,
+				CDDB84BFFF6A861C960E54F0 /* FileManagerViewPreferencesTests.swift in Sources */,
 				57ED9148D94A32AC8683A9ED /* QuarantineRegressionTests.swift in Sources */,
 				B4E90C7FE35737A16B6518E6 /* TransferPathValidationTests.swift in Sources */,
 			);
