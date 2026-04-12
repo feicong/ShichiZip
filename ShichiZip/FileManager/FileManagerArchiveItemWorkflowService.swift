@@ -379,7 +379,7 @@ final class FileManagerArchiveItemWorkflowService {
         }
 
         return FileManagerNestedArchiveWriteBackInfo(identity: FileManagerNestedArchiveIdentity(displayPath: nestedDisplayPath(for: item,
-                                                                                                                displayPathPrefix: context.displayPathPrefix)),
+                                                                                                                               displayPathPrefix: context.displayPathPrefix)),
                                                      parentTarget: parentTarget,
                                                      parentItemPath: item.path,
                                                      initialFingerprint: initialFingerprint)

@@ -1,5 +1,5 @@
-@testable import ShichiZip
 import Foundation
+@testable import ShichiZip
 import XCTest
 
 final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
@@ -31,7 +31,7 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         let archiveURL = try makeArchive(named: "round-trip-normalization",
                                          prefix: "ShichiZipArchiveChangeTests")
         let nonStandardArchiveURL = URL(fileURLWithPath: archiveURL.deletingLastPathComponent().path
-                                            + "/nested/../" + archiveURL.lastPathComponent)
+            + "/nested/../" + archiveURL.lastPathComponent)
         let change = FileManagerArchiveChange(archiveURL: nonStandardArchiveURL,
                                               targetSubdir: "/folder/subdir/",
                                               selectingPaths: ["/folder/subdir/file.txt/", "folder/subdir/dir/"],
@@ -114,7 +114,7 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         let archiveURL = try makeArchive(named: "reload-matching-subdir",
                                          prefix: "ShichiZipArchiveChangeTests")
         let nonStandardArchiveURL = URL(fileURLWithPath: archiveURL.deletingLastPathComponent().path
-                                            + "/child/../" + archiveURL.lastPathComponent)
+            + "/child/../" + archiveURL.lastPathComponent)
         let location = FileManagerCoordinatedArchiveLocation(archiveURL: archiveURL,
                                                              currentSubdir: "/folder/subdir/")
         let change = FileManagerArchiveChange(archiveURL: nonStandardArchiveURL,
@@ -182,7 +182,7 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         ]
 
         XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: identity,
-                                                                                             in: snapshots))
+                                                                                           in: snapshots))
     }
 
     func testNestedArchiveConflictDetectorDetectsDistinctArchiveObjectsWithSameIdentity() {
@@ -199,7 +199,7 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         ]
 
         XCTAssertTrue(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: identity,
-                                                                                           in: snapshots))
+                                                                                          in: snapshots))
     }
 
     func testNestedArchiveConflictDetectorIgnoresDifferentNestedIdentity() {
@@ -216,7 +216,7 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         ]
 
         XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: targetIdentity,
-                                                                                            in: snapshots))
+                                                                                           in: snapshots))
     }
 
     func testNestedArchiveConflictDetectorDetectsDirtyOpenInstanceWithSameIdentity() {
@@ -242,6 +242,6 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
         ]
 
         XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasDirtyOpenInstance(for: identity,
-                                                                                      in: snapshots))
+                                                                                     in: snapshots))
     }
 }

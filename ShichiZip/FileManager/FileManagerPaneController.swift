@@ -1379,8 +1379,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                          deferredDisplay: true)
                     { session in
                         try currentTarget.archive.createFolderNamed(name,
-                                                             inArchiveSubdir: currentTarget.subdir,
-                                                             session: session)
+                                                                    inArchiveSubdir: currentTarget.subdir,
+                                                                    session: session)
                     }
                     self.refreshArchiveAfterMutation(selectingPath: createdPath)
                     self.publishArchiveMutationIfNeeded(selectingPaths: [createdPath])
@@ -3463,9 +3463,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                      deferredDisplay: true)
                 { session in
                     try currentTarget.archive.addPaths(urls.map(\.path),
-                                                toArchiveSubdir: currentTarget.subdir,
-                                                moveMode: operation == .move,
-                                                session: session)
+                                                       toArchiveSubdir: currentTarget.subdir,
+                                                       moveMode: operation == .move,
+                                                       session: session)
                 }
 
                 self.refreshArchiveAfterMutation(targetSubdir: currentTarget.subdir,
@@ -4106,9 +4106,9 @@ extension FileManagerPaneController {
                                                              deferredDisplay: true)
                         { session in
                             try currentTarget.archive.renameItem(atPath: item.path,
-                                                          inArchiveSubdir: currentTarget.subdir,
-                                                          newName: newName,
-                                                          session: session)
+                                                                 inArchiveSubdir: currentTarget.subdir,
+                                                                 newName: newName,
+                                                                 session: session)
                         }
                         self.refreshArchiveAfterMutation(selectingPath: renamedPath)
                         self.publishArchiveMutationIfNeeded(selectingPaths: [renamedPath])
@@ -4174,8 +4174,8 @@ extension FileManagerPaneController {
                                                              deferredDisplay: true)
                         { session in
                             try currentTarget.archive.deleteItems(atPaths: itemPaths,
-                                                           inArchiveSubdir: currentTarget.subdir,
-                                                           session: session)
+                                                                  inArchiveSubdir: currentTarget.subdir,
+                                                                  session: session)
                         }
                         self.refreshArchiveAfterMutation()
                         self.publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir)

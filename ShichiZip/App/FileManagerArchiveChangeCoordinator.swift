@@ -30,7 +30,7 @@ struct FileManagerNestedArchiveOpenSnapshot: Equatable {
 
 enum FileManagerNestedArchiveConflictDetector {
     static func hasConflictingOpenInstance(for identity: FileManagerNestedArchiveIdentity,
-                                            in snapshots: [FileManagerNestedArchiveOpenSnapshot]) -> Bool
+                                           in snapshots: [FileManagerNestedArchiveOpenSnapshot]) -> Bool
     {
         var matchingArchiveIdentifiers = Set<ObjectIdentifier>()
 
