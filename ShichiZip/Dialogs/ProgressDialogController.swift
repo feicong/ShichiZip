@@ -46,6 +46,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
 
         operationLabel = NSTextField(labelWithString: operationTitle)
         operationLabel.font = .boldSystemFont(ofSize: 13)
+        operationLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         operationLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(operationLabel)
 
@@ -53,6 +54,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         fileNameLabel.font = .systemFont(ofSize: 11)
         fileNameLabel.textColor = .secondaryLabelColor
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
+        fileNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         fileNameLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(fileNameLabel)
 
