@@ -216,6 +216,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         let allEntries: [ArchiveItem]
         let currentSubdir: String
         let temporaryDirectory: URL?
+        let nestedIdentity: FileManagerNestedArchiveIdentity?
         let nestedWriteBackInfo: FileManagerNestedArchiveWriteBackInfo?
     }
 
@@ -227,7 +228,19 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     private var archiveDisplayItems: [ArchiveItem] = []
     private let archiveItemWorkflowService = FileManagerArchiveItemWorkflowService()
     private func archiveLevelSupportsInPlaceMutation(_ level: ArchiveLevel) -> Bool {
-        level.temporaryDirectory == nil || level.nestedWriteBackInfo != nil
+        guard level.temporaryDirectory == nil || level.nestedWriteBackInfo != nil else {
+            return false
+        }
+
+        guard level.archive.canWrite else {
+            return false
+        }
+
+        guard let nestedIdentity = level.nestedIdentity else {
+            return true
+        }
+
+        return !hasConflictingNestedArchiveInstance(for: nestedIdentity)
     }
 
     var supportsInPlaceArchiveMutation: Bool {
@@ -1351,17 +1364,22 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 return
             }
 
-            let createdPath = target.subdir.isEmpty ? name : target.subdir + "/" + name
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
+                    self.showReadOnlyArchiveMutationAlert(action: "Creating folders")
+                    return
+                }
+
+                let createdPath = currentTarget.subdir.isEmpty ? name : currentTarget.subdir + "/" + name
 
                 do {
                     try await ArchiveOperationRunner.run(operationTitle: "Creating Folder...",
                                                          parentWindow: self.view.window,
                                                          deferredDisplay: true)
                     { session in
-                        try target.archive.createFolderNamed(name,
-                                                             inArchiveSubdir: target.subdir,
+                        try currentTarget.archive.createFolderNamed(name,
+                                                             inArchiveSubdir: currentTarget.subdir,
                                                              session: session)
                     }
                     self.refreshArchiveAfterMutation(selectingPath: createdPath)
@@ -1973,6 +1991,31 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                      mutationTarget: archiveMutationTarget(for: level))
     }
 
+    private func hasConflictingNestedArchiveInstance(for identity: FileManagerNestedArchiveIdentity) -> Bool {
+        FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: identity,
+                                                                            in: allVisibleArchiveCoordinationSnapshots())
+    }
+
+    private func hasDirtyNestedArchiveInstance(for identity: FileManagerNestedArchiveIdentity) -> Bool {
+        FileManagerNestedArchiveConflictDetector.hasDirtyOpenInstance(for: identity,
+                                                                      in: allVisibleArchiveCoordinationSnapshots())
+    }
+
+    private func allVisibleArchiveCoordinationSnapshots() -> [FileManagerNestedArchiveOpenSnapshot] {
+        guard let appDelegate = NSApp.delegate as? AppDelegate else {
+            return archiveCoordinationSnapshots()
+        }
+
+        var snapshots: [FileManagerNestedArchiveOpenSnapshot] = []
+        for windowController in appDelegate.activeFileManagerWindowControllersForArchiveCoordination() {
+            for paneController in windowController.fileManagerPaneControllersForArchiveCoordination() {
+                snapshots.append(contentsOf: paneController.archiveCoordinationSnapshots())
+            }
+        }
+
+        return snapshots
+    }
+
     private var coordinatedArchiveLocation: FileManagerCoordinatedArchiveLocation? {
         guard let level = archiveStack.last,
               level.temporaryDirectory == nil,
@@ -2031,6 +2074,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             allEntries: refreshedEntries,
             currentSubdir: level.currentSubdir,
             temporaryDirectory: level.temporaryDirectory,
+            nestedIdentity: level.nestedIdentity,
             nestedWriteBackInfo: level.nestedWriteBackInfo
         )
     }
@@ -2161,6 +2205,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             allEntries: refreshedEntries,
             currentSubdir: level.currentSubdir,
             temporaryDirectory: level.temporaryDirectory,
+            nestedIdentity: level.nestedIdentity,
             nestedWriteBackInfo: level.nestedWriteBackInfo
         )
 
@@ -2266,6 +2311,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             allEntries: refreshedEntries,
             currentSubdir: subdir,
             temporaryDirectory: level.temporaryDirectory,
+            nestedIdentity: level.nestedIdentity,
             nestedWriteBackInfo: level.nestedWriteBackInfo
         )
 
@@ -2556,7 +2602,27 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                          for: view.window)
     }
 
-    private func showReadOnlyArchiveMutationAlert(action: String) {
+    func showReadOnlyArchiveMutationAlert(action: String) {
+        if let level = archiveStack.last,
+           let nestedIdentity = level.nestedIdentity,
+           hasConflictingNestedArchiveInstance(for: nestedIdentity)
+        {
+            szPresentMessage(title: "\(action) is not available here",
+                             message: "This inner archive is open in more than one pane or window. Close the other instance before modifying it to avoid conflicting write-back state.",
+                             for: view.window)
+            return
+        }
+
+        if let level = archiveStack.last,
+           !level.archive.canWrite
+        {
+            let archiveFormat = level.archive.formatName ?? "This archive format"
+            szPresentMessage(title: "\(action) is not available here",
+                             message: "\(archiveFormat) archives do not support this in-place update operation.",
+                             for: view.window)
+            return
+        }
+
         szPresentMessage(title: "\(action) is not available here",
                          message: "This archive view is backed by a temporary extracted copy, so modifying it in place is not supported yet. Open the archive directly to rename, delete, or create folders inside it.",
                          for: view.window)
@@ -3213,6 +3279,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return nil
     }
 
+    private func revalidatedArchiveMutationTarget(for target: (archive: SZArchive, subdir: String)) -> (archive: SZArchive, subdir: String)? {
+        guard let archiveURL = archiveDestinationFileURL(for: target) else {
+            return nil
+        }
+
+        return currentArchiveMutationTarget(for: archiveURL,
+                                            subdir: target.subdir)
+    }
+
     private func shouldPreferMoveForDroppedURLs(_ urls: [URL],
                                                 destinationDirectory: URL) -> Bool
     {
@@ -3365,8 +3440,6 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                              cleanupDirectory: URL? = nil)
     {
         let operationTitle = operation == .move ? "Moving..." : "Copying..."
-        let selectionPaths = archiveSelectionPaths(for: urls,
-                                                   targetSubdir: target.subdir)
 
         Task { @MainActor [weak self, weak sourcePane] in
             defer {
@@ -3376,21 +3449,28 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             }
 
             guard let self else { return }
+            guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
+                self.showReadOnlyArchiveMutationAlert(action: operation == .move ? "Moving files into archive" : "Adding files to archive")
+                return
+            }
+
+            let selectionPaths = self.archiveSelectionPaths(for: urls,
+                                                            targetSubdir: currentTarget.subdir)
 
             do {
                 try await ArchiveOperationRunner.run(operationTitle: operationTitle,
                                                      parentWindow: self.view.window,
                                                      deferredDisplay: true)
                 { session in
-                    try target.archive.addPaths(urls.map(\.path),
-                                                toArchiveSubdir: target.subdir,
+                    try currentTarget.archive.addPaths(urls.map(\.path),
+                                                toArchiveSubdir: currentTarget.subdir,
                                                 moveMode: operation == .move,
                                                 session: session)
                 }
 
-                self.refreshArchiveAfterMutation(targetSubdir: target.subdir,
+                self.refreshArchiveAfterMutation(targetSubdir: currentTarget.subdir,
                                                  selectingPaths: selectionPaths)
-                self.publishArchiveMutationIfNeeded(targetSubdir: target.subdir,
+                self.publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir,
                                                     selectingPaths: selectionPaths)
                 if operation == .move,
                    let sourcePane,
@@ -3725,6 +3805,15 @@ extension FileManagerPaneController {
         let result: FileManagerArchiveOpenResult
         switch preparedResult {
         case let .opened(prepared):
+            if let nestedIdentity = prepared.nestedWriteBackInfo?.identity,
+               hasDirtyNestedArchiveInstance(for: nestedIdentity)
+            {
+                prepared.archive.close()
+                archiveItemWorkflowService.cleanup(prepared.temporaryDirectory)
+                result = .failed(paneOperationError("This inner archive already has unsaved changes in another pane or window. Close that modified instance before opening it again."))
+                break
+            }
+
             if commitPreparedArchive(prepared, replaceCurrentState: replaceCurrentState) {
                 return .opened
             }
@@ -3777,6 +3866,7 @@ extension FileManagerPaneController {
             allEntries: prepared.entries,
             currentSubdir: "",
             temporaryDirectory: prepared.temporaryDirectory,
+            nestedIdentity: prepared.nestedWriteBackInfo?.identity,
             nestedWriteBackInfo: prepared.nestedWriteBackInfo
         )
         archiveStack.append(level)
@@ -3796,6 +3886,7 @@ extension FileManagerPaneController {
             allEntries: level.allEntries,
             currentSubdir: subdir,
             temporaryDirectory: level.temporaryDirectory,
+            nestedIdentity: level.nestedIdentity,
             nestedWriteBackInfo: level.nestedWriteBackInfo
         )
         level = archiveStack.last!
@@ -3860,6 +3951,19 @@ extension FileManagerPaneController {
 // MARK: - NSMenuDelegate (auto-select row on right-click)
 
 extension FileManagerPaneController {
+    private func archiveCoordinationSnapshots() -> [FileManagerNestedArchiveOpenSnapshot] {
+        archiveStack.map { level in
+            let isDirty = level.nestedWriteBackInfo.flatMap { writeBackInfo in
+                FileManagerArchiveFileFingerprint.captureIfPossible(for: URL(fileURLWithPath: level.archivePath).standardizedFileURL)
+                    .map { $0 != writeBackInfo.initialFingerprint }
+            } ?? false
+
+            return FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(level.archive),
+                                                        identity: level.nestedIdentity,
+                                                        isDirty: isDirty)
+        }
+    }
+
     private func prepareContextMenu(forClickedRow clickedRow: Int) {
         delegate?.paneDidBecomeActive(self)
 
@@ -3991,14 +4095,18 @@ extension FileManagerPaneController {
                 let renamedPath = item.parentPath.isEmpty ? newName : item.parentPath + "/" + newName
                 Task { @MainActor [weak self] in
                     guard let self else { return }
+                    guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
+                        self.showReadOnlyArchiveMutationAlert(action: "Renaming archive items")
+                        return
+                    }
 
                     do {
                         try await ArchiveOperationRunner.run(operationTitle: "Renaming...",
                                                              parentWindow: self.view.window,
                                                              deferredDisplay: true)
                         { session in
-                            try target.archive.renameItem(atPath: item.path,
-                                                          inArchiveSubdir: target.subdir,
+                            try currentTarget.archive.renameItem(atPath: item.path,
+                                                          inArchiveSubdir: currentTarget.subdir,
                                                           newName: newName,
                                                           session: session)
                         }
@@ -4055,18 +4163,22 @@ extension FileManagerPaneController {
 
                 Task { @MainActor [weak self] in
                     guard let self else { return }
+                    guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
+                        self.showReadOnlyArchiveMutationAlert(action: "Deleting archive items")
+                        return
+                    }
 
                     do {
                         try await ArchiveOperationRunner.run(operationTitle: "Deleting...",
                                                              parentWindow: self.view.window,
                                                              deferredDisplay: true)
                         { session in
-                            try target.archive.deleteItems(atPaths: itemPaths,
-                                                           inArchiveSubdir: target.subdir,
+                            try currentTarget.archive.deleteItems(atPaths: itemPaths,
+                                                           inArchiveSubdir: currentTarget.subdir,
                                                            session: session)
                         }
                         self.refreshArchiveAfterMutation()
-                        self.publishArchiveMutationIfNeeded(targetSubdir: target.subdir)
+                        self.publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir)
                     } catch {
                         self.showErrorAlert(error)
                     }

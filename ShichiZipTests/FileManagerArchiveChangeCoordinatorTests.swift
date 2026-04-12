@@ -164,4 +164,84 @@ final class FileManagerArchiveChangeCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(decision, .reload(selectingPaths: ["folder/file.txt"]))
     }
+
+    func testNestedArchiveIdentityStandardizesDisplayPath() {
+        let identity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/../folder/inner.7z")
+
+        XCTAssertEqual(identity,
+                       FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z"))
+    }
+
+    func testNestedArchiveConflictDetectorIgnoresSingleOpenInstance() {
+        let archive = NSObject()
+        let identity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z")
+        let snapshots = [
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(archive),
+                                                 identity: identity,
+                                                 isDirty: false),
+        ]
+
+        XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: identity,
+                                                                                             in: snapshots))
+    }
+
+    func testNestedArchiveConflictDetectorDetectsDistinctArchiveObjectsWithSameIdentity() {
+        let firstArchive = NSObject()
+        let secondArchive = NSObject()
+        let identity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z")
+        let snapshots = [
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(firstArchive),
+                                                 identity: identity,
+                                                 isDirty: false),
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(secondArchive),
+                                                 identity: identity,
+                                                 isDirty: false),
+        ]
+
+        XCTAssertTrue(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: identity,
+                                                                                           in: snapshots))
+    }
+
+    func testNestedArchiveConflictDetectorIgnoresDifferentNestedIdentity() {
+        let firstArchive = NSObject()
+        let secondArchive = NSObject()
+        let targetIdentity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z")
+        let snapshots = [
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(firstArchive),
+                                                 identity: targetIdentity,
+                                                 isDirty: true),
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(secondArchive),
+                                                 identity: FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/other.7z"),
+                                                 isDirty: true),
+        ]
+
+        XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasConflictingOpenInstance(for: targetIdentity,
+                                                                                            in: snapshots))
+    }
+
+    func testNestedArchiveConflictDetectorDetectsDirtyOpenInstanceWithSameIdentity() {
+        let dirtyArchive = NSObject()
+        let identity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z")
+        let snapshots = [
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(dirtyArchive),
+                                                 identity: identity,
+                                                 isDirty: true),
+        ]
+
+        XCTAssertTrue(FileManagerNestedArchiveConflictDetector.hasDirtyOpenInstance(for: identity,
+                                                                                    in: snapshots))
+    }
+
+    func testNestedArchiveConflictDetectorIgnoresCleanOpenInstanceForDirtyCheck() {
+        let cleanArchive = NSObject()
+        let identity = FileManagerNestedArchiveIdentity(displayPath: "/tmp/root.7z/folder/inner.7z")
+        let snapshots = [
+            FileManagerNestedArchiveOpenSnapshot(archiveIdentifier: ObjectIdentifier(cleanArchive),
+                                                 identity: identity,
+                                                 isDirty: false),
+        ]
+
+        XCTAssertFalse(FileManagerNestedArchiveConflictDetector.hasDirtyOpenInstance(for: identity,
+                                                                                      in: snapshots))
+    }
 }

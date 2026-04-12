@@ -1,7 +1,5 @@
 import XCTest
 
-@testable import ShichiZip
-
 final class ArchiveOpenErrorClassificationTests: XCTestCase {
     func testCorruptedEncryptedArchiveWithPasswordIsNotMisclassifiedAsWrongPassword() throws {
         let tempRoot = try makeTemporaryDirectory(named: "corrupted-encrypted")

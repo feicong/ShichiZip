@@ -378,7 +378,9 @@ final class FileManagerArchiveItemWorkflowService {
             throw extractionPreparationError()
         }
 
-        return FileManagerNestedArchiveWriteBackInfo(parentTarget: parentTarget,
+        return FileManagerNestedArchiveWriteBackInfo(identity: FileManagerNestedArchiveIdentity(displayPath: nestedDisplayPath(for: item,
+                                                                                                                displayPathPrefix: context.displayPathPrefix)),
+                                                     parentTarget: parentTarget,
                                                      parentItemPath: item.path,
                                                      initialFingerprint: initialFingerprint)
     }

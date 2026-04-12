@@ -1,8 +1,6 @@
 import Foundation
 import XCTest
 
-@testable import ShichiZip
-
 extension XCTestCase {
     @discardableResult
     func makeTemporaryDirectory(named name: String,

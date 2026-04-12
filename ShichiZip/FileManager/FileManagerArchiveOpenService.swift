@@ -51,6 +51,7 @@ struct FileManagerArchiveFileFingerprint: Equatable {
 }
 
 struct FileManagerNestedArchiveWriteBackInfo {
+    let identity: FileManagerNestedArchiveIdentity
     let parentTarget: FileManagerArchiveMutationTarget
     let parentItemPath: String
     let initialFingerprint: FileManagerArchiveFileFingerprint

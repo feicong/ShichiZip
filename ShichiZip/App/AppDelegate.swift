@@ -278,6 +278,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return controllers
     }
 
+    func activeFileManagerWindowControllersForArchiveCoordination() -> [FileManagerWindowController] {
+        activeFileManagerWindowControllers()
+    }
+
     private func handleQuickActionLaunchURL(_ url: URL) {
         do {
             let request = try ShichiZipQuickActionTransport.consumeRequest(from: url)

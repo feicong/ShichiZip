@@ -1592,6 +1592,16 @@ static NSError* SZArchiveUpdateErrorFromResult(HRESULT result,
     return ToNS(c->Formats[arc.FormatIndex].Name);
 }
 
+- (BOOL)canWrite {
+    if (!_isOpen)
+        return NO;
+    const CArc& arc = _arcLink->Arcs.Back();
+    CCodecs* c = SZGetCodecs();
+    if (!c || arc.FormatIndex < 0)
+        return NO;
+    return c->Formats[arc.FormatIndex].UpdateEnabled;
+}
+
 - (uint64_t)archivePhysicalSize {
     if (!_isOpen)
         return 0;

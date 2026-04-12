@@ -476,6 +476,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     var onWindowWillClose: ((FileManagerWindowController) -> Void)?
 
+    func fileManagerPaneControllersForArchiveCoordination() -> [FileManagerPaneController] {
+        isDualPane ? [leftPane, rightPane] : [leftPane]
+    }
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650),
@@ -976,15 +980,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     @objc func addToArchive(_: Any?) {
         let activePane = self.activePane
         guard activePane.canAddSelectedItemsToArchive() else {
-            if activePane.isVirtualLocation {
-                showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to add files into it.")
+            if activePane.currentArchiveMutationTarget() == nil {
+                activePane.showReadOnlyArchiveMutationAlert(action: "Adding files to archive")
             }
             return
         }
 
         if activePane.isVirtualLocation {
             guard let target = activePane.currentArchiveMutationTarget() else {
-                showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to add files into it.")
+                activePane.showReadOnlyArchiveMutationAlert(action: "Adding files to archive")
                 return
             }
 
@@ -1530,8 +1534,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
     @objc func createFolder(_: Any?) {
         guard activePane.canCreateFolderHere() else {
-            if activePane.isVirtualLocation {
-                showUnsupportedOperationAlert("This archive view is backed by a temporary extracted copy. Open the archive directly to create folders inside it.")
+            if activePane.currentArchiveMutationTarget() == nil {
+                activePane.showReadOnlyArchiveMutationAlert(action: "Creating folders")
             }
             return
         }

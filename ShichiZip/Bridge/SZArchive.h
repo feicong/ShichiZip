@@ -284,6 +284,9 @@ typedef NS_ENUM(NSInteger, SZCompressionTimePrecision) {
 /// Get the detected format name
 @property (nonatomic, readonly, nullable) NSString* formatName;
 
+/// Get whether the detected archive format supports in-place updates.
+@property (nonatomic, readonly) BOOL canWrite;
+
 /// Get the physical size of the archive file in bytes when available
 @property (nonatomic, readonly) uint64_t archivePhysicalSize;
 
