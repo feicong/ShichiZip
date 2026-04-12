@@ -458,7 +458,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         applyFileManagerSettings()
 
         view = container
-        loadDirectory(currentDirectory)
+        loadDirectory(currentDirectory, showError: false)
     }
 
     // MARK: - Navigation
@@ -470,12 +470,26 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         static let empty = FileSystemSelectionState(selectedPaths: [], focusedPath: nil)
     }
 
-    func loadDirectory(_ url: URL) {
+    @discardableResult
+    func loadDirectory(_ url: URL,
+                       showError: Bool = true) -> Bool
+    {
+        navigateToDirectory(url, showError: showError)
+    }
+
+    @discardableResult
+    private func navigateToDirectory(_ url: URL,
+                                     showError: Bool) -> Bool
+    {
         do {
             let contents = try directoryContents(for: url)
             applyDirectoryContents(contents, for: url)
+            return true
         } catch {
-            return
+            if showError {
+                showErrorAlert(error)
+            }
+            return false
         }
     }
 
@@ -2514,16 +2528,12 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-            do {
-                let contents = try directoryContents(for: url)
-                guard closeAllArchives(showError: true) else {
-                    updatePathField()
-                    return
-                }
-                applyDirectoryContents(contents, for: url)
-            } catch {
+            guard closeAllArchives(showError: true) else {
                 updatePathField()
-                showErrorAlert(error)
+                return
+            }
+            if !loadDirectory(url) {
+                updatePathField()
             }
         } else if FileManager.default.fileExists(atPath: url.path) {
             if FileManagerExternalOpenRouter.shouldOpenExternallyBeforeArchiveAttempt(url) {
