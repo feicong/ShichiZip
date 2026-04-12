@@ -1,5 +1,5 @@
 diff --git a/CPP/7zip/UI/Common/ArchiveExtractCallback.cpp b/CPP/7zip/UI/Common/ArchiveExtractCallback.cpp
-index 61f303e0..40e8d6cf 100644
+index 61f303e0..fb945b51 100644
 --- a/CPP/7zip/UI/Common/ArchiveExtractCallback.cpp
 +++ b/CPP/7zip/UI/Common/ArchiveExtractCallback.cpp
 @@ -28,6 +28,10 @@
@@ -13,7 +13,7 @@ index 61f303e0..40e8d6cf 100644
  #include "../../Common/FilePathAutoRename.h"
  #include "../../Common/StreamUtils.h"
  
-@@ -49,6 +53,17 @@ static const char * const kCantDeleteOutputDir = "Cannot delete output folder";
+@@ -49,6 +53,25 @@ static const char * const kCantDeleteOutputDir = "Cannot delete output folder";
  static const char * const kCantOpenOutFile = "Cannot open output file";
  #ifndef Z7_SFX
  static const char * const kCantOpenInFile = "Cannot open input file";
@@ -26,12 +26,20 @@ index 61f303e0..40e8d6cf 100644
 +    return true;
 +  return setxattr(fileName, kMacQuarantineAttributeName, buf, buf.Size(), 0, XATTR_NOFOLLOW) == 0;
 +}
++
++static void TryWriteQuarantineAttribute_To_BaseFile(CFSTR fileName, const CByteBuffer &buf)
++{
++  if (!WriteQuarantineAttribute_To_BaseFile(fileName, buf))
++  {
++    // Some destinations/filesystems don't support xattrs.
++  }
++}
 +#endif
 +
  #endif
  static const char * const kCantSetFileLen = "Cannot set length for output file";
  #ifdef SUPPORT_LINKS
-@@ -311,7 +326,7 @@ CArchiveExtractCallback::CArchiveExtractCallback():
+@@ -311,7 +334,7 @@ CArchiveExtractCallback::CArchiveExtractCallback():
  
  void CArchiveExtractCallback::InitBeforeNewArchive()
  {
@@ -40,7 +48,22 @@ index 61f303e0..40e8d6cf 100644
    ZoneBuf.Free();
  #endif
  }
-@@ -1971,6 +1986,15 @@ HRESULT CArchiveExtractCallback::CloseFile()
+@@ -516,8 +539,13 @@ void CArchiveExtractCallback::CreateComplexDirectory(
+     #endif
+ 
+     HRESULT hres = S_OK;
+-    if (!CreateDir(fullPath))
++    const bool dirCreated = CreateDir(fullPath);
++    if (!dirCreated)
+       hres = GetLastError_noZero_HRESULT();
++    #if defined(__APPLE__) && !defined(UNDER_CE) && !defined(Z7_SFX)
++    if (dirCreated)
++      TryWriteQuarantineAttribute_To_BaseFile(fullPath, ZoneBuf);
++    #endif
+     if (isFinalDir)
+     {
+       if (!NFile::NFind::DoesDirExist(fullPath))
+@@ -1971,6 +1999,12 @@ HRESULT CArchiveExtractCallback::CloseFile()
        }
      }
    }
@@ -48,10 +71,7 @@ index 61f303e0..40e8d6cf 100644
 +  if (ZoneBuf.Size() != 0
 +      && !_item.IsAltStream)
 +  {
-+    if (!WriteQuarantineAttribute_To_BaseFile(_diskFilePath, ZoneBuf))
-+    {
-+      // Some destinations/filesystems don't support xattrs.
-+    }
++    TryWriteQuarantineAttribute_To_BaseFile(_diskFilePath, ZoneBuf);
 +  }
   #endif
  

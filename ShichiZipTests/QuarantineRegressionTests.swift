@@ -47,6 +47,57 @@ final class QuarantineRegressionTests: XCTestCase {
             try extendedAttributeData(quarantineAttributeName, on: extractedURL), quarantineData)
     }
 
+    func testNormalExtractionShouldInheritSourceArchiveQuarantineForExtractedDirectories() throws {
+        let tempRoot = try makeTemporaryDirectory(named: "normal-extract-directory")
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+
+        let payloadDirectoryURL = tempRoot.appendingPathComponent("payload-directory", isDirectory: true)
+        let nestedPayloadURL = payloadDirectoryURL.appendingPathComponent("payload.txt")
+        let archiveURL = tempRoot.appendingPathComponent("payload-directory.7z")
+        let destinationURL = tempRoot.appendingPathComponent("extract", isDirectory: true)
+
+        try FileManager.default.createDirectory(
+            at: payloadDirectoryURL, withIntermediateDirectories: true)
+        try "payload".write(to: nestedPayloadURL, atomically: true, encoding: .utf8)
+        try FileManager.default.createDirectory(
+            at: destinationURL, withIntermediateDirectories: true)
+
+        let compressionSettings = SZCompressionSettings()
+        compressionSettings.pathMode = .relativePaths
+        try SZArchive.create(
+            atPath: archiveURL.path,
+            fromPaths: [payloadDirectoryURL.path],
+            settings: compressionSettings,
+            session: nil)
+
+        let quarantineData = Data("0081;661aaff0;ShichiZipTests;".utf8)
+        try setExtendedAttribute(quarantineAttributeName, data: quarantineData, on: archiveURL)
+
+        let archive = SZArchive()
+        try archive.open(atPath: archiveURL.path, session: nil)
+        defer { archive.close() }
+
+        let extractionSettings = SZExtractionSettings()
+        extractionSettings.pathMode = .fullPaths
+        extractionSettings.sourceArchivePathForQuarantine = archiveURL.path
+        try archive.extract(
+            toPath: destinationURL.path,
+            settings: extractionSettings,
+            session: nil)
+
+        let extractedDirectoryURL = destinationURL.appendingPathComponent(
+            "payload-directory", isDirectory: true)
+        let extractedFileURL = extractedDirectoryURL.appendingPathComponent("payload.txt")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: extractedDirectoryURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: extractedFileURL.path))
+        XCTAssertEqual(
+            try extendedAttributeData(quarantineAttributeName, on: extractedDirectoryURL),
+            quarantineData)
+        XCTAssertEqual(
+            try extendedAttributeData(quarantineAttributeName, on: extractedFileURL),
+            quarantineData)
+    }
+
     func testStagedArchiveItemsShouldInheritSourceArchiveQuarantine() throws {
         let tempRoot = try makeTemporaryDirectory(named: "quarantine")
         defer { try? FileManager.default.removeItem(at: tempRoot) }
