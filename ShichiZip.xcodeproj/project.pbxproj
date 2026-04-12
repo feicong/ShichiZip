@@ -41,6 +41,8 @@
 		5544DF4679FC2E8A56B9C8C5 /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		561AEC518507EB7849E83F8E /* SZDialogPresenter.m in Sources */ = {isa = PBXBuildFile; fileRef = 59E8962DD7A7A34F21F49446 /* SZDialogPresenter.m */; };
 		57ED9148D94A32AC8683A9ED /* QuarantineRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */; };
+		5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */; };
+		631B2A9A1D5B4B1E9A0D7C11 /* TransferPathValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */; };
 		586E8349FFE035506C922697 /* FileManagerArchiveOpenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F978AA77CB7237708162BD /* FileManagerArchiveOpenService.swift */; };
 		59C09EE81DB70063B69EAD1D /* FileManagerExternalOpenRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F07428E479FD64D8594CBD8 /* FileManagerExternalOpenRouter.swift */; };
 		5C20141C7403D014630B77AA /* FileManagerArchiveItemWorkflowService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E9365E10448902B8CE7660 /* FileManagerArchiveItemWorkflowService.swift */; };
@@ -216,7 +218,9 @@
 		5A18E8BB4528A1AB4DD349EB /* ShowInFileManagerAction-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ShowInFileManagerAction-Info.plist"; sourceTree = "<group>"; };
 		5A4929CADB3637E9FD645056 /* ShichiZipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShichiZipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F0BD3119D294173A9C87820 /* SZArchive+Benchmark.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "SZArchive+Benchmark.mm"; sourceTree = "<group>"; };
+		5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerTransferPathValidation.swift; sourceTree = "<group>"; };
 		5F58255DCB77AF28307EC7CE /* SZArchive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZArchive.h; sourceTree = "<group>"; };
+		631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPathValidationTests.swift; sourceTree = "<group>"; };
 		65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SZSettings.swift; sourceTree = "<group>"; };
 		66C60AB7E758ABD0F2751D95 /* SZCallbacks.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZCallbacks.h; sourceTree = "<group>"; };
 		6A27325B4402993E4B3F4F0B /* SZOperationSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZOperationSession.h; sourceTree = "<group>"; };
@@ -407,6 +411,7 @@
 			isa = PBXGroup;
 			children = (
 				2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */,
+				631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */,
 				98737207F41E39FE2CB71138 /* ShichiZipTests-Bridging-Header.h */,
 			);
 			path = ShichiZipTests;
@@ -421,6 +426,7 @@
 				EF12616F99B5BC0BECF7D3BD /* FileManagerDirectoryListing.swift */,
 				1F07428E479FD64D8594CBD8 /* FileManagerExternalOpenRouter.swift */,
 				05E7B2052E228B7A91F2FAC4 /* FileManagerPaneController.swift */,
+				5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */,
 				D21E05B9DDAEF0F17D9CF282 /* FileManagerTemporaryDirectorySupport.swift */,
 				F8D3D317E3D1D15FB3C768A0 /* FileManagerWindowController.swift */,
 			);
@@ -779,6 +785,7 @@
 				4F7418E2CB43A17B0BB5D6DB /* FileManagerDirectoryListing.swift in Sources */,
 				59C09EE81DB70063B69EAD1D /* FileManagerExternalOpenRouter.swift in Sources */,
 				85B71500F6B01C977BA3CE0A /* FileManagerPaneController.swift in Sources */,
+				5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */,
 				D31C83242FB9281D42DE5B61 /* FileManagerTemporaryDirectorySupport.swift in Sources */,
 				DAED128E61169B4A2FFFE7D0 /* FileManagerWindowController.swift in Sources */,
 				FB053A8BC4259F0A5FC50BD0 /* FileSystemItem.swift in Sources */,
@@ -806,6 +813,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				57ED9148D94A32AC8683A9ED /* QuarantineRegressionTests.swift in Sources */,
+				631B2A9A1D5B4B1E9A0D7C11 /* TransferPathValidationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -839,6 +847,7 @@
 				EFD6C6263E7F428FB8939A42 /* FileManagerDirectoryListing.swift in Sources */,
 				7EE100FF37A26DA3FA69134C /* FileManagerExternalOpenRouter.swift in Sources */,
 				A6D570941AD9603FF45FB5B7 /* FileManagerPaneController.swift in Sources */,
+				5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */,
 				A386AA53745E51B22EC51125 /* FileManagerTemporaryDirectorySupport.swift in Sources */,
 				B2B8116921C374B976FF9283 /* FileManagerWindowController.swift in Sources */,
 				1506FF719B49C353449C3276 /* FileSystemItem.swift in Sources */,

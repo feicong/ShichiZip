@@ -1267,6 +1267,52 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                     session: session)
     }
 
+    func canTransferFileSystemItemURLs(_ urls: [URL],
+                                       to destinationURL: URL,
+                                       operation: NSDragOperation,
+                                       presentingIn window: NSWindow?) -> Bool
+    {
+        guard let conflict = FileManagerTransferPathValidation.ancestryConflict(sourceURLs: urls,
+                                                                                destinationURL: destinationURL)
+        else {
+            return true
+        }
+
+        szPresentTransferAncestryConflict(conflict,
+                                          move: operation == .move,
+                                          for: window)
+        return false
+    }
+
+    func canTransferFileSystemItemURLsToArchive(_ urls: [URL],
+                                                archiveURL: URL?,
+                                                operation: NSDragOperation,
+                                                presentingIn window: NSWindow?) -> Bool
+    {
+        guard let archiveURL else {
+            return true
+        }
+
+        let standardizedArchiveURL = archiveURL.standardizedFileURL
+        let standardizedSourceURLs = Set(urls.map(\.standardizedFileURL))
+        guard !standardizedSourceURLs.contains(standardizedArchiveURL) else {
+            szPresentTransferArchiveSelfConflict(move: operation == .move,
+                                                 for: window)
+            return false
+        }
+
+        guard let conflict = FileManagerTransferPathValidation.ancestryConflict(sourceURLs: urls,
+                                                                                destinationURL: standardizedArchiveURL)
+        else {
+            return true
+        }
+
+        szPresentTransferAncestryConflict(conflict,
+                                          move: operation == .move,
+                                          for: window)
+        return false
+    }
+
     func createFolder(named name: String) {
         if isInsideArchive {
             guard let target = currentArchiveMutationTarget() else {
@@ -2869,6 +2915,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             let urls = droppedFileURLs(from: info)
             guard !urls.isEmpty else { return false }
 
+            guard canTransferFileSystemItemURLsToArchive(urls,
+                                                         archiveURL: archiveDestinationFileURL(for: target),
+                                                         operation: operation,
+                                                         presentingIn: view.window)
+            else {
+                return false
+            }
+
             beginConfirmedArchiveTransfer(urls,
                                           to: target,
                                           operation: operation,
@@ -2891,6 +2945,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard !operation.isEmpty else { return false }
         let urls = droppedFileURLs(from: info)
         guard !urls.isEmpty else { return false }
+
+        guard canTransferFileSystemItemURLs(urls,
+                                            to: destDir,
+                                            operation: operation,
+                                            presentingIn: view.window)
+        else {
+            return false
+        }
 
         beginDroppedFileTransfer(urls,
                                  to: destDir,
@@ -2988,6 +3050,18 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return urls.map { $0.standardizedFileURL }
     }
 
+    private func archiveDestinationFileURL(for target: (archive: SZArchive, subdir: String)) -> URL? {
+        for level in archiveStack.reversed() {
+            guard level.archive === target.archive else {
+                continue
+            }
+
+            return URL(fileURLWithPath: level.archivePath).standardizedFileURL
+        }
+
+        return nil
+    }
+
     private func shouldPreferMoveForDroppedURLs(_ urls: [URL],
                                                 destinationDirectory: URL) -> Bool
     {
@@ -3053,6 +3127,17 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                               requiresConfirmation: Bool = false)
     {
         guard !urls.isEmpty else {
+            if let cleanupDirectory {
+                try? FileManager.default.removeItem(at: cleanupDirectory)
+            }
+            return
+        }
+
+        guard canTransferFileSystemItemURLsToArchive(urls,
+                                                     archiveURL: archiveDestinationFileURL(for: target),
+                                                     operation: operation,
+                                                     presentingIn: parentWindow ?? view.window)
+        else {
             if let cleanupDirectory {
                 try? FileManager.default.removeItem(at: cleanupDirectory)
             }

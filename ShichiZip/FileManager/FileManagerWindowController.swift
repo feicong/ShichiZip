@@ -1,6 +1,43 @@
 import Cocoa
 import QuickLookUI
 
+func szPresentTransferAncestryConflict(_ conflict: FileManagerTransferPathValidation.Conflict,
+                                       move: Bool,
+                                       for window: NSWindow?)
+{
+    let action = move ? "move" : "copy"
+
+    if !conflict.sourceIsDirectory {
+        szPresentMessage(title: "Cannot \(action) files onto itself",
+                         message: "Choose a different destination folder.",
+                         style: .warning,
+                         for: window)
+        return
+    }
+
+    let sourceFolderName = conflict.sourceURL.lastPathComponent.isEmpty
+        ? conflict.sourceURL.path
+        : conflict.sourceURL.lastPathComponent
+    let title = conflict.kind == .sameDestination
+        ? "Cannot \(action) a folder into itself"
+        : "Cannot \(action) a folder into its descendant"
+
+    szPresentMessage(title: title,
+                     message: "Choose a destination outside \"\(sourceFolderName)\".",
+                     style: .warning,
+                     for: window)
+}
+
+func szPresentTransferArchiveSelfConflict(move: Bool,
+                                          for window: NSWindow?)
+{
+    let action = move ? "move" : "copy"
+    szPresentMessage(title: "Cannot \(action) an archive into itself",
+                     message: "Choose a different destination archive.",
+                     style: .warning,
+                     for: window)
+}
+
 extension Notification.Name {
     static let fileManagerViewPreferencesDidChange = Notification.Name("FileManagerViewPreferencesDidChange")
 }
@@ -1382,7 +1419,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             }
 
             guard pane.canCopySelection() else { return }
-            guard let destinationTarget = promptForFileOperationDestination(forMove: false, sourcePane: pane) else { return }
+            guard let unresolvedDestinationTarget = promptForFileOperationDestination(forMove: false, sourcePane: pane) else { return }
+
+            let destinationTarget: FileOperationDestinationTarget
+            do {
+                destinationTarget = try prepareTransferDestination(unresolvedDestinationTarget)
+            } catch {
+                showErrorAlert(error)
+                return
+            }
 
             switch destinationTarget {
             case let .directory(destURL):
@@ -1411,9 +1456,23 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         guard !sourceURLs.isEmpty else { return }
 
         guard let destinationTarget = promptForFileOperationDestination(forMove: move, sourcePane: pane) else { return }
-        guard validateTransferDestination(destinationTarget, for: pane, move: move) else { return }
+        guard validateTransferDestination(destinationTarget,
+                                          sourceURLs: sourceURLs,
+                                          for: pane,
+                                          move: move)
+        else {
+            return
+        }
 
-        switch destinationTarget {
+        let preparedDestinationTarget: FileOperationDestinationTarget
+        do {
+            preparedDestinationTarget = try prepareTransferDestination(destinationTarget)
+        } catch {
+            showErrorAlert(error)
+            return
+        }
+
+        switch preparedDestinationTarget {
         case let .directory(destURL):
             let operation = move ? "Moving" : "Copying"
             let dragOperation: NSDragOperation = move ? .move : .copy
@@ -1799,7 +1858,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
             do {
                 let destinationTarget = try resolveDestinationTarget(from: enteredPath,
-                                                                     relativeTo: sourcePane.currentDirectoryURL)
+                                                                     relativeTo: sourcePane.currentDirectoryURL,
+                                                                     createDirectoryIfNeeded: false)
+                guard validateTransferDestination(destinationTarget,
+                                                  sourceURLs: sourcePane.selectedFileURLs(),
+                                                  for: sourcePane,
+                                                  move: move)
+                else {
+                    continue
+                }
                 FileOperationDestinationHistory.record(destinationTarget.displayPath)
                 return destinationTarget
             } catch {
@@ -1809,7 +1876,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func resolveDestinationTarget(from enteredPath: String,
-                                          relativeTo baseDirectory: URL) throws -> FileOperationDestinationTarget
+                                          relativeTo baseDirectory: URL,
+                                          createDirectoryIfNeeded: Bool = true) throws -> FileOperationDestinationTarget
     {
         guard !enteredPath.isEmpty else {
             throw NSError(domain: NSCocoaErrorDomain,
@@ -1854,8 +1922,36 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                           ])
         }
 
+        guard createDirectoryIfNeeded else {
+            return .directory(standardizedURL)
+        }
+
         try FileManager.default.createDirectory(at: standardizedURL, withIntermediateDirectories: true)
         return .directory(standardizedURL)
+    }
+
+    private func prepareTransferDestination(_ destinationTarget: FileOperationDestinationTarget) throws -> FileOperationDestinationTarget {
+        switch destinationTarget {
+        case .archive:
+            return destinationTarget
+        case let .directory(destinationURL):
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: destinationURL.path, isDirectory: &isDirectory) {
+                guard isDirectory.boolValue else {
+                    throw NSError(domain: NSCocoaErrorDomain,
+                                  code: NSFileWriteInvalidFileNameError,
+                                  userInfo: [
+                                      NSFilePathErrorKey: destinationURL.path,
+                                      NSLocalizedDescriptionKey: "The destination path must be a folder or archive.",
+                                  ])
+                }
+                return destinationTarget
+            }
+
+            try FileManager.default.createDirectory(at: destinationURL,
+                                                    withIntermediateDirectories: true)
+            return .directory(destinationURL)
+        }
     }
 
     private func resolveArchiveDestinationTarget(from standardizedURL: URL) throws -> FileOperationDestinationTarget? {
@@ -1930,31 +2026,38 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func validateTransferDestination(_ destinationTarget: FileOperationDestinationTarget,
-                                             for sourcePane: FileManagerPaneController,
+                                             sourceURLs: [URL],
+                                             for _: FileManagerPaneController,
                                              move: Bool) -> Bool
     {
         switch destinationTarget {
         case let .archive(archiveURL, _):
-            let selectedURLs = Set(sourcePane.selectedFileURLs().map(\.standardizedFileURL))
+            let selectedURLs = Set(sourceURLs.map(\.standardizedFileURL))
             guard !selectedURLs.contains(archiveURL.standardizedFileURL) else {
-                let action = move ? "move" : "copy"
-                szPresentMessage(title: "Cannot \(action) an archive into itself",
-                                 message: "Choose a different destination archive.",
-                                 style: .warning,
-                                 for: window)
+                szPresentTransferArchiveSelfConflict(move: move,
+                                                     for: window)
                 return false
             }
+
+            if let conflict = FileManagerTransferPathValidation.ancestryConflict(sourceURLs: sourceURLs,
+                                                                                 destinationURL: archiveURL)
+            {
+                szPresentTransferAncestryConflict(conflict,
+                                                  move: move,
+                                                  for: window)
+                return false
+            }
+
             return true
         case let .directory(destinationURL):
-            let sourceDirectory = sourcePane.currentDirectoryURL.standardizedFileURL
             let standardizedDestination = destinationURL.standardizedFileURL
 
-            guard sourceDirectory != standardizedDestination else {
-                let action = move ? "move" : "copy"
-                szPresentMessage(title: "Cannot \(action) files onto itself",
-                                 message: "Choose a different destination folder.",
-                                 style: .warning,
-                                 for: window)
+            if let conflict = FileManagerTransferPathValidation.ancestryConflict(sourceURLs: sourceURLs,
+                                                                                 destinationURL: standardizedDestination)
+            {
+                szPresentTransferAncestryConflict(conflict,
+                                                  move: move,
+                                                  for: window)
                 return false
             }
 
