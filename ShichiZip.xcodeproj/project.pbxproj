@@ -12,6 +12,7 @@
 		0C23FCE2AC98E009C562F169 /* ShowInFileManagerAction-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5A18E8BB4528A1AB4DD349EB /* ShowInFileManagerAction-Info.plist */; };
 		0E083C8C01751D167AA800E1 /* DialogPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2FF83FA1080A0CA38F27F5 /* DialogPresenter.swift */; };
 		1506FF719B49C353449C3276 /* FileSystemItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F199F3D5EFC006C978C935C8 /* FileSystemItem.swift */; };
+		173F25408CB97A47A3F0CB63 /* FileManagerTransferPathValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B16B1E95F01DA36C831528 /* FileManagerTransferPathValidation.swift */; };
 		18FFE0D2BD16EC68A07DDBEA /* FileManagerArchiveItemWorkflowService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E9365E10448902B8CE7660 /* FileManagerArchiveItemWorkflowService.swift */; };
 		1CBC7CC9B31B4A1D1BA695A0 /* SZArchive.mm in Sources */ = {isa = PBXBuildFile; fileRef = FC8109FC18679384CCE1FCC9 /* SZArchive.mm */; };
 		1CD870CF4E20D4259C8BBF7F /* QuickActionCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D093FFF06B68EDC421CEDF26 /* QuickActionCore.swift */; };
@@ -27,6 +28,7 @@
 		2C3C4E26634CFF9A4FD20529 /* QuickActionCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D093FFF06B68EDC421CEDF26 /* QuickActionCore.swift */; };
 		34D1F242A66E0994C0F50FCD /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		3526B672AB9F2CEAFD0E549B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 937563A1E648A0013C4DD0C3 /* Assets.xcassets */; };
+		3820A213601524E1525F5EA7 /* FileManagerTransferPathValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B16B1E95F01DA36C831528 /* FileManagerTransferPathValidation.swift */; };
 		389484DCDF1B87E7084A60EE /* SZModalDialogController.m in Sources */ = {isa = PBXBuildFile; fileRef = 17A1A16D1207F4EA60603172 /* SZModalDialogController.m */; };
 		3EB1A6D4145C14DAED1F6FFF /* ArchiveItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B2D1040171A178E5575D88 /* ArchiveItem.swift */; };
 		454747F0D3404AADF88B92CD /* SmartQuickExtractAction-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6D8FE357C90F014620315B33 /* SmartQuickExtractAction-Info.plist */; };
@@ -41,8 +43,6 @@
 		5544DF4679FC2E8A56B9C8C5 /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		561AEC518507EB7849E83F8E /* SZDialogPresenter.m in Sources */ = {isa = PBXBuildFile; fileRef = 59E8962DD7A7A34F21F49446 /* SZDialogPresenter.m */; };
 		57ED9148D94A32AC8683A9ED /* QuarantineRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */; };
-		5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */; };
-		631B2A9A1D5B4B1E9A0D7C11 /* TransferPathValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */; };
 		586E8349FFE035506C922697 /* FileManagerArchiveOpenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F978AA77CB7237708162BD /* FileManagerArchiveOpenService.swift */; };
 		59C09EE81DB70063B69EAD1D /* FileManagerExternalOpenRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F07428E479FD64D8594CBD8 /* FileManagerExternalOpenRouter.swift */; };
 		5C20141C7403D014630B77AA /* FileManagerArchiveItemWorkflowService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E9365E10448902B8CE7660 /* FileManagerArchiveItemWorkflowService.swift */; };
@@ -84,6 +84,7 @@
 		B2B8116921C374B976FF9283 /* FileManagerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D3D317E3D1D15FB3C768A0 /* FileManagerWindowController.swift */; };
 		B3A8D9FEEB33A73AADDF374F /* QuickActionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4791A2D01A2FA9110E2CB4 /* QuickActionTransport.swift */; };
 		B4AE76FC286D96BE3C5BC486 /* DeleteTemporaryFilesWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECEA4ECEDC8A862D8490673 /* DeleteTemporaryFilesWindowController.swift */; };
+		B4E90C7FE35737A16B6518E6 /* TransferPathValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBD201620236E7E186B4A2F /* TransferPathValidationTests.swift */; };
 		BE80C668F39224BF46D40337 /* SZBridgeCommon.mm in Sources */ = {isa = PBXBuildFile; fileRef = 103224C384A1E7C8FA620287 /* SZBridgeCommon.mm */; };
 		C2AE2F82C129E34E248C85A1 /* SZDialogPresenter.m in Sources */ = {isa = PBXBuildFile; fileRef = 59E8962DD7A7A34F21F49446 /* SZDialogPresenter.m */; };
 		C44DCC2A272B0564DE7C1180 /* ShichiZipShowInFileManagerAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B9C89302B67D839C0200FDF7 /* ShichiZipShowInFileManagerAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -196,6 +197,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01B16B1E95F01DA36C831528 /* FileManagerTransferPathValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerTransferPathValidation.swift; sourceTree = "<group>"; };
 		03D9628AF6A43C9B080E2F66 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		05E7B2052E228B7A91F2FAC4 /* FileManagerPaneController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerPaneController.swift; sourceTree = "<group>"; };
 		079C800E6F9E105461CEDF6F /* SZCallbacks.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SZCallbacks.mm; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 		21BD5F44EF90F577C1F1EE7F /* ShichiZipZSSmartQuickExtractAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShichiZipZSSmartQuickExtractAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineRegressionTests.swift; sourceTree = "<group>"; };
 		2D52490C7FF5294CC6DEBEEE /* ShichiZipZSOpenInShichiZipAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShichiZipZSOpenInShichiZipAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		2DBD201620236E7E186B4A2F /* TransferPathValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPathValidationTests.swift; sourceTree = "<group>"; };
 		2E2FF83FA1080A0CA38F27F5 /* DialogPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogPresenter.swift; sourceTree = "<group>"; };
 		37EC5FDA76CEDC07B700597B /* SZDialogPresenter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZDialogPresenter.h; sourceTree = "<group>"; };
 		3D1797F83BAF1E2349FCC716 /* ArchiveOperationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveOperationCoordinator.swift; sourceTree = "<group>"; };
@@ -218,9 +221,7 @@
 		5A18E8BB4528A1AB4DD349EB /* ShowInFileManagerAction-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ShowInFileManagerAction-Info.plist"; sourceTree = "<group>"; };
 		5A4929CADB3637E9FD645056 /* ShichiZipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShichiZipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F0BD3119D294173A9C87820 /* SZArchive+Benchmark.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "SZArchive+Benchmark.mm"; sourceTree = "<group>"; };
-		5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerTransferPathValidation.swift; sourceTree = "<group>"; };
 		5F58255DCB77AF28307EC7CE /* SZArchive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZArchive.h; sourceTree = "<group>"; };
-		631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPathValidationTests.swift; sourceTree = "<group>"; };
 		65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SZSettings.swift; sourceTree = "<group>"; };
 		66C60AB7E758ABD0F2751D95 /* SZCallbacks.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZCallbacks.h; sourceTree = "<group>"; };
 		6A27325B4402993E4B3F4F0B /* SZOperationSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SZOperationSession.h; sourceTree = "<group>"; };
@@ -411,8 +412,8 @@
 			isa = PBXGroup;
 			children = (
 				2B5960D243CEA7BD8CAC8083 /* QuarantineRegressionTests.swift */,
-				631B2A9A1D5B4B1E9A0D7C10 /* TransferPathValidationTests.swift */,
 				98737207F41E39FE2CB71138 /* ShichiZipTests-Bridging-Header.h */,
+				2DBD201620236E7E186B4A2F /* TransferPathValidationTests.swift */,
 			);
 			path = ShichiZipTests;
 			sourceTree = "<group>";
@@ -426,8 +427,8 @@
 				EF12616F99B5BC0BECF7D3BD /* FileManagerDirectoryListing.swift */,
 				1F07428E479FD64D8594CBD8 /* FileManagerExternalOpenRouter.swift */,
 				05E7B2052E228B7A91F2FAC4 /* FileManagerPaneController.swift */,
-				5F25EAA0A9C3469D8D962AA0 /* FileManagerTransferPathValidation.swift */,
 				D21E05B9DDAEF0F17D9CF282 /* FileManagerTemporaryDirectorySupport.swift */,
+				01B16B1E95F01DA36C831528 /* FileManagerTransferPathValidation.swift */,
 				F8D3D317E3D1D15FB3C768A0 /* FileManagerWindowController.swift */,
 			);
 			path = FileManager;
@@ -785,8 +786,8 @@
 				4F7418E2CB43A17B0BB5D6DB /* FileManagerDirectoryListing.swift in Sources */,
 				59C09EE81DB70063B69EAD1D /* FileManagerExternalOpenRouter.swift in Sources */,
 				85B71500F6B01C977BA3CE0A /* FileManagerPaneController.swift in Sources */,
-				5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */,
 				D31C83242FB9281D42DE5B61 /* FileManagerTemporaryDirectorySupport.swift in Sources */,
+				173F25408CB97A47A3F0CB63 /* FileManagerTransferPathValidation.swift in Sources */,
 				DAED128E61169B4A2FFFE7D0 /* FileManagerWindowController.swift in Sources */,
 				FB053A8BC4259F0A5FC50BD0 /* FileSystemItem.swift in Sources */,
 				4F372B7D7336BBA8A2F1B894 /* FoldersHistoryWindowController.swift in Sources */,
@@ -813,7 +814,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				57ED9148D94A32AC8683A9ED /* QuarantineRegressionTests.swift in Sources */,
-				631B2A9A1D5B4B1E9A0D7C11 /* TransferPathValidationTests.swift in Sources */,
+				B4E90C7FE35737A16B6518E6 /* TransferPathValidationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -847,8 +848,8 @@
 				EFD6C6263E7F428FB8939A42 /* FileManagerDirectoryListing.swift in Sources */,
 				7EE100FF37A26DA3FA69134C /* FileManagerExternalOpenRouter.swift in Sources */,
 				A6D570941AD9603FF45FB5B7 /* FileManagerPaneController.swift in Sources */,
-				5F25EAA0A9C3469D8D962AA1 /* FileManagerTransferPathValidation.swift in Sources */,
 				A386AA53745E51B22EC51125 /* FileManagerTemporaryDirectorySupport.swift in Sources */,
+				3820A213601524E1525F5EA7 /* FileManagerTransferPathValidation.swift in Sources */,
 				B2B8116921C374B976FF9283 /* FileManagerWindowController.swift in Sources */,
 				1506FF719B49C353449C3276 /* FileSystemItem.swift in Sources */,
 				E1568B37527443E8A00EFC19 /* FoldersHistoryWindowController.swift in Sources */,
@@ -937,8 +938,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/OpenInShichiZipAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -968,8 +971,11 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/Resources/ShichiZip.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"NDEBUG=1",
@@ -1051,8 +1057,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1276,8 +1284,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/SmartQuickExtractAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1332,8 +1342,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1363,8 +1375,11 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/Resources/ShichiZip.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"NDEBUG=1",
@@ -1480,8 +1495,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/SmartQuickExtractAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1587,8 +1604,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShichiZip/QuickActions/Resources/QuickAction.entitlements;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ShichiZip/QuickActions/Resources/OpenInShichiZipAction-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (

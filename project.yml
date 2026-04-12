@@ -102,6 +102,11 @@ targets:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS:
           - "$(inherited)"
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_DEBUG_DYLIB: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipTests:
     type: bundle.unit-test
@@ -217,6 +222,11 @@ targets:
           - "$(inherited)"
           - "SHICHIZIP_ZS_VARIANT"
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_DEBUG_DYLIB: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipShowInFileManagerAction:
     type: app-extension
@@ -242,6 +252,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipOpenInShichiZipAction:
     type: app-extension
@@ -267,6 +281,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipSmartQuickExtractAction:
     type: app-extension
@@ -292,6 +310,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipZSShowInFileManagerAction:
     type: app-extension
@@ -317,6 +339,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipZSOpenInShichiZipAction:
     type: app-extension
@@ -342,6 +368,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
 
   ShichiZipZSSmartQuickExtractAction:
     type: app-extension
@@ -367,3 +397,7 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false
+          ENABLE_HARDENED_RUNTIME: true
