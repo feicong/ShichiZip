@@ -89,6 +89,10 @@ CFLAGS = $(CFLAGS_COMMON) -std=c11 $(EXTRA_CODEC_INCLUDE_FLAGS)
 CXXFLAGS = $(CFLAGS_COMMON) -std=c++11 -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
 OBJCXXFLAGS = $(CFLAGS_COMMON) -std=c++11 -fobjc-arc -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
 
+define require_existing_files
+$(if $(strip $(filter-out $(wildcard $(1)),$(1))),$(error Missing required source file(s): $(filter-out $(wildcard $(1)),$(1))),$(1))
+endef
+
 O = build/obj/$(SEVENZ_OBJECT_SUBDIR)
 LIB_OUT = build/lib
 LIB = $(LIB_OUT)/$(SEVENZ_LIBRARY_NAME)
@@ -459,19 +463,22 @@ AGENT_SRCS = \
 	$(CPP_ROOT)/7zip/UI/Agent/UpdateCallbackAgent.cpp
 
 ifeq ($(SEVENZ_VARIANT),zs)
-# The ZS fork renames or drops a few upstream files, so keep only sources that
-# actually exist in that tree and layer in the fork-specific replacements above.
-C_SRCS := $(wildcard $(C_SRCS))
-COMMON_SRCS := $(wildcard $(COMMON_SRCS))
-WIN_SRCS := $(wildcard $(WIN_SRCS))
-SEVENZIP_COMMON_SRCS := $(wildcard $(SEVENZIP_COMMON_SRCS))
-ARCHIVE_SRCS := $(wildcard $(ARCHIVE_SRCS))
-ARCHIVE_SUB_SRCS := $(wildcard $(ARCHIVE_SUB_SRCS))
-COMPRESS_SRCS := $(wildcard $(COMPRESS_SRCS))
-CRYPTO_SRCS := $(wildcard $(CRYPTO_SRCS))
-UI_COMMON_SRCS := $(wildcard $(UI_COMMON_SRCS))
-AGENT_SRCS := $(wildcard $(AGENT_SRCS))
+# The ZS fork replaces the standalone wrapper with the bundled zstd sources and
+# omits the upstream XXH64 registration unit.
+C_SRCS := $(filter-out $(C_ROOT)/ZstdDec.c,$(C_SRCS))
+COMMON_SRCS := $(filter-out $(CPP_ROOT)/Common/Xxh64Reg.cpp,$(COMMON_SRCS))
 endif
+
+C_SRCS := $(call require_existing_files,$(C_SRCS))
+COMMON_SRCS := $(call require_existing_files,$(COMMON_SRCS))
+WIN_SRCS := $(call require_existing_files,$(WIN_SRCS))
+SEVENZIP_COMMON_SRCS := $(call require_existing_files,$(SEVENZIP_COMMON_SRCS))
+ARCHIVE_SRCS := $(call require_existing_files,$(ARCHIVE_SRCS))
+ARCHIVE_SUB_SRCS := $(call require_existing_files,$(ARCHIVE_SUB_SRCS))
+COMPRESS_SRCS := $(call require_existing_files,$(COMPRESS_SRCS))
+CRYPTO_SRCS := $(call require_existing_files,$(CRYPTO_SRCS))
+UI_COMMON_SRCS := $(call require_existing_files,$(UI_COMMON_SRCS))
+AGENT_SRCS := $(call require_existing_files,$(AGENT_SRCS))
 
 # === All sources ===
 ALL_CPP_SRCS = $(COMMON_SRCS) $(WIN_SRCS) $(SEVENZIP_COMMON_SRCS) \

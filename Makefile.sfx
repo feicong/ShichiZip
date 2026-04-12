@@ -55,6 +55,10 @@ SEVENZ_INCLUDE = -I$(SEVENZ_ROOT)
 CFLAGS   = $(CFLAGS_COMMON) -std=c11
 CXXFLAGS = $(CFLAGS_COMMON) -std=c++11 $(SEVENZ_INCLUDE)
 
+define require_existing_files
+$(if $(strip $(filter-out $(wildcard $(1)),$(1))),$(error Missing required source file(s): $(filter-out $(wildcard $(1)),$(1))),$(1))
+endef
+
 RCFLAGS = /:target $(RC_TARGET) \
 	-I $(CPP_ROOT)/7zip \
 	-I $(CPP_ROOT)/7zip/Bundles/SFXWin \
@@ -264,9 +268,8 @@ ALL_CPP_SRCS = $(CURRENT_SRCS) $(GUI_SRCS) $(COMMON_SRCS) $(WIN_SRCS) \
 	$(EXPLORER_SRCS) $(FM_SRCS) $(AR_SRCS) $(AR_COMMON_SRCS) \
 	$(SEVENZ_AR_SRCS) $(COMPRESS_SRCS) $(CRYPTO_SRCS)
 
-# Filter to only existing files (for zstd fork compatibility)
-ALL_CPP_SRCS := $(wildcard $(ALL_CPP_SRCS))
-C_SRCS := $(wildcard $(C_SRCS))
+ALL_CPP_SRCS := $(call require_existing_files,$(ALL_CPP_SRCS))
+C_SRCS := $(call require_existing_files,$(C_SRCS))
 
 # Generate object file paths
 CPP_OBJS = $(patsubst $(SEVENZ_ROOT)/%.cpp,$(O)/%.o,$(ALL_CPP_SRCS))
