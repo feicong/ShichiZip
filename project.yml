@@ -87,7 +87,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZipTests
         PRODUCT_NAME: ShichiZipTests
         GENERATE_INFOPLIST_FILE: true
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         SWIFT_OBJC_BRIDGING_HEADER: ShichiZipTests/ShichiZipTests-Bridging-Header.h
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/ShichiZip.app/Contents/MacOS/ShichiZip
@@ -187,7 +187,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizip
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
@@ -221,7 +221,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizip
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/OpenInShichiZipAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
@@ -255,7 +255,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizip
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/SmartQuickExtractAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
@@ -289,7 +289,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizipzs
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
@@ -323,7 +323,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizipzs
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/OpenInShichiZipAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
@@ -357,7 +357,7 @@ targets:
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizipzs
         INFOPLIST_FILE: ShichiZip/QuickActions/Resources/SmartQuickExtractAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true

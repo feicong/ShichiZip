@@ -18,11 +18,13 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
 
     func beginRequest(with context: NSExtensionContext) {
         type(of: self).log("beginRequest inputItems=\(context.inputItems.count)")
+        nonisolated(unsafe) let context = context
+        nonisolated(unsafe) let handler = self
         Task {
             do {
                 let fileURLs = try await Self.loadInputFileURLs(from: context)
                 Self.log("resolved fileURLs=\(fileURLs.map(\.path).joined(separator: ", "))")
-                let request = try makeRequest(from: fileURLs)
+                let request = try handler.makeRequest(from: fileURLs)
                 let launchURL = try ShichiZipQuickActionTransport.launchURL(for: request)
 
                 let didLaunch = await MainActor.run {
@@ -31,14 +33,14 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
                 Self.log("workspace open success=\(didLaunch) url=\(launchURL.absoluteString)")
 
                 if didLaunch {
-                    await completeRequest(on: context)
+                    await handler.completeRequest(on: context)
                 } else {
                     ShichiZipQuickActionTransport.releasePayload(for: launchURL)
-                    await cancelRequest(on: context, error: ShichiZipQuickActionError.launchFailed)
+                    await handler.cancelRequest(on: context, error: ShichiZipQuickActionError.launchFailed)
                 }
             } catch {
-                type(of: self).log("canceling with error=\(String(describing: error))")
-                await cancelRequest(on: context, error: error)
+                Self.log("canceling with error=\(String(describing: error))")
+                await handler.cancelRequest(on: context, error: error)
             }
         }
     }
