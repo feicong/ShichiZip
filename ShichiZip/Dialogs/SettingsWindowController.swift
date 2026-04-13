@@ -7,7 +7,7 @@ private final class SettingsPageContainerView: NSView {
     private let contentInsets: NSEdgeInsets
 
     init(contentStack: NSStackView,
-         contentInsets: NSEdgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+         contentInsets: NSEdgeInsets = NSEdgeInsets(top: 0, left: 16, bottom: 16, right: 16))
     {
         self.contentStack = contentStack
         self.contentInsets = contentInsets
@@ -181,7 +181,7 @@ class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false,
         )
-        window.title = "Options"
+        window.title = SZL10n.string("settings.options")
         window.center()
         self.init(window: window)
         setupUI()
@@ -196,30 +196,30 @@ class SettingsWindowController: NSWindowController {
 
         // Settings tab (SettingsPage.cpp)
         let settingsTab = NSTabViewItem(identifier: "settings")
-        settingsTab.label = "Settings"
+        settingsTab.label = SZL10n.string("settings.title")
         settingsTab.view = createSettingsPage()
         tabView.addTabViewItem(settingsTab)
 
         let shortcutsTab = NSTabViewItem(identifier: "shortcuts")
-        shortcutsTab.label = "Shortcuts"
+        shortcutsTab.label = SZL10n.string("app.settings.shortcuts")
         shortcutsTab.view = createShortcutsPage()
         tabView.addTabViewItem(shortcutsTab)
 
         // Folders tab (FoldersPage.cpp)
         let foldersTab = NSTabViewItem(identifier: "folders")
-        foldersTab.label = "Folders"
+        foldersTab.label = SZL10n.string("settings.folders")
         foldersTab.view = createFoldersPage()
         tabView.addTabViewItem(foldersTab)
 
         let integrationTab = NSTabViewItem(identifier: "integration")
-        integrationTab.label = "Integration"
+        integrationTab.label = SZL10n.string("app.settings.integration")
         integrationTab.view = createIntegrationPage()
         tabView.addTabViewItem(integrationTab)
 
         contentView.addSubview(tabView)
 
         // Segmented control for tab switching
-        tabSegmentedControl = NSSegmentedControl(labels: ["Settings", "Shortcuts", "Folders", "Integration"],
+        tabSegmentedControl = NSSegmentedControl(labels: [SZL10n.string("settings.title"), SZL10n.string("app.settings.shortcuts"), SZL10n.string("settings.folders"), SZL10n.string("app.settings.integration")],
                                                  trackingMode: .selectOne,
                                                  target: self,
                                                  action: #selector(tabSegmentChanged(_:)))
@@ -256,13 +256,51 @@ class SettingsWindowController: NSWindowController {
         stack.alignment = .leading
         stack.spacing = 6
 
+        // --- Language selector ---
+        let langRow = NSStackView()
+        langRow.orientation = .horizontal
+        langRow.alignment = .centerY
+        langRow.spacing = 8
+
+        let langLabel = NSTextField(labelWithString: SZL10n.string("settings.languageLabel"))
+        langRow.addArrangedSubview(langLabel)
+
+        let langPopup = NSPopUpButton()
+        langPopup.addItem(withTitle: SZL10n.string("app.settings.followSystem"))
+        langPopup.lastItem?.representedObject = "" as NSString
+        langPopup.menu?.addItem(.separator())
+
+        let currentOverride = SZSettings.string(.languageOverride)
+        for lang in SZL10n.availableLanguages() {
+            langPopup.addItem(withTitle: lang.displayName)
+            langPopup.lastItem?.representedObject = lang.localeCode as NSString
+            if lang.localeCode == currentOverride {
+                langPopup.select(langPopup.lastItem)
+            }
+        }
+
+        if currentOverride.isEmpty {
+            langPopup.selectItem(at: 0)
+        }
+
+        langPopup.target = self
+        langPopup.action = #selector(languageChanged(_:))
+        langPopup.setAccessibilityIdentifier("settings.language")
+        langRow.addArrangedSubview(langPopup)
+
+        stack.addArrangedSubview(langRow)
+
+        let langSeparator = makeSettingsSeparator()
+        stack.addArrangedSubview(langSeparator)
+        langSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+
         let generalCheckboxes: [(String, SZSettingsKey)] = [
-            ("Show \"..\" item", .showDots),
-            ("Show real file icons", .showRealFileIcons),
-            ("Show hidden files in File Manager", .showHiddenFiles),
-            ("Show grid lines", .showGridLines),
-            ("Single-click to open an item", .singleClickOpen),
-            ("Quit the app when the last window closes", .quitAfterLastWindowClosed),
+            (SZL10n.string("settings.showDotDot"), .showDots),
+            (SZL10n.string("settings.showRealIcons"), .showRealFileIcons),
+            (SZL10n.string("app.settings.showHiddenFiles"), .showHiddenFiles),
+            (SZL10n.string("settings.showGridLines"), .showGridLines),
+            (SZL10n.string("settings.singleClick"), .singleClickOpen),
+            (SZL10n.string("app.settings.quitOnLastClose"), .quitAfterLastWindowClosed),
         ]
 
         for (title, key) in generalCheckboxes {
@@ -277,9 +315,9 @@ class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(compressionSeparator)
         compressionSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
-        stack.addArrangedSubview(makeSectionLabel("Compression"))
+        stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.compression")))
 
-        let compressionCheckbox = NSButton(checkboxWithTitle: "Exclude macOS resource fork files by default",
+        let compressionCheckbox = NSButton(checkboxWithTitle: SZL10n.string("app.settings.excludeMacResourceForks"),
                                            target: self,
                                            action: #selector(settingsCheckboxChanged(_:)))
         compressionCheckbox.tag = SZSettingsKey.excludeMacResourceFilesByDefault.hashValue
@@ -291,11 +329,11 @@ class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(extractionSeparator)
         extractionSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
-        stack.addArrangedSubview(makeSectionLabel("Extraction"))
+        stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.extraction")))
 
         let extractionCheckboxes: [(String, SZSettingsKey)] = [
-            ("Move compressed file to Trash after extraction", .moveArchiveToTrashAfterExtraction),
-            ("Inherit quarantine from downloaded file (if applicable)", .inheritDownloadedFileQuarantine),
+            (SZL10n.string("app.extract.moveToTrash"), .moveArchiveToTrashAfterExtraction),
+            (SZL10n.string("app.extract.inheritQuarantine"), .inheritDownloadedFileQuarantine),
         ]
 
         for (title, key) in extractionCheckboxes {
@@ -306,14 +344,14 @@ class SettingsWindowController: NSWindowController {
             stack.addArrangedSubview(cb)
         }
 
-        let memLabel = NSTextField(labelWithString: "Maximum RAM for extraction:")
+        let memLabel = NSTextField(labelWithString: SZL10n.string("app.settings.maxRAMForExtraction"))
         stack.addArrangedSubview(memLabel)
 
         let memRow = NSStackView()
         memRow.orientation = .horizontal
         memRow.spacing = 8
 
-        let memCheck = NSButton(checkboxWithTitle: "Limit to", target: self, action: #selector(memLimitCheckChanged(_:)))
+        let memCheck = NSButton(checkboxWithTitle: SZL10n.string("app.settings.limitTo"), target: self, action: #selector(memLimitCheckChanged(_:)))
         memCheck.state = SZSettings.bool(.memLimitEnabled) ? .on : .off
         memCheck.setAccessibilityIdentifier("settings.memLimitCheck")
         memRow.addArrangedSubview(memCheck)
@@ -390,7 +428,7 @@ class SettingsWindowController: NSWindowController {
         stack.alignment = .leading
         stack.spacing = 10
 
-        stack.addArrangedSubview(makeSectionLabel("Preset"))
+        stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.preset")))
 
         let descriptionLabel = NSTextField(wrappingLabelWithString: "")
         descriptionLabel.textColor = .secondaryLabelColor
@@ -543,7 +581,7 @@ class SettingsWindowController: NSWindowController {
         stack.alignment = .leading
         stack.spacing = 10
 
-        stack.addArrangedSubview(makeSectionLabel("Finder Quick Actions"))
+        stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.finderQuickActions")))
 
         let descriptionLabel = NSTextField(wrappingLabelWithString: "Open the Finder Quick Actions page in System Settings and review whether \(AppBuildInfo.appDisplayName())'s Quick Actions are currently enabled.")
         descriptionLabel.textColor = .secondaryLabelColor
@@ -551,7 +589,7 @@ class SettingsWindowController: NSWindowController {
         descriptionLabel.preferredMaxLayoutWidth = 440
         stack.addArrangedSubview(descriptionLabel)
 
-        let openSettingsButton = NSButton(title: "Open Finder Quick Actions Settings", target: self, action: #selector(openFinderQuickActionsSettings(_:)))
+        let openSettingsButton = NSButton(title: SZL10n.string("app.settings.openFinderQuickActionsSettings"), target: self, action: #selector(openFinderQuickActionsSettings(_:)))
         openSettingsButton.setAccessibilityIdentifier("settings.openQuickActionsSettings")
         stack.addArrangedSubview(openSettingsButton)
 
@@ -573,19 +611,19 @@ class SettingsWindowController: NSWindowController {
         stack.alignment = .leading
         stack.spacing = 8
 
-        let titleLabel = NSTextField(labelWithString: "Working folder for temporary archive files:")
+        let titleLabel = NSTextField(labelWithString: SZL10n.string("app.settings.workingFolderTitle"))
         titleLabel.font = .boldSystemFont(ofSize: 12)
         stack.addArrangedSubview(titleLabel)
 
         let mode = SZSettings.workDirMode
 
-        let systemTempRadio = NSButton(radioButtonWithTitle: "System temp folder", target: self, action: #selector(workDirModeChanged(_:)))
+        let systemTempRadio = NSButton(radioButtonWithTitle: SZL10n.string("settings.systemTempFolder"), target: self, action: #selector(workDirModeChanged(_:)))
         systemTempRadio.tag = 0
         systemTempRadio.state = mode == 0 ? .on : .off
         systemTempRadio.setAccessibilityIdentifier("settings.workDirSystemTemp")
         stack.addArrangedSubview(systemTempRadio)
 
-        let currentRadio = NSButton(radioButtonWithTitle: "Current folder", target: self, action: #selector(workDirModeChanged(_:)))
+        let currentRadio = NSButton(radioButtonWithTitle: SZL10n.string("app.settings.currentFolder"), target: self, action: #selector(workDirModeChanged(_:)))
         currentRadio.tag = 1
         currentRadio.state = mode == 1 ? .on : .off
         currentRadio.setAccessibilityIdentifier("settings.workDirCurrent")
@@ -595,7 +633,7 @@ class SettingsWindowController: NSWindowController {
         specifiedRow.orientation = .horizontal
         specifiedRow.spacing = 8
 
-        let specifiedRadio = NSButton(radioButtonWithTitle: "Specified:", target: self, action: #selector(workDirModeChanged(_:)))
+        let specifiedRadio = NSButton(radioButtonWithTitle: SZL10n.string("settings.specified"), target: self, action: #selector(workDirModeChanged(_:)))
         specifiedRadio.tag = 2
         specifiedRadio.state = mode == 2 ? .on : .off
         specifiedRadio.setAccessibilityIdentifier("settings.workDirSpecified")
@@ -623,7 +661,7 @@ class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(sep)
         sep.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
-        let removableCheck = NSButton(checkboxWithTitle: "Use for removable drives only", target: self, action: #selector(removableOnlyChanged(_:)))
+        let removableCheck = NSButton(checkboxWithTitle: SZL10n.string("settings.removableDrivesOnly"), target: self, action: #selector(removableOnlyChanged(_:)))
         removableCheck.state = SZSettings.bool(.workDirRemovableOnly) ? .on : .off
         removableCheck.setAccessibilityIdentifier("settings.workDirRemovableOnly")
         stack.addArrangedSubview(removableCheck)
@@ -637,6 +675,26 @@ class SettingsWindowController: NSWindowController {
         guard let keyStr = sender.identifier?.rawValue,
               let key = SZSettingsKey(rawValue: keyStr) else { return }
         SZSettings.set(sender.state == .on, for: key)
+    }
+
+    @objc private func languageChanged(_ sender: NSPopUpButton) {
+        guard let selectedItem = sender.selectedItem,
+              let localeCode = selectedItem.representedObject as? String
+        else { return }
+
+        SZSettings.set(localeCode, for: .languageOverride)
+        SZL10n.reloadBundle()
+
+        // Rebuild UI with new language
+        let selectedTab = tabSegmentedControl.selectedSegment
+        for subview in window?.contentView?.subviews ?? [] {
+            subview.removeFromSuperview()
+        }
+        shortcutRecorders.removeAll()
+        setupUI()
+        tabSegmentedControl.selectedSegment = selectedTab
+        tabView.selectTabViewItem(at: selectedTab)
+        resizeWindowToFitSelectedTab(animated: false)
     }
 
     @objc private func memLimitCheckChanged(_ sender: NSButton) {

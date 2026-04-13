@@ -28,6 +28,9 @@ enum SZSettingsKey: String {
     case workDirMode = "WorkDirMode" // 0=system temp, 1=current, 2=specified
     case workDirPath = "WorkDirPath"
     case workDirRemovableOnly = "WorkDirForRemovableOnly"
+
+    // Language
+    case languageOverride = "LanguageOverride" // "" or locale code (e.g. "ja", "zh-Hans")
 }
 
 // MARK: - Settings Access
