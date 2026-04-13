@@ -1899,7 +1899,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 FileOperationDestinationHistory.record(destinationTarget.displayPath)
                 return destinationTarget
             } catch {
-                showErrorAlert(error)
+                // This prompt reopens in a retry loop, so avoid stacking the error beneath it.
+                szPresentError(error, for: nil)
             }
         }
     }

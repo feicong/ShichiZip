@@ -1285,7 +1285,8 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                 DialogPreferences.recordAdvancedOptions(advancedOptions)
                 return result
             } catch {
-                szPresentError(error, for: parentWindow)
+                // Present validation failures outside the parent window sheet stack.
+                szPresentError(error, for: nil)
             }
         }
     }
