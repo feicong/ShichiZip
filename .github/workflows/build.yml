@@ -58,6 +58,9 @@ jobs:
       - name: Install build tools
         run: brew install xcodegen zig
 
+      - name: Select Xcode 26.4
+        run: sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
+
       - name: Build lib7zip
         run: make -j"$(sysctl -n hw.ncpu)" TARGET_ARCH="${{ matrix.target_arch }}" "${{ matrix.make_target }}"
 
