@@ -14,7 +14,7 @@ final class QuarantineRegressionTests: XCTestCase {
 
         try "payload".write(to: payloadURL, atomically: true, encoding: .utf8)
         try FileManager.default.createDirectory(
-            at: destinationURL, withIntermediateDirectories: true
+            at: destinationURL, withIntermediateDirectories: true,
         )
 
         try createArchive(at: archiveURL, from: [payloadURL])
@@ -32,13 +32,13 @@ final class QuarantineRegressionTests: XCTestCase {
         try archive.extract(
             toPath: destinationURL.path,
             settings: extractionSettings,
-            session: nil
+            session: nil,
         )
 
         let extractedURL = destinationURL.appendingPathComponent("payload.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extractedURL.path))
         XCTAssertEqual(
-            try extendedAttributeData(quarantineAttributeName, on: extractedURL), quarantineData
+            try extendedAttributeData(quarantineAttributeName, on: extractedURL), quarantineData,
         )
     }
 
@@ -51,11 +51,11 @@ final class QuarantineRegressionTests: XCTestCase {
         let destinationURL = tempRoot.appendingPathComponent("extract", isDirectory: true)
 
         try FileManager.default.createDirectory(
-            at: payloadDirectoryURL, withIntermediateDirectories: true
+            at: payloadDirectoryURL, withIntermediateDirectories: true,
         )
         try "payload".write(to: nestedPayloadURL, atomically: true, encoding: .utf8)
         try FileManager.default.createDirectory(
-            at: destinationURL, withIntermediateDirectories: true
+            at: destinationURL, withIntermediateDirectories: true,
         )
 
         try createArchive(at: archiveURL, from: [payloadDirectoryURL])
@@ -73,22 +73,22 @@ final class QuarantineRegressionTests: XCTestCase {
         try archive.extract(
             toPath: destinationURL.path,
             settings: extractionSettings,
-            session: nil
+            session: nil,
         )
 
         let extractedDirectoryURL = destinationURL.appendingPathComponent(
-            "payload-directory", isDirectory: true
+            "payload-directory", isDirectory: true,
         )
         let extractedFileURL = extractedDirectoryURL.appendingPathComponent("payload.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extractedDirectoryURL.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: extractedFileURL.path))
         XCTAssertEqual(
             try extendedAttributeData(quarantineAttributeName, on: extractedDirectoryURL),
-            quarantineData
+            quarantineData,
         )
         XCTAssertEqual(
             try extendedAttributeData(quarantineAttributeName, on: extractedFileURL),
-            quarantineData
+            quarantineData,
         )
     }
 
@@ -114,26 +114,26 @@ final class QuarantineRegressionTests: XCTestCase {
         let payloadItem = try XCTUnwrap(archiveItems.first { !$0.isDirectory })
         let workflowService = FileManagerArchiveItemWorkflowService(
             fileManager: stagingFileManager,
-            quarantineInheritanceEnabled: { true }
+            quarantineInheritanceEnabled: { true },
         )
         let context = FileManagerArchiveItemWorkflowContext(
             archive: archive,
             hostDirectory: tempRoot,
             displayPathPrefix: archiveURL.path,
             quarantineSourceArchivePath: archiveURL.path,
-            mutationTarget: nil
+            mutationTarget: nil,
         )
         let preview = try workflowService.stageQuickLookItems(
             [payloadItem],
             context: context,
-            session: nil
+            session: nil,
         )
         defer { workflowService.cleanup(preview.temporaryDirectory) }
 
         let stagedURL = try XCTUnwrap(preview.fileURLs.first)
         XCTAssertTrue(stagingFileManager.fileExists(atPath: stagedURL.path))
         XCTAssertEqual(
-            try extendedAttributeData(quarantineAttributeName, on: stagedURL), quarantineData
+            try extendedAttributeData(quarantineAttributeName, on: stagedURL), quarantineData,
         )
     }
 
@@ -145,7 +145,7 @@ final class QuarantineRegressionTests: XCTestCase {
         let outerArchiveURL = tempRoot.appendingPathComponent("outer.7z")
         let outerHostDirectory = tempRoot.appendingPathComponent("outer-host", isDirectory: true)
         let nestedExtractURL = tempRoot.appendingPathComponent(
-            "nested-extract-output", isDirectory: true
+            "nested-extract-output", isDirectory: true,
         )
 
         try "nested payload".write(to: innerPayloadURL, atomically: true, encoding: .utf8)
@@ -164,26 +164,26 @@ final class QuarantineRegressionTests: XCTestCase {
         let nestedArchiveItem = try XCTUnwrap(outerItems.first { $0.name == "inner.7z" })
         let workflowService = FileManagerArchiveItemWorkflowService(
             fileManager: .default,
-            quarantineInheritanceEnabled: { true }
+            quarantineInheritanceEnabled: { true },
         )
         let outerContext = FileManagerArchiveItemWorkflowContext(
             archive: outerArchive,
             hostDirectory: outerHostDirectory,
             displayPathPrefix: outerArchiveURL.path,
             quarantineSourceArchivePath: outerArchiveURL.path,
-            mutationTarget: nil
+            mutationTarget: nil,
         )
         let stagedNestedArchive = try workflowService.stageQuickLookItems(
             [nestedArchiveItem],
             context: outerContext,
-            session: nil
+            session: nil,
         )
         defer { workflowService.cleanup(stagedNestedArchive.temporaryDirectory) }
 
         let stagedNestedArchiveURL = try XCTUnwrap(stagedNestedArchive.fileURLs.first)
         XCTAssertEqual(
             try extendedAttributeData(quarantineAttributeName, on: stagedNestedArchiveURL),
-            quarantineData
+            quarantineData,
         )
 
         let innerArchive = SZArchive()
@@ -194,18 +194,18 @@ final class QuarantineRegressionTests: XCTestCase {
         extractionSettings.pathMode = .fullPaths
         extractionSettings.sourceArchivePathForQuarantine = stagedNestedArchiveURL.path
         try FileManager.default.createDirectory(
-            at: nestedExtractURL, withIntermediateDirectories: true
+            at: nestedExtractURL, withIntermediateDirectories: true,
         )
         try innerArchive.extract(
             toPath: nestedExtractURL.path,
             settings: extractionSettings,
-            session: nil
+            session: nil,
         )
 
         let extractedURL = nestedExtractURL.appendingPathComponent("inner-payload.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extractedURL.path))
         XCTAssertEqual(
-            try extendedAttributeData(quarantineAttributeName, on: extractedURL), quarantineData
+            try extendedAttributeData(quarantineAttributeName, on: extractedURL), quarantineData,
         )
     }
 
@@ -219,7 +219,7 @@ final class QuarantineRegressionTests: XCTestCase {
                         buffer.baseAddress,
                         buffer.count,
                         0,
-                        XATTR_NOFOLLOW
+                        XATTR_NOFOLLOW,
                     )
                 }
             }
@@ -254,7 +254,7 @@ final class QuarantineRegressionTests: XCTestCase {
                         buffer.baseAddress,
                         buffer.count,
                         0,
-                        XATTR_NOFOLLOW
+                        XATTR_NOFOLLOW,
                     )
                 }
             }

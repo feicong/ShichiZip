@@ -7,18 +7,18 @@ struct CompressDialogResult {
 
 @MainActor
 final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
-    private struct Option<Value: Equatable & Sendable>: Equatable, Sendable {
+    private struct Option<Value: Equatable & Sendable>: Equatable {
         let title: String
         let value: Value
     }
 
-    private struct LevelOption: Equatable, Sendable {
+    private struct LevelOption: Equatable {
         let title: String
         let levelValue: Int
         let isDefault: Bool
     }
 
-    private struct MethodOption: Equatable, Sendable {
+    private struct MethodOption: Equatable {
         let title: String
         let enumValue: SZCompressionMethod?
         let methodName: String
@@ -48,7 +48,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
     }
 
-    private struct FormatOption: Equatable, Sendable {
+    private struct FormatOption: Equatable {
         let title: String
         let codecName: String
         let format: SZArchiveFormat
@@ -121,7 +121,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private enum ArchivePathHistory {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let entriesKey = "FileManager.CompressArchivePathHistory"
         private static let maxEntries = 20
 
@@ -141,7 +144,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     }
 
     private enum DialogPreferences {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let formatKey = "FileManager.CompressFormat"
         private static let updateModeKey = "FileManager.CompressUpdateMode"
         private static let pathModeKey = "FileManager.CompressPathMode"
@@ -252,13 +258,12 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             let storedValueExists = defaults.object(forKey: valueKey) != nil
             let value = bool(forKey: valueKey, defaultValue: defaultValue)
 
-            let isSet: Bool
-            if defaults.object(forKey: setKey) != nil {
-                isSet = defaults.bool(forKey: setKey)
+            let isSet: Bool = if defaults.object(forKey: setKey) != nil {
+                defaults.bool(forKey: setKey)
             } else if storedValueExists {
-                isSet = (value != defaultValue)
+                value != defaultValue
             } else {
-                isSet = false
+                false
             }
 
             return AdvancedBoolPairState(isSet: isSet,
@@ -271,13 +276,12 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                 .flatMap(SZCompressionTimePrecision.init(rawValue:))
                 ?? fallbackState.value
 
-            let isSet: Bool
-            if defaults.object(forKey: timePrecisionSetKey) != nil {
-                isSet = defaults.bool(forKey: timePrecisionSetKey)
+            let isSet: Bool = if defaults.object(forKey: timePrecisionSetKey) != nil {
+                defaults.bool(forKey: timePrecisionSetKey)
             } else if rawTimePrecision != nil {
-                isSet = (value.rawValue != fallbackState.value.rawValue)
+                value.rawValue != fallbackState.value.rawValue
             } else {
-                isSet = false
+                false
             }
 
             return AdvancedTimePrecisionState(isSet: isSet,
@@ -285,7 +289,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         }
 
         static func advancedOptions(defaults fallbackState: AdvancedOptionsState) -> AdvancedOptionsState {
-            return AdvancedOptionsState(
+            AdvancedOptionsState(
                 storeSymbolicLinks: bool(forKey: storeSymbolicLinksKey,
                                          defaultValue: fallbackState.storeSymbolicLinks),
                 storeHardLinks: bool(forKey: storeHardLinksKey,
@@ -308,7 +312,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                 setArchiveTimeToLatestFile: advancedBoolPairState(valueKey: setArchiveTimeToLatestFileKey,
                                                                   setKey: setArchiveTimeToLatestFileSetKey,
                                                                   defaultValue: fallbackState.setArchiveTimeToLatestFile.value),
-                timePrecision: advancedTimePrecisionState(defaults: fallbackState.timePrecision)
+                timePrecision: advancedTimePrecisionState(defaults: fallbackState.timePrecision),
             )
         }
 
@@ -397,11 +401,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             }
 
             let expandedPath = NSString(string: currentValue).expandingTildeInPath
-            let candidateURL: URL
-            if NSString(string: expandedPath).isAbsolutePath {
-                candidateURL = URL(fileURLWithPath: expandedPath)
+            let candidateURL = if NSString(string: expandedPath).isAbsolutePath {
+                URL(fileURLWithPath: expandedPath)
             } else {
-                candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+                URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
             }
 
             let standardizedURL = candidateURL.standardizedFileURL
@@ -523,23 +526,23 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func zstdNamedLabel(for value: Int) -> String? {
         switch value {
         case -64:
-            return "Ultimate Fast"
+            "Ultimate Fast"
         case -7:
-            return "Ultra Fast"
+            "Ultra Fast"
         case -1:
-            return "Super Fast"
+            "Super Fast"
         case 1:
-            return "Fastest"
+            "Fastest"
         case 3:
-            return "Fast"
+            "Fast"
         case 11:
-            return "Normal"
+            "Normal"
         case 19:
-            return "Maximum"
+            "Maximum"
         case 20:
-            return "Ultra"
+            "Ultra"
         default:
-            return nil
+            nil
         }
     }
 
@@ -833,7 +836,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
          baseDirectory: URL? = nil,
          message: String? = nil)
     {
-        let normalizedSourceURLs = sourceURLs.map { $0.standardizedFileURL }
+        let normalizedSourceURLs = sourceURLs.map(\.standardizedFileURL)
         let resolvedBaseDirectory = (baseDirectory ?? Self.suggestedBaseDirectory(for: normalizedSourceURLs)).standardizedFileURL
         let supportedFormatInfoByName = Self.makeSupportedFormatInfoByName()
 
@@ -887,7 +890,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         var excludeMacResourceFiles = SZSettings.bool(.excludeMacResourceFilesByDefault)
         var advancedOptions = DialogPreferences.advancedOptions(
             defaults: defaultAdvancedOptionsState(for: formatOption(named: selectedFormatName) ?? availableFormats[0],
-                                                  methodName: selectedMethodName)
+                                                  methodName: selectedMethodName),
         )
         var advancedOptionsCustomized = hasStoredAdvancedPreferences
 
@@ -1697,7 +1700,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             setArchiveTimeToLatestFile: AdvancedBoolPairState(isSet: archiveTimeRow.setCheckbox.state == .on,
                                                               value: archiveTimeRow.valueCheckbox.state == .on),
             timePrecision: AdvancedTimePrecisionState(isSet: timePrecisionSetCheckbox.state == .on,
-                                                      value: currentSelectedTimePrecision())
+                                                      value: currentSelectedTimePrecision()),
         )
         return effectiveAdvancedOptions(for: format,
                                         method: method,
@@ -2073,11 +2076,10 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                    format: format,
                                                    createSFX: createSFX)
         let expandedPath = NSString(string: normalizedPath).expandingTildeInPath
-        let archiveURL: URL
-        if NSString(string: expandedPath).isAbsolutePath {
-            archiveURL = URL(fileURLWithPath: expandedPath)
+        let archiveURL = if NSString(string: expandedPath).isAbsolutePath {
+            URL(fileURLWithPath: expandedPath)
         } else {
-            archiveURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+            URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
         }
 
         let standardizedURL = archiveURL.standardizedFileURL
@@ -2162,14 +2164,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             return
         }
 
-        let replacementResponder: NSView?
-        switch owner {
+        let replacementResponder: NSView? = switch owner {
         case securePasswordField, plainPasswordField:
-            replacementResponder = showsPassword ? plainPasswordField : securePasswordField
+            showsPassword ? plainPasswordField : securePasswordField
         case secureConfirmPasswordField, plainConfirmPasswordField:
-            replacementResponder = showsPassword ? plainConfirmPasswordField : secureConfirmPasswordField
+            showsPassword ? plainConfirmPasswordField : secureConfirmPasswordField
         default:
-            replacementResponder = nil
+            nil
         }
 
         if let replacementResponder {
@@ -2548,13 +2549,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func normalizedMemoryUsageSpec(_ spec: String) -> String {
         switch parseMemoryUsageSelection(spec) {
         case .auto:
-            return ""
+            ""
         case let .percent(percent):
-            return "\(percent)%"
+            "\(percent)%"
         case let .bytes(bytes):
-            return normalizedMemoryUsageSpec(forBytes: bytes)
+            normalizedMemoryUsageSpec(forBytes: bytes)
         case nil:
-            return ""
+            ""
         }
     }
 
@@ -2579,11 +2580,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private static func memoryUsageOptionTitle(for selection: MemoryUsageSelection) -> String {
         switch selection {
         case .auto:
-            return "Auto: \(defaultMemoryUsagePercent)%"
+            "Auto: \(defaultMemoryUsagePercent)%"
         case let .percent(percent):
-            return "\(percent)%"
+            "\(percent)%"
         case let .bytes(bytes):
-            return memoryUsageText(for: bytes)
+            memoryUsageText(for: bytes)
         }
     }
 
@@ -2765,16 +2766,16 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                               state: state.setArchiveTimeToLatestFile,
                               to: &parts)
 
-        if capabilities.supportsSymbolicLinks && state.storeSymbolicLinks {
+        if capabilities.supportsSymbolicLinks, state.storeSymbolicLinks {
             parts.append("SL")
         }
-        if capabilities.supportsHardLinks && state.storeHardLinks {
+        if capabilities.supportsHardLinks, state.storeHardLinks {
             parts.append("HL")
         }
-        if capabilities.supportsAlternateDataStreams && state.storeAlternateDataStreams {
+        if capabilities.supportsAlternateDataStreams, state.storeAlternateDataStreams {
             parts.append("AS")
         }
-        if capabilities.supportsFileSecurity && state.storeFileSecurity {
+        if capabilities.supportsFileSecurity, state.storeFileSecurity {
             parts.append("Sec")
         }
 
@@ -2848,7 +2849,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             defaultAccessTime: info?.defaultsAccessTime ?? false,
             keepsName: info?.keepsName ?? false,
             supportedTimePrecisions: supportedTimePrecisions,
-            defaultTimePrecision: defaultTimePrecision
+            defaultTimePrecision: defaultTimePrecision,
         )
 
         if format.codecName.caseInsensitiveCompare("tar") == .orderedSame {
@@ -2922,15 +2923,15 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
     private func timePrecisionTitle(for precision: SZCompressionTimePrecision) -> String {
         switch precision.rawValue {
         case 0:
-            return "100 ns : Windows"
+            "100 ns : Windows"
         case 1:
-            return "1 sec : Unix"
+            "1 sec : Unix"
         case 2:
-            return "2 sec : DOS"
+            "2 sec : DOS"
         case 3:
-            return "1 ns : Linux"
+            "1 ns : Linux"
         default:
-            return "Automatic"
+            "Automatic"
         }
     }
 
@@ -3024,7 +3025,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             memoryUsageLimit: estimate.memoryUsageLimitIsDefined ? estimate.memoryUsageLimit : nil,
             resolvedDictionarySize: estimate.resolvedDictionarySizeIsDefined ? estimate.resolvedDictionarySize : nil,
             resolvedWordSize: estimate.resolvedWordSizeIsDefined ? estimate.resolvedWordSize : nil,
-            resolvedNumThreads: estimate.resolvedNumThreadsIsDefined ? estimate.resolvedNumThreads : nil
+            resolvedNumThreads: estimate.resolvedNumThreadsIsDefined ? estimate.resolvedNumThreads : nil,
         )
     }
 
@@ -3234,7 +3235,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let supportedNames = Set(
             supportedFormatInfoByName.values
                 .filter(\.canWrite)
-                .map { $0.name.lowercased() }
+                .map { $0.name.lowercased() },
         )
         let filteredFormats = formatCatalog.filter {
             guard supportedNames.isEmpty || supportedNames.contains($0.codecName.lowercased()) else {

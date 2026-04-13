@@ -26,7 +26,7 @@ class ArchiveDocument: NSDocument {
 
     /// Accept all types — let 7-Zip core detect format
     override class func isNativeType(_: String) -> Bool {
-        return true
+        true
     }
 
     override func makeWindowControllers() {

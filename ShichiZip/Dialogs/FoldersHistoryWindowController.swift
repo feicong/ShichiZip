@@ -231,7 +231,7 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         hasCompleted = true
         dialogController = nil
 
-        let completionHandler = self.completionHandler
+        let completionHandler = completionHandler
         self.completionHandler = nil
 
         guard buttonIndex == ButtonIndex.open, !entries.isEmpty else {

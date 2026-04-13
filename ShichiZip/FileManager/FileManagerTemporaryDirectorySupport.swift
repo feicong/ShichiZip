@@ -73,9 +73,9 @@ private extension UnicodeScalar {
     var isASCIIHexDigit: Bool {
         switch value {
         case 48 ... 57, 65 ... 70, 97 ... 102:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 }

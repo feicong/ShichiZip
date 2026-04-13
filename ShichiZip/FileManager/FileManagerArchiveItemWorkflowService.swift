@@ -38,7 +38,7 @@ final class FileManagerArchiveItemWorkflowService {
             observer = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didTerminateApplicationNotification,
                 object: nil,
-                queue: .main
+                queue: .main,
             ) { [weak self] notification in
                 self?.handleTermination(notification)
             }

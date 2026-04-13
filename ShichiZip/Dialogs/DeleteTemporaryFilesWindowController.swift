@@ -13,50 +13,50 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         var title: String {
             switch self {
             case .name:
-                return "Name"
+                "Name"
             case .modified:
-                return "Modified"
+                "Modified"
             case .size:
-                return "Size"
+                "Size"
             case .files:
-                return "Files"
+                "Files"
             case .folders:
-                return "Folders"
+                "Folders"
             case .item:
-                return "Item"
+                "Item"
             }
         }
 
         var width: CGFloat {
             switch self {
             case .name:
-                return 220
+                220
             case .modified:
-                return 170
+                170
             case .size:
-                return 110
+                110
             case .files, .folders:
-                return 72
+                72
             case .item:
-                return 160
+                160
             }
         }
 
         var alignment: NSTextAlignment {
             switch self {
             case .size, .files, .folders:
-                return .right
+                .right
             case .name, .modified, .item:
-                return .natural
+                .natural
             }
         }
 
         var defaultAscending: Bool {
             switch self {
             case .modified, .size, .files, .folders:
-                return false
+                false
             case .name, .item:
-                return true
+                true
             }
         }
     }
@@ -271,30 +271,30 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
             }
 
             DispatchQueue.main.async { [weak self] in
-                guard let self, generation == self.loadGeneration else { return }
-                self.isLoading = false
+                guard let self, generation == loadGeneration else { return }
+                isLoading = false
 
                 switch result {
                 case let .success(loadedItems):
-                    self.items = self.sortedItems(loadedItems)
-                    self.tableView.reloadData()
-                    self.restoreSelection(names: namesToSelect)
+                    items = sortedItems(loadedItems)
+                    tableView.reloadData()
+                    restoreSelection(names: namesToSelect)
                 case let .failure(error):
                     let nsError = error as NSError
                     if directory.path != self.tempRoot.path,
                        nsError.domain == NSCocoaErrorDomain,
                        nsError.code == CocoaError.fileReadNoSuchFile.rawValue
                     {
-                        self.currentDirectory = self.tempRoot
-                        self.reloadContents()
+                        currentDirectory = self.tempRoot
+                        reloadContents()
                         return
                     }
-                    self.items.removeAll()
-                    self.tableView.reloadData()
-                    szPresentError(error, for: self.window)
+                    items.removeAll()
+                    tableView.reloadData()
+                    szPresentError(error, for: window)
                 }
 
-                self.updateControls()
+                updateControls()
             }
         }
     }
@@ -328,11 +328,10 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         let contents = try fileManager.contentsOfDirectory(at: directory,
                                                            includingPropertiesForKeys: Array(resourceKeys),
                                                            options: [])
-        let filteredContents: [URL]
-        if directory.standardizedFileURL.path == tempRoot.path {
-            filteredContents = contents.filter(FileManagerTemporaryDirectorySupport.isManagedRootItem)
+        let filteredContents: [URL] = if directory.standardizedFileURL.path == tempRoot.path {
+            contents.filter(FileManagerTemporaryDirectorySupport.isManagedRootItem)
         } else {
-            filteredContents = contents
+            contents
         }
 
         return try filteredContents.map { try makeBrowserItem(for: $0, fileManager: fileManager) }
@@ -348,11 +347,10 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         let isDirectory = values.isDirectory ?? false
         let isSymbolicLink = values.isSymbolicLink ?? false
 
-        let summary: DirectorySummary?
-        if isDirectory && !isSymbolicLink {
-            summary = summarizeDirectory(at: url, fileManager: fileManager)
+        let summary: DirectorySummary? = if isDirectory, !isSymbolicLink {
+            summarizeDirectory(at: url, fileManager: fileManager)
         } else {
-            summary = nil
+            nil
         }
 
         return BrowserItem(url: url,
@@ -565,13 +563,13 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                self.isDeleting = false
+                isDeleting = false
                 switch result {
                 case .success:
-                    self.reloadContents()
+                    reloadContents()
                 case let .failure(error):
-                    self.updateControls()
-                    szPresentError(error, for: self.window)
+                    updateControls()
+                    szPresentError(error, for: window)
                 }
             }
         }

@@ -103,35 +103,35 @@ struct FileManagerShortcut: Equatable {
     private static func specialKeyEquivalent(for keyCode: UInt16) -> String? {
         switch keyCode {
         case 36:
-            return "\r"
+            "\r"
         case 48:
-            return "\t"
+            "\t"
         case 49:
-            return " "
+            " "
         case 51:
-            return String(UnicodeScalar(NSDeleteCharacter)!)
+            String(UnicodeScalar(NSDeleteCharacter)!)
         case 96:
-            return functionKeyEquivalent(5)
+            functionKeyEquivalent(5)
         case 97:
-            return functionKeyEquivalent(6)
+            functionKeyEquivalent(6)
         case 98:
-            return functionKeyEquivalent(7)
+            functionKeyEquivalent(7)
         case 100:
-            return functionKeyEquivalent(8)
+            functionKeyEquivalent(8)
         case 101:
-            return functionKeyEquivalent(9)
+            functionKeyEquivalent(9)
         case 120:
-            return functionKeyEquivalent(2)
+            functionKeyEquivalent(2)
         case 123:
-            return String(UnicodeScalar(NSLeftArrowFunctionKey)!)
+            String(UnicodeScalar(NSLeftArrowFunctionKey)!)
         case 124:
-            return String(UnicodeScalar(NSRightArrowFunctionKey)!)
+            String(UnicodeScalar(NSRightArrowFunctionKey)!)
         case 125:
-            return String(UnicodeScalar(NSDownArrowFunctionKey)!)
+            String(UnicodeScalar(NSDownArrowFunctionKey)!)
         case 126:
-            return String(UnicodeScalar(NSUpArrowFunctionKey)!)
+            String(UnicodeScalar(NSUpArrowFunctionKey)!)
         default:
-            return nil
+            nil
         }
     }
 
@@ -144,35 +144,35 @@ struct FileManagerShortcut: Equatable {
     {
         switch keyCode {
         case 36:
-            return "Return"
+            "Return"
         case 48:
-            return "Tab"
+            "Tab"
         case 49:
-            return "Space"
+            "Space"
         case 51:
-            return "Delete"
+            "Delete"
         case 96:
-            return "F5"
+            "F5"
         case 97:
-            return "F6"
+            "F6"
         case 98:
-            return "F7"
+            "F7"
         case 100:
-            return "F8"
+            "F8"
         case 101:
-            return "F9"
+            "F9"
         case 120:
-            return "F2"
+            "F2"
         case 123:
-            return "Left Arrow"
+            "Left Arrow"
         case 124:
-            return "Right Arrow"
+            "Right Arrow"
         case 125:
-            return "Down Arrow"
+            "Down Arrow"
         case 126:
-            return "Up Arrow"
+            "Up Arrow"
         default:
-            return keyEquivalent == " " ? "Space" : keyEquivalent.uppercased()
+            keyEquivalent == " " ? "Space" : keyEquivalent.uppercased()
         }
     }
 
@@ -202,22 +202,22 @@ enum FileManagerShortcutPreset: Int, CaseIterable {
     var displayName: String {
         switch self {
         case .finder:
-            return "Finder-like"
+            "Finder-like"
         case .commander:
-            return "Commander-like"
+            "Commander-like"
         case .custom:
-            return "Custom"
+            "Custom"
         }
     }
 
     var descriptionText: String {
         switch self {
         case .finder:
-            return "Uses macOS-style file manager shortcuts, including Return to rename and Command+Arrow navigation."
+            "Uses macOS-style file manager shortcuts, including Return to rename and Command+Arrow navigation."
         case .commander:
-            return "Uses the classic 7-Zip function-key workflow for file operations and pane management."
+            "Uses the classic 7-Zip function-key workflow for file operations and pane management."
         case .custom:
-            return "Uses your saved per-command file manager shortcuts."
+            "Uses your saved per-command file manager shortcuts."
         }
     }
 }
@@ -238,27 +238,27 @@ enum FileManagerShortcutCommand: String, CaseIterable {
     var title: String {
         switch self {
         case .openSelectedItem:
-            return "Open selected item"
+            "Open selected item"
         case .toggleQuickLook:
-            return "Quick Look"
+            "Quick Look"
         case .goUpOneLevel:
-            return "Up one level"
+            "Up one level"
         case .renameSelection:
-            return "Rename"
+            "Rename"
         case .switchPanes:
-            return "Switch panes"
+            "Switch panes"
         case .copyFiles:
-            return "Copy To"
+            "Copy To"
         case .moveFiles:
-            return "Move To"
+            "Move To"
         case .createFolder:
-            return "Create folder"
+            "Create folder"
         case .deleteFiles:
-            return "Delete"
+            "Delete"
         case .toggleDualPane:
-            return "Toggle dual pane"
+            "Toggle dual pane"
         case .refreshActivePane:
-            return "Refresh"
+            "Refresh"
         }
     }
 }
@@ -306,8 +306,8 @@ enum FileManagerShortcuts {
     static func binding(for command: FileManagerShortcutCommand,
                         preset: FileManagerShortcutPreset = SZSettings.fileManagerShortcutPreset) -> FileManagerShortcutBinding
     {
-        return FileManagerShortcutBinding(command: command,
-                                          shortcut: resolvedBindingMap(for: preset)[command])
+        FileManagerShortcutBinding(command: command,
+                                   shortcut: resolvedBindingMap(for: preset)[command])
     }
 
     static func command(for event: NSEvent,
@@ -328,7 +328,7 @@ enum FileManagerShortcuts {
     private static func standardBindingMap(for preset: FileManagerShortcutPreset) -> [FileManagerShortcutCommand: FileManagerShortcut] {
         switch preset {
         case .finder:
-            return [
+            [
                 .openSelectedItem: FileManagerShortcut(keyCode: 125,
                                                        modifiers: [.command],
                                                        keyEquivalent: String(UnicodeScalar(NSDownArrowFunctionKey)!)),
@@ -352,7 +352,7 @@ enum FileManagerShortcuts {
                                                         keyEquivalent: "r"),
             ]
         case .commander:
-            return [
+            [
                 .openSelectedItem: FileManagerShortcut(keyCode: 36,
                                                        keyEquivalent: "\r"),
                 .toggleQuickLook: FileManagerShortcut(keyCode: 49,
@@ -378,7 +378,7 @@ enum FileManagerShortcuts {
                                                         keyEquivalent: "r"),
             ]
         case .custom:
-            return [:]
+            [:]
         }
     }
 }
@@ -386,7 +386,10 @@ enum FileManagerShortcuts {
 enum FileManagerFavoriteStore {
     static let slotCount = 10
 
-    private static var defaults: UserDefaults { .standard }
+    private static var defaults: UserDefaults {
+        .standard
+    }
+
     private static let defaultsKey = "FileManager.Favorites"
 
     static func url(for slot: Int) -> URL? {
@@ -731,15 +734,15 @@ private final class MainMenuCoordinator: NSObject, NSMenuDelegate {
     private func selector(for level: FileManagerViewPreferences.TimestampDisplayLevel) -> Selector {
         switch level {
         case .day:
-            return #selector(FileManagerWindowController.showTimestampDay(_:))
+            #selector(FileManagerWindowController.showTimestampDay(_:))
         case .minute:
-            return #selector(FileManagerWindowController.showTimestampMinute(_:))
+            #selector(FileManagerWindowController.showTimestampMinute(_:))
         case .second:
-            return #selector(FileManagerWindowController.showTimestampSecond(_:))
+            #selector(FileManagerWindowController.showTimestampSecond(_:))
         case .ntfs:
-            return #selector(FileManagerWindowController.showTimestampNTFS(_:))
+            #selector(FileManagerWindowController.showTimestampNTFS(_:))
         case .nanoseconds:
-            return #selector(FileManagerWindowController.showTimestampNanoseconds(_:))
+            #selector(FileManagerWindowController.showTimestampNanoseconds(_:))
         }
     }
 }
@@ -979,7 +982,7 @@ enum MainMenu {
         settingsObserver = NotificationCenter.default.addObserver(
             forName: .szSettingsDidChange,
             object: nil,
-            queue: .main
+            queue: .main,
         ) { notification in
             guard let key = notification.userInfo?["key"] as? String,
                   key == SZSettingsKey.fileManagerShortcutPreset.rawValue ||

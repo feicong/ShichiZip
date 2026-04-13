@@ -14,20 +14,19 @@ enum FileManagerDirectoryListing {
         ]
 
         let resourceValues = try url.resourceValues(forKeys: resourceKeys)
-        let listingURL: URL
-        if resourceValues.isSymbolicLink == true,
-           let resolvedIsDirectory = try url.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
-           resolvedIsDirectory
+        let listingURL: URL = if resourceValues.isSymbolicLink == true,
+                                 let resolvedIsDirectory = try url.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
+                                 resolvedIsDirectory
         {
-            listingURL = url.resolvingSymlinksInPath()
+            url.resolvingSymlinksInPath()
         } else {
-            listingURL = url
+            url
         }
 
         let contents = try fileManager.contentsOfDirectory(
             at: listingURL,
             includingPropertiesForKeys: Array(resourceKeys),
-            options: options
+            options: options,
         )
 
         guard listingURL != url else {

@@ -48,12 +48,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Only show file manager if no documents are being opened
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if self.shouldPresentInitialFileManager,
-               self.pendingDeferredArchiveOpens == 0,
+            if shouldPresentInitialFileManager,
+               pendingDeferredArchiveOpens == 0,
                NSDocumentController.shared.documents.isEmpty,
-               NSApp.windows.filter({ $0.isVisible }).isEmpty
+               NSApp.windows.filter(\.isVisible).isEmpty
             {
-                self.showFileManager(nil)
+                showFileManager(nil)
             }
         }
     }
@@ -61,7 +61,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_: Notification) {}
 
     func applicationShouldOpenUntitledFile(_: NSApplication) -> Bool {
-        return false
+        false
     }
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
@@ -114,7 +114,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationSupportsSecureRestorableState(_: NSApplication) -> Bool {
-        return true
+        true
     }
 
     // MARK: - Menu Actions
@@ -193,7 +193,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard panel.runModal() == .OK else { return }
 
-        let sourceURLs = panel.urls.map { $0.standardizedFileURL }
+        let sourceURLs = panel.urls.map(\.standardizedFileURL)
         guard !sourceURLs.isEmpty else { return }
 
         let parentWindow = NSApp.keyWindow ?? NSApp.mainWindow
@@ -475,18 +475,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     {
         let baseDestinationURL = archiveURL.deletingLastPathComponent().standardizedFileURL
         let suggestedFolderName = archiveURL.deletingPathExtension().lastPathComponent
-        let topLevelNames = Set(archiveItems.compactMap { $0.pathParts.first }.filter { !$0.isEmpty })
+        let topLevelNames = Set(archiveItems.compactMap(\.pathParts.first).filter { !$0.isEmpty })
         let usesSplitDestination = topLevelNames.count > 1
         let destinationURL = usesSplitDestination
             ? baseDestinationURL.appendingPathComponent(suggestedFolderName, isDirectory: true).standardizedFileURL
             : baseDestinationURL
-        let pathPrefixToStrip: String?
-
-        if usesSplitDestination && eliminateDuplicates {
-            pathPrefixToStrip = ArchiveItem.duplicateRootPrefixToStrip(for: archiveItems,
-                                                                       destinationLeafName: destinationURL.lastPathComponent)
+        let pathPrefixToStrip: String? = if usesSplitDestination, eliminateDuplicates {
+            ArchiveItem.duplicateRootPrefixToStrip(for: archiveItems,
+                                                   destinationLeafName: destinationURL.lastPathComponent)
         } else {
-            pathPrefixToStrip = nil
+            nil
         }
 
         return SmartQuickExtractPlan(destinationURL: destinationURL,

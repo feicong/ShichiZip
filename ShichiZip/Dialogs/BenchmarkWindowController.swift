@@ -55,7 +55,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
         window.title = "Benchmark"
         window.minSize = NSSize(width: 720, height: 500)
@@ -474,15 +474,15 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
             },
             completion: { [weak self] success, errorMessage in
                 self?.finishBenchmark(success: success, errorMessage: errorMessage)
-            }
+            },
         )
     }
 
     private func startElapsedTimer() {
         elapsedTimer?.invalidate()
         elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self, let startTime = self.startTime else { return }
-            self.elapsedL.stringValue = "\(Int(Date().timeIntervalSince(startTime))) s"
+            guard let self, let startTime else { return }
+            elapsedL.stringValue = "\(Int(Date().timeIntervalSince(startTime))) s"
         }
     }
 
@@ -606,13 +606,12 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
         while step <= (32 - 1) * 2 {
             let size = UInt64(2 + (step & 1)) << UInt64(step / 2)
-            let title: String
-            if size >= (UInt64(1) << 31) {
-                title = "\(size >> 30) GB"
+            let title = if size >= (UInt64(1) << 31) {
+                "\(size >> 30) GB"
             } else if size >= (UInt64(1) << 21) {
-                title = "\(size >> 20) MB"
+                "\(size >> 20) MB"
             } else {
-                title = "\(size >> 10) KB"
+                "\(size >> 10) KB"
             }
             options.append(DictionaryOption(size: size, title: title))
             if size >= maxDictSize {

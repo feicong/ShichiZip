@@ -27,7 +27,10 @@ final class ExtractDialogController: NSObject {
     }
 
     private enum DestinationHistory {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let entriesKey = "FileManager.ExtractDestinationHistory"
         private static let maxEntries = 20
 
@@ -47,7 +50,10 @@ final class ExtractDialogController: NSObject {
     }
 
     private enum DialogPreferences {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let pathModeKey = "FileManager.ExtractPathMode"
         private static let overwriteModeKey = "FileManager.ExtractOverwriteMode"
         private static let preserveNtSecurityKey = "FileManager.ExtractPreserveNtSecurity"
@@ -167,11 +173,10 @@ final class ExtractDialogController: NSObject {
             }
 
             let expandedPath = NSString(string: currentValue).expandingTildeInPath
-            let candidateURL: URL
-            if NSString(string: expandedPath).isAbsolutePath {
-                candidateURL = URL(fileURLWithPath: expandedPath)
+            let candidateURL = if NSString(string: expandedPath).isAbsolutePath {
+                URL(fileURLWithPath: expandedPath)
             } else {
-                candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+                URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
             }
 
             let standardizedURL = candidateURL.standardizedFileURL
@@ -221,7 +226,7 @@ final class ExtractDialogController: NSObject {
         self.sourceArchiveAvailableForQuarantineInheritance = sourceArchiveAvailableForQuarantineInheritance
     }
 
-    func runModal(for parentWindow: NSWindow?) -> ExtractDialogResult? {
+    func runModal(for _: NSWindow?) -> ExtractDialogResult? {
         let pathModeOptions = makePathModeOptions()
         let overwriteModeOptions = makeOverwriteModeOptions()
         var selectedPath = suggestedDestinationURL.path
@@ -551,11 +556,10 @@ final class ExtractDialogController: NSObject {
         }
 
         let expandedPath = NSString(string: trimmedPath).expandingTildeInPath
-        let candidateURL: URL
-        if NSString(string: expandedPath).isAbsolutePath {
-            candidateURL = URL(fileURLWithPath: expandedPath)
+        let candidateURL = if NSString(string: expandedPath).isAbsolutePath {
+            URL(fileURLWithPath: expandedPath)
         } else {
-            candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+            URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
         }
 
         let standardizedURL = candidateURL.standardizedFileURL

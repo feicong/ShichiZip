@@ -85,11 +85,11 @@ private final class ShortcutRecorderButton: NSButton {
         isRecording = true
         window?.makeFirstResponder(self)
         recordingMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.isRecording else {
+            guard let self, isRecording else {
                 return event
             }
 
-            return self.capture(event)
+            return capture(event)
         }
     }
 
@@ -131,7 +131,7 @@ private final class ShortcutRecorderButton: NSButton {
                 attributes: [
                     .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .semibold),
                     .foregroundColor: NSColor.controlAccentColor,
-                ]
+                ],
             )
             return
         }
@@ -142,7 +142,7 @@ private final class ShortcutRecorderButton: NSButton {
                 attributes: [
                     .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
                     .foregroundColor: NSColor.labelColor,
-                ]
+                ],
             )
             return
         }
@@ -153,7 +153,7 @@ private final class ShortcutRecorderButton: NSButton {
             attributes: [
                 .font: placeholderFont,
                 .foregroundColor: NSColor.placeholderTextColor,
-            ]
+            ],
         )
     }
 }
@@ -179,7 +179,7 @@ class SettingsWindowController: NSWindowController {
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 440),
             styleMask: [.titled, .closable],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
         window.title = "Options"
         window.center()

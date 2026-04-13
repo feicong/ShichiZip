@@ -28,11 +28,11 @@ enum ShichiZipQuickAction: String, Codable {
     var unsupportedTemporaryRepresentationMessage: String {
         switch self {
         case .showInFileManager:
-            return "The selected item was only provided as a temporary copy, so it can't be revealed safely. Try selecting the original file or folder directly in Finder."
+            "The selected item was only provided as a temporary copy, so it can't be revealed safely. Try selecting the original file or folder directly in Finder."
         case .openInShichiZip:
-            return "The selected item was only provided as a temporary copy, so it can't be opened safely in \(ShichiZipQuickActionAppInfo.hostAppDisplayName). Try selecting the original file or folder directly in Finder."
+            "The selected item was only provided as a temporary copy, so it can't be opened safely in \(ShichiZipQuickActionAppInfo.hostAppDisplayName). Try selecting the original file or folder directly in Finder."
         case .smartQuickExtract:
-            return "The selected archive was only provided as a temporary copy, so it can't be extracted safely. Try selecting the original archive directly in Finder."
+            "The selected archive was only provided as a temporary copy, so it can't be extracted safely. Try selecting the original archive directly in Finder."
         }
     }
 }
@@ -47,7 +47,7 @@ struct ShichiZipQuickActionRequest: Codable {
     init(action: ShichiZipQuickAction, fileURLs: [URL]) {
         version = Self.currentVersion
         self.action = action
-        paths = fileURLs.map { $0.standardizedFileURL.path }
+        paths = fileURLs.map(\.standardizedFileURL.path)
     }
 
     var fileURLs: [URL] {
@@ -66,17 +66,17 @@ enum ShichiZipQuickActionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidLaunchURL:
-            return "The Quick Action launch URL is invalid."
+            "The Quick Action launch URL is invalid."
         case .missingPayload:
-            return "The Quick Action request payload is missing."
+            "The Quick Action request payload is missing."
         case .invalidPayload:
-            return "The Quick Action request payload is invalid."
+            "The Quick Action request payload is invalid."
         case .launchFailed:
-            return "\(ShichiZipQuickActionAppInfo.hostAppDisplayName) could not be launched from the Quick Action."
+            "\(ShichiZipQuickActionAppInfo.hostAppDisplayName) could not be launched from the Quick Action."
         case let .temporaryRepresentationUnsupported(action):
-            return action.unsupportedTemporaryRepresentationMessage
+            action.unsupportedTemporaryRepresentationMessage
         case let .unsupportedSelection(message):
-            return message
+            message
         }
     }
 }

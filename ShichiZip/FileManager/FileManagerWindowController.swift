@@ -111,11 +111,10 @@ private final class FileOperationDestinationPicker: NSObject {
         }
 
         let expandedPath = NSString(string: currentValue).expandingTildeInPath
-        let candidateURL: URL
-        if NSString(string: expandedPath).isAbsolutePath {
-            candidateURL = URL(fileURLWithPath: expandedPath)
+        let candidateURL = if NSString(string: expandedPath).isAbsolutePath {
+            URL(fileURLWithPath: expandedPath)
         } else {
-            candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+            URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
         }
 
         var probeURL = candidateURL.standardizedFileURL
@@ -157,20 +156,23 @@ enum FileManagerViewPreferences {
         fileprivate var dateFormat: String {
             switch self {
             case .day:
-                return "yyyy-MM-dd"
+                "yyyy-MM-dd"
             case .minute:
-                return "yyyy-MM-dd HH:mm"
+                "yyyy-MM-dd HH:mm"
             case .second:
-                return "yyyy-MM-dd HH:mm:ss"
+                "yyyy-MM-dd HH:mm:ss"
             case .ntfs:
-                return "yyyy-MM-dd HH:mm:ss.SSSSSSS"
+                "yyyy-MM-dd HH:mm:ss.SSSSSSS"
             case .nanoseconds:
-                return "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+                "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
             }
         }
     }
 
-    private static var defaults: UserDefaults { .standard }
+    private static var defaults: UserDefaults {
+        .standard
+    }
+
     private static let timestampUTCKey = "FileManager.TimestampUTC"
     private static let timestampLevelKey = "FileManager.TimestampLevel"
     private static let autoRefreshKey = "FileManager.AutoRefresh"
@@ -331,9 +333,9 @@ private enum FileManagerHashAlgorithm {
     var displayedAlgorithms: [FileManagerHashAlgorithm] {
         switch self {
         case .all:
-            return Self.orderedDefinitions.map(\.algorithm)
+            Self.orderedDefinitions.map(\.algorithm)
         default:
-            return [self]
+            [self]
         }
     }
 
@@ -354,7 +356,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private static let maxSolidArchiveQuickLookSize: UInt64 = 512 * 1024 * 1024
 
     private enum PanePreferences {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let dualPaneKey = "FileManager.IsDualPane"
 
         static var showsDualPane: Bool {
@@ -374,7 +379,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private enum ToolbarPreferences {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let archiveToolbarKey = "FileManager.ShowArchiveToolbar"
         private static let standardToolbarKey = "FileManager.ShowStandardToolbar"
         private static let showTextKey = "FileManager.ToolbarShowButtonText"
@@ -412,7 +420,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private enum FileOperationDestinationHistory {
-        private static var defaults: UserDefaults { .standard }
+        private static var defaults: UserDefaults {
+            .standard
+        }
+
         private static let entriesKey = "FileManager.CopyMoveDestinationHistory"
         private static let maxEntries = 20
 
@@ -479,7 +490,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
         window.title = AppBuildInfo.appDisplayName()
         window.minSize = NSSize(width: 600, height: 400)
@@ -654,7 +665,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         viewPreferencesObserver = NotificationCenter.default.addObserver(
             forName: .fileManagerViewPreferencesDidChange,
             object: nil,
-            queue: .main
+            queue: .main,
         ) { [weak self] _ in
             self?.handleViewPreferencesDidChange()
         }
@@ -742,21 +753,21 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 let preview = try await pane.prepareQuickLookPreview(maxArchiveItemSize: Self.maxArchiveQuickLookItemSize,
                                                                      maxArchiveCombinedSize: Self.maxArchiveQuickLookCombinedSize,
                                                                      maxSolidArchiveSize: Self.maxSolidArchiveQuickLookSize)
-                guard generation == self.quickLookPreviewGeneration else {
+                guard generation == quickLookPreviewGeneration else {
                     pane.cleanupQuickLookTemporaryDirectories(preview.temporaryDirectories)
                     return
                 }
 
-                self.applyQuickLookPreview(preview,
-                                           sourcePane: pane,
-                                           shouldPresentPanel: shouldPresentPanel)
+                applyQuickLookPreview(preview,
+                                      sourcePane: pane,
+                                      shouldPresentPanel: shouldPresentPanel)
             } catch is CancellationError {
                 return
             } catch {
-                guard generation == self.quickLookPreviewGeneration else { return }
-                self.closeQuickLookPreview()
+                guard generation == quickLookPreviewGeneration else { return }
+                closeQuickLookPreview()
                 if userInitiated {
-                    self.showErrorAlert(error)
+                    showErrorAlert(error)
                 }
             }
         }
@@ -789,8 +800,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
         DispatchQueue.main.async { [weak self, weak sourcePane] in
             guard let self, let sourcePane else { return }
-            guard self.quickLookPreviewSourcePane === sourcePane else { return }
-            self.window?.makeKey()
+            guard quickLookPreviewSourcePane === sourcePane else { return }
+            window?.makeKey()
             sourcePane.focusFileList()
         }
     }
@@ -806,10 +817,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         quickLookPanelKeyObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
             object: panel,
-            queue: .main
+            queue: .main,
         ) { [weak self, weak sourcePane] _ in
             guard let self, let sourcePane else { return }
-            guard self.quickLookPreviewSourcePane === sourcePane else { return }
+            guard quickLookPreviewSourcePane === sourcePane else { return }
             DispatchQueue.main.async {
                 guard self.quickLookPreviewSourcePane === sourcePane else { return }
                 self.window?.makeKeyAndOrderFront(nil)
@@ -853,7 +864,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     @discardableResult
     func navigateToArchive(_ url: URL, revealWindow: Bool = true) -> Bool {
         let opened = activePane.showArchive(at: url)
-        if opened && revealWindow {
+        if opened, revealWindow {
             window?.makeKeyAndOrderFront(nil)
         }
         return opened
@@ -865,22 +876,21 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         guard !standardizedURLs.isEmpty else { return false }
 
         let parentDirectory = standardizedURLs[0].deletingLastPathComponent().standardizedFileURL
-        let targetPane: FileManagerPaneController
-        if !leftPane.isVirtualLocation,
-           leftPane.currentDirectoryURL.standardizedFileURL == parentDirectory
+        let targetPane: FileManagerPaneController = if !leftPane.isVirtualLocation,
+                                                       leftPane.currentDirectoryURL.standardizedFileURL == parentDirectory
         {
-            targetPane = leftPane
+            leftPane
         } else if isDualPane,
                   !rightPane.isVirtualLocation,
                   rightPane.currentDirectoryURL.standardizedFileURL == parentDirectory
         {
-            targetPane = rightPane
+            rightPane
         } else {
-            targetPane = activePane
+            activePane
         }
 
         let revealed = targetPane.revealFileSystemItemURLs(standardizedURLs)
-        if revealed && revealWindow {
+        if revealed, revealWindow {
             window?.makeKeyAndOrderFront(nil)
         }
         return revealed
@@ -894,35 +904,34 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             return false
         }
 
-        let targetPane: FileManagerPaneController
-        if isDirectory.boolValue,
-           !leftPane.isVirtualLocation,
-           leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL
+        let targetPane: FileManagerPaneController = if isDirectory.boolValue,
+                                                       !leftPane.isVirtualLocation,
+                                                       leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL
         {
-            targetPane = leftPane
+            leftPane
         } else if isDirectory.boolValue,
                   isDualPane,
                   !rightPane.isVirtualLocation,
                   rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL
         {
-            targetPane = rightPane
+            rightPane
         } else if !isDirectory.boolValue,
                   !leftPane.isVirtualLocation,
                   leftPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL
         {
-            targetPane = leftPane
+            leftPane
         } else if !isDirectory.boolValue,
                   isDualPane,
                   !rightPane.isVirtualLocation,
                   rightPane.currentDirectoryURL.standardizedFileURL == standardizedURL.deletingLastPathComponent().standardizedFileURL
         {
-            targetPane = rightPane
+            rightPane
         } else {
-            targetPane = activePane
+            activePane
         }
 
         let opened = targetPane.openFileSystemItemURL(standardizedURL)
-        if opened && revealWindow {
+        if opened, revealWindow {
             window?.makeKeyAndOrderFront(nil)
         }
         return opened
@@ -972,7 +981,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     @objc func addToArchive(_: Any?) {
-        let activePane = self.activePane
+        let activePane = activePane
         guard activePane.canAddSelectedItemsToArchive() else {
             if activePane.currentArchiveMutationTarget() == nil {
                 activePane.showReadOnlyArchiveMutationAlert(action: "Adding files to archive")
@@ -1024,7 +1033,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         guard let result = compressDialog.runModal(for: window) else { return }
 
         Task { @MainActor [weak self] in
-            guard let self, let parentWindow = self.window else { return }
+            guard let self, let parentWindow = window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
                                                      parentWindow: parentWindow)
@@ -1035,37 +1044,43 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                                          session: session)
                 }
                 activePane.refresh()
-                self.refreshPaneDisplayingDirectory(result.archiveURL.deletingLastPathComponent())
+                refreshPaneDisplayingDirectory(result.archiveURL.deletingLastPathComponent())
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
 
     @objc func extractArchive(_: Any?) {
-        let activePane = self.activePane
+        let activePane = activePane
         guard activePane.canExtractSelectionOrArchive() else { return }
 
         guard let extractResult = promptForArchiveDestination(from: activePane) else { return }
         let sourceArchiveURL = activePane.sourceArchiveURLForPostProcessing()
+        let isVirtualLocation = activePane.isVirtualLocation
+        let archiveCandidateURL = isVirtualLocation ? nil : activePane.selectedArchiveCandidateURL()
 
         Task { @MainActor [weak self] in
-            guard let self, let parentWindow = self.window else { return }
+            guard let self, let parentWindow = window else { return }
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
-                                                     parentWindow: parentWindow)
-                { session in
-                    if activePane.isVirtualLocation {
-                        try activePane.extractCurrentSelectionOrDisplayedArchiveItems(to: extractResult.destinationURL,
-                                                                                      session: session,
-                                                                                      overwriteMode: extractResult.overwriteMode,
-                                                                                      pathMode: extractResult.pathMode,
-                                                                                      password: extractResult.password,
-                                                                                      preserveNtSecurityInfo: extractResult.preserveNtSecurityInfo,
-                                                                                      eliminateDuplicates: extractResult.eliminateDuplicates,
-                                                                                      inheritDownloadedFileQuarantine: extractResult.inheritDownloadedFileQuarantine)
-                    } else {
-                        guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
+                if isVirtualLocation {
+                    let prepared = try activePane.prepareExtraction(to: extractResult.destinationURL,
+                                                                    overwriteMode: extractResult.overwriteMode,
+                                                                    pathMode: extractResult.pathMode,
+                                                                    password: extractResult.password,
+                                                                    preserveNtSecurityInfo: extractResult.preserveNtSecurityInfo,
+                                                                    eliminateDuplicates: extractResult.eliminateDuplicates,
+                                                                    inheritDownloadedFileQuarantine: extractResult.inheritDownloadedFileQuarantine)
+                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                         parentWindow: parentWindow)
+                    { session in
+                        try FileManagerPaneController.performPreparedExtraction(prepared, session: session)
+                    }
+                } else {
+                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                                                         parentWindow: parentWindow)
+                    { session in
+                        guard let archiveURL = archiveCandidateURL else {
                             throw NSError(domain: SZArchiveErrorDomain,
                                           code: -1,
                                           userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
@@ -1080,10 +1095,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                         settings.pathMode = extractResult.pathMode
                         settings.password = extractResult.password
                         settings.preserveNtSecurityInfo = extractResult.preserveNtSecurityInfo
-                        let pathPrefixToStrip = self.archiveExtractionPathPrefixToStrip(for: archiveItems,
-                                                                                        destinationURL: extractResult.destinationURL,
-                                                                                        pathMode: extractResult.pathMode,
-                                                                                        eliminateDuplicates: extractResult.eliminateDuplicates)
+                        let pathPrefixToStrip: String? = if extractResult.eliminateDuplicates,
+                                                            extractResult.pathMode != .absolutePaths,
+                                                            extractResult.pathMode != .noPaths
+                        {
+                            ArchiveItem.duplicateRootPrefixToStrip(for: archiveItems,
+                                                                   destinationLeafName: extractResult.destinationURL.lastPathComponent)
+                        } else {
+                            nil
+                        }
                         settings.pathPrefixToStrip = pathPrefixToStrip
                         if extractResult.inheritDownloadedFileQuarantine {
                             settings.sourceArchivePathForQuarantine = archiveURL.path
@@ -1105,36 +1125,44 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                     postProcessResult = ArchiveExtractionPostProcessResult(movedSourceArchiveToTrash: false)
                     postProcessError = error
                 }
-                self.refreshPaneDisplayingDirectory(extractResult.destinationURL)
+                refreshPaneDisplayingDirectory(extractResult.destinationURL)
                 if postProcessResult.movedSourceArchiveToTrash,
                    let sourceArchiveURL
                 {
-                    self.refreshPaneDisplayingDirectory(sourceArchiveURL.deletingLastPathComponent())
+                    refreshPaneDisplayingDirectory(sourceArchiveURL.deletingLastPathComponent())
                 }
                 NSWorkspace.shared.open(extractResult.destinationURL)
                 if let postProcessError {
-                    self.showErrorAlert(postProcessError)
+                    showErrorAlert(postProcessError)
                 }
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
 
     @objc func testArchive(_: Any?) {
-        let activePane = self.activePane
+        let activePane = activePane
         guard activePane.canTestArchiveSelection() else { return }
 
+        let isVirtualLocation = activePane.isVirtualLocation
+        let archiveCandidateURL = isVirtualLocation ? nil : activePane.selectedArchiveCandidateURL()
+
         Task { @MainActor [weak self] in
-            guard let self, let parentWindow = self.window else { return }
+            guard let self, let parentWindow = window else { return }
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
-                                                     parentWindow: parentWindow)
-                { session in
-                    if activePane.isVirtualLocation {
-                        try activePane.testCurrentArchive(session: session)
-                    } else {
-                        guard let archiveURL = activePane.selectedArchiveCandidateURL() else {
+                if isVirtualLocation {
+                    let archive = try activePane.currentArchiveForTest()
+                    try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
+                                                         parentWindow: parentWindow)
+                    { session in
+                        try archive.test(with: session)
+                    }
+                } else {
+                    try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
+                                                         parentWindow: parentWindow)
+                    { session in
+                        guard let archiveURL = archiveCandidateURL else {
                             throw NSError(domain: SZArchiveErrorDomain,
                                           code: -1,
                                           userInfo: [NSLocalizedDescriptionKey: "Select an archive to test."])
@@ -1147,9 +1175,9 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 }
                 szPresentMessage(title: "Test OK",
                                  message: "No errors found.",
-                                 for: self.window)
+                                 for: window)
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
@@ -1455,18 +1483,18 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             switch destinationTarget {
             case let .directory(destURL):
                 Task { @MainActor [weak self] in
-                    guard let self, let parentWindow = self.window else { return }
+                    guard let self, let parentWindow = window else { return }
                     do {
+                        let prepared = try pane.prepareSelectedItemExtraction(to: destURL,
+                                                                              overwriteMode: .ask)
                         try await ArchiveOperationRunner.run(operationTitle: "Copying selected archive items...",
                                                              parentWindow: parentWindow)
                         { session in
-                            try pane.extractSelectedArchiveItems(to: destURL,
-                                                                 session: session,
-                                                                 overwriteMode: .ask)
+                            try FileManagerPaneController.performPreparedExtraction(prepared, session: session)
                         }
-                        self.refreshPaneDisplayingDirectory(destURL)
+                        refreshPaneDisplayingDirectory(destURL)
                     } catch {
-                        self.showErrorAlert(error)
+                        showErrorAlert(error)
                     }
                 }
             case .archive:
@@ -1500,7 +1528,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             let operation = move ? "Moving" : "Copying"
             let dragOperation: NSDragOperation = move ? .move : .copy
             Task { @MainActor [weak self] in
-                guard let self, let parentWindow = self.window else { return }
+                guard let self, let parentWindow = window else { return }
                 do {
                     try await ArchiveOperationRunner.run(operationTitle: "\(operation) \(sourceURLs.count) item(s)...",
                                                          parentWindow: parentWindow)
@@ -1510,11 +1538,11 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                                                             operation: dragOperation,
                                                             session: session)
                     }
-                    self.refreshAfterFilesystemTransfer(from: pane,
-                                                        to: destURL,
-                                                        operation: dragOperation)
+                    refreshAfterFilesystemTransfer(from: pane,
+                                                   to: destURL,
+                                                   operation: dragOperation)
                 } catch {
-                    self.showErrorAlert(error)
+                    showErrorAlert(error)
                 }
             }
         case let .archive(archiveURL, subdir):
@@ -1565,7 +1593,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     @objc func deleteFiles(_: Any?) {
-        let activePane = self.activePane
+        let activePane = activePane
         guard activePane.canDeleteSelection() else { return }
         activePane.deleteSelection()
     }
@@ -1581,18 +1609,18 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             do {
                 let hashValues = try await ArchiveOperationRunner.run(operationTitle: "Calculating checksum...",
                                                                       initialFileName: itemPath,
-                                                                      parentWindow: self.window,
+                                                                      parentWindow: window,
                                                                       deferredDisplay: true)
                 { session in
                     try SZArchive.calculateHash(forPath: itemPath, session: session)
                 }
-                let details = self.hashDetails(for: algorithm, hashValues: hashValues)
+                let details = hashDetails(for: algorithm, hashValues: hashValues)
                 szShowDetailsDialog(title: itemName,
                                     summary: itemPath,
                                     details: details,
-                                    for: self.window)
+                                    for: window)
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
@@ -1910,11 +1938,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
 
         let expandedPath = NSString(string: enteredPath).expandingTildeInPath
-        let candidateURL: URL
-        if NSString(string: expandedPath).isAbsolutePath {
-            candidateURL = URL(fileURLWithPath: expandedPath)
+        let candidateURL = if NSString(string: expandedPath).isAbsolutePath {
+            URL(fileURLWithPath: expandedPath)
         } else {
-            candidateURL = URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
+            URL(fileURLWithPath: expandedPath, relativeTo: baseDirectory)
         }
 
         let standardizedURL = candidateURL.standardizedFileURL
@@ -2026,7 +2053,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let supportedExtensions = Set(
             SZArchive.supportedFormats()
                 .flatMap(\.extensions)
-                .map { $0.lowercased() }
+                .map { $0.lowercased() },
         )
 
         return URL(fileURLWithPath: path).standardizedFileURL.pathComponents.contains { component in
@@ -2111,7 +2138,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         let selectionPaths = archiveSelectionPaths(for: sourceURLs, targetSubdir: subdir)
 
         Task { @MainActor [weak self] in
-            guard let self, let parentWindow = self.window else { return }
+            guard let self, let parentWindow = window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: operationTitle,
                                                      parentWindow: parentWindow)
@@ -2128,13 +2155,13 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                 FileManagerArchiveChangeCoordinator.publish(
                     FileManagerArchiveChange(archiveURL: archiveURL,
                                              targetSubdir: subdir,
-                                             selectingPaths: selectionPaths)
+                                             selectingPaths: selectionPaths),
                 )
                 if move {
                     sourcePane.refresh()
                 }
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }

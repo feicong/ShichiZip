@@ -32,7 +32,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 175),
             styleMask: [.titled],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
         window.title = AppBuildInfo.appDisplayName()
         window.isMovableByWindowBackground = true
@@ -121,21 +121,21 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     func beginWaitingMode(fileName: String? = nil) {
         let applyWaitingMode = { [weak self] in
             guard let self else { return }
-            self.isWaitingForProgress = true
-            self.startTime = nil
-            self.lastMetricsUpdateTime = 0
-            self.cancelled = false
-            self.cancelButton.isEnabled = true
-            self.cancelButton.title = "Cancel"
-            self.progressBar.stopAnimation(nil)
-            self.progressBar.isIndeterminate = false
-            self.progressBar.doubleValue = 0
+            isWaitingForProgress = true
+            startTime = nil
+            lastMetricsUpdateTime = 0
+            cancelled = false
+            cancelButton.isEnabled = true
+            cancelButton.title = "Cancel"
+            progressBar.stopAnimation(nil)
+            progressBar.isIndeterminate = false
+            progressBar.doubleValue = 0
             if let fileName {
-                self.fileNameLabel.stringValue = fileName
+                fileNameLabel.stringValue = fileName
             }
-            self.bytesLabel.stringValue = ""
-            self.speedLabel.stringValue = ""
-            self.elapsedLabel.stringValue = ""
+            bytesLabel.stringValue = ""
+            speedLabel.stringValue = ""
+            elapsedLabel.stringValue = ""
         }
 
         if Thread.isMainThread {
@@ -252,7 +252,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     }
 
     @objc func progressShouldCancel() -> Bool {
-        return cancelled
+        cancelled
     }
 
     func progressDidUpdateFilesCompleted(_ count: UInt64) {

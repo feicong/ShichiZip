@@ -45,13 +45,12 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
                              writePromiseTo url: URL,
                              completionHandler: @escaping (Error?) -> Void)
     {
-        let result: Result<Void, Error>
-        if Thread.isMainThread {
-            result = MainActor.assumeIsolated {
+        let result: Result<Void, Error> = if Thread.isMainThread {
+            MainActor.assumeIsolated {
                 writePromiseResult(to: url)
             }
         } else {
-            result = DispatchQueue.main.sync { [self] in
+            DispatchQueue.main.sync { [self] in
                 MainActor.assumeIsolated {
                     writePromiseResult(to: url)
                 }
@@ -79,8 +78,8 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
             { session in
                 try self.workflowService.writePromise(for: self.item,
                                                       context: self.context,
-                                                 to: url,
-                                                 session: session)
+                                                      to: url,
+                                                      session: session)
             }
         }
     }
@@ -347,7 +346,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
         fileTableView.quickLookPreviewHandler = { [weak self] in
             guard let self else { return }
-            self.delegate?.paneDidRequestQuickLook(self)
+            delegate?.paneDidRequestQuickLook(self)
         }
         fileTableView.shortcutEventHandler = { [weak self] event in
             self?.handleShortcutEvent(event) ?? false
@@ -413,7 +412,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         liveScrollStartObserver = NotificationCenter.default.addObserver(
             forName: NSScrollView.willStartLiveScrollNotification,
             object: scrollView,
-            queue: .main
+            queue: .main,
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.isLiveScrolling = true
@@ -423,7 +422,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         liveScrollEndObserver = NotificationCenter.default.addObserver(
             forName: NSScrollView.didEndLiveScrollNotification,
             object: scrollView,
-            queue: .main
+            queue: .main,
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -469,7 +468,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         settingsObserver = NotificationCenter.default.addObserver(
             forName: .szSettingsDidChange,
             object: nil,
-            queue: .main
+            queue: .main,
         ) { [weak self] notification in
             let settingsKey = (notification.userInfo?["key"] as? String)
                 .flatMap(SZSettingsKey.init(rawValue:))
@@ -482,7 +481,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         viewPreferencesObserver = NotificationCenter.default.addObserver(
             forName: .fileManagerViewPreferencesDidChange,
             object: nil,
-            queue: .main
+            queue: .main,
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.reloadPresentedValues()
@@ -492,7 +491,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         archiveChangeObserver = NotificationCenter.default.addObserver(
             forName: .fileManagerArchiveDidChange,
             object: nil,
-            queue: .main
+            queue: .main,
         ) { [weak self] notification in
             let change = FileManagerArchiveChange(notification: notification)
             MainActor.assumeIsolated {
@@ -572,15 +571,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return .empty
         }
 
-        let selectedPaths = Set(selectedFileSystemItems().map { $0.url.standardizedFileURL.path })
-        let focusedPath: String?
-
-        if let focusedItem = paneItem(at: tableView.selectedRow),
-           case let .filesystem(item) = focusedItem
+        let selectedPaths = Set(selectedFileSystemItems().map(\.url.standardizedFileURL.path))
+        let focusedPath: String? = if let focusedItem = paneItem(at: tableView.selectedRow),
+                                      case let .filesystem(item) = focusedItem
         {
-            focusedPath = item.url.standardizedFileURL.path
+            item.url.standardizedFileURL.path
         } else {
-            focusedPath = selectedFileSystemItems().first?.url.standardizedFileURL.path
+            selectedFileSystemItems().first?.url.standardizedFileURL.path
         }
 
         return FileSystemSelectionState(selectedPaths: selectedPaths, focusedPath: focusedPath)
@@ -959,12 +956,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
 
         let components = currentDirectory.standardizedFileURL.pathComponents
-        let rootURL: URL
-
-        if components.count >= 3, components[1] == "Volumes" {
-            rootURL = URL(fileURLWithPath: NSString.path(withComponents: Array(components.prefix(3))))
+        let rootURL = if components.count >= 3, components[1] == "Volumes" {
+            URL(fileURLWithPath: NSString.path(withComponents: Array(components.prefix(3))))
         } else {
-            rootURL = URL(fileURLWithPath: "/")
+            URL(fileURLWithPath: "/")
         }
 
         loadDirectory(rootURL)
@@ -1111,11 +1106,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return visibleItems.compactMap {
             switch $0 {
             case let .filesystem(item):
-                return item.name
+                item.name
             case let .archive(item):
-                return item.name
+                item.name
             case .parent:
-                return nil
+                nil
             }
         }
     }
@@ -1162,7 +1157,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             throw quickLookPreparationError("Select one or more files in the archive to preview.")
         }
 
-        if archiveItems.contains(where: { $0.isDirectory }) {
+        if archiveItems.contains(where: \.isDirectory) {
             throw quickLookPreparationError("Quick Look can preview files from an archive, but not folders.")
         }
 
@@ -1246,11 +1241,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     func selectedFilePaths() -> [String] {
-        selectedFileSystemItems().map { $0.url.path }
+        selectedFileSystemItems().map(\.url.path)
     }
 
     func selectedFileURLs() -> [URL] {
-        selectedFileSystemItems().map { $0.url.standardizedFileURL }
+        selectedFileSystemItems().map(\.url.standardizedFileURL)
     }
 
     @discardableResult
@@ -1293,7 +1288,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
 
         if isDirectory.boolValue {
-            if isInsideArchive && !closeAllArchives(showError: true) {
+            if isInsideArchive, !closeAllArchives(showError: true) {
                 return false
             }
 
@@ -1320,12 +1315,12 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
     }
 
-    func transferFileSystemItemURLs(_ urls: [URL],
-                                    to destinationDirectory: URL,
-                                    operation: NSDragOperation,
-                                    session: SZOperationSession) throws
+    nonisolated func transferFileSystemItemURLs(_ urls: [URL],
+                                                to destinationDirectory: URL,
+                                                operation: NSDragOperation,
+                                                session: SZOperationSession) throws
     {
-        try transferDroppedFileURLs(urls.map { $0.standardizedFileURL },
+        try transferDroppedFileURLs(urls.map(\.standardizedFileURL),
                                     to: destinationDirectory.standardizedFileURL,
                                     operation: operation,
                                     session: session)
@@ -1386,8 +1381,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
-                    self.showReadOnlyArchiveMutationAlert(action: "Creating folders")
+                guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
+                    showReadOnlyArchiveMutationAlert(action: "Creating folders")
                     return
                 }
 
@@ -1395,17 +1390,17 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
                 do {
                     try await ArchiveOperationRunner.run(operationTitle: "Creating Folder...",
-                                                         parentWindow: self.view.window,
+                                                         parentWindow: view.window,
                                                          deferredDisplay: true)
                     { session in
                         try currentTarget.archive.createFolderNamed(name,
                                                                     inArchiveSubdir: currentTarget.subdir,
                                                                     session: session)
                     }
-                    self.refreshArchiveAfterMutation(selectingPath: createdPath)
-                    self.publishArchiveMutationIfNeeded(selectingPaths: [createdPath])
+                    refreshArchiveAfterMutation(selectingPath: createdPath)
+                    publishArchiveMutationIfNeeded(selectingPaths: [createdPath])
                 } catch {
-                    self.showErrorAlert(error)
+                    showErrorAlert(error)
                 }
             }
             return
@@ -1451,11 +1446,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     private func updateStatusBar() {
-        let displayedSummary: StatusSummary
-        if isInsideArchive {
-            displayedSummary = makeStatusSummary(for: archiveDisplayItems)
+        let displayedSummary: StatusSummary = if isInsideArchive {
+            makeStatusSummary(for: archiveDisplayItems)
         } else {
-            displayedSummary = makeStatusSummary(for: items)
+            makeStatusSummary(for: items)
         }
 
         let displayedSummaryText = makeSummaryText(displayedSummary)
@@ -1844,6 +1838,63 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                 inheritDownloadedFileQuarantine: inheritDownloadedFileQuarantine)
     }
 
+    /// Captures all @MainActor state needed for extraction so the actual bridge call
+    /// can run on a background thread without accessing isolated properties.
+    struct PreparedExtraction: @unchecked Sendable {
+        let archive: SZArchive
+        let entryIndices: [NSNumber]
+        let destinationPath: String
+        let settings: SZExtractionSettings
+    }
+
+    func prepareExtraction(to destinationURL: URL,
+                           overwriteMode: SZOverwriteMode = .ask,
+                           pathMode: SZPathMode = .currentPaths,
+                           password: String? = nil,
+                           preserveNtSecurityInfo: Bool = false,
+                           eliminateDuplicates: Bool = false,
+                           inheritDownloadedFileQuarantine: Bool = SZSettings.bool(.inheritDownloadedFileQuarantine)) throws -> PreparedExtraction
+    {
+        let itemsToExtract = archiveItemsForSelectionOrDisplayedItems()
+        guard !itemsToExtract.isEmpty else {
+            throw paneOperationError("There are no archive items to extract.")
+        }
+
+        guard let level = archiveStack.last else {
+            throw paneOperationError("No archive is open.")
+        }
+
+        let indices = archiveEntryIndices(for: itemsToExtract)
+        guard !indices.isEmpty else {
+            throw paneOperationError("The selected archive items cannot be extracted.")
+        }
+
+        let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode,
+                                                     pathMode: pathMode,
+                                                     password: password,
+                                                     inheritDownloadedFileQuarantine: inheritDownloadedFileQuarantine)
+        settings.pathPrefixToStrip = archivePathPrefixToStrip(for: itemsToExtract,
+                                                              destinationURL: destinationURL,
+                                                              pathMode: pathMode,
+                                                              eliminateDuplicates: eliminateDuplicates)
+        settings.preserveNtSecurityInfo = preserveNtSecurityInfo
+
+        return PreparedExtraction(archive: level.archive,
+                                  entryIndices: indices,
+                                  destinationPath: destinationURL.path,
+                                  settings: settings)
+    }
+
+    /// Executes a previously prepared extraction on any thread.
+    nonisolated static func performPreparedExtraction(_ prepared: PreparedExtraction,
+                                                      session: SZOperationSession?) throws
+    {
+        try prepared.archive.extractEntries(prepared.entryIndices,
+                                            toPath: prepared.destinationPath,
+                                            settings: prepared.settings,
+                                            session: session)
+    }
+
     func testCurrentArchive(session: SZOperationSession? = nil) throws {
         guard let level = archiveStack.last else {
             throw paneOperationError("No archive is open.")
@@ -1851,26 +1902,74 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         try level.archive.test(with: session)
     }
 
+    /// Returns the archive handle for the currently open archive, for use off the main actor.
+    func currentArchiveForTest() throws -> SZArchive {
+        guard let level = archiveStack.last else {
+            throw paneOperationError("No archive is open.")
+        }
+        return level.archive
+    }
+
+    /// Prepares extraction of the selected archive items (not all displayed items)
+    /// so the actual bridge call can run on a background thread.
+    func prepareSelectedItemExtraction(to destinationURL: URL,
+                                       overwriteMode: SZOverwriteMode = .ask,
+                                       pathMode: SZPathMode = .currentPaths,
+                                       password: String? = nil,
+                                       preserveNtSecurityInfo: Bool = false,
+                                       eliminateDuplicates: Bool = false,
+                                       inheritDownloadedFileQuarantine: Bool = SZSettings.bool(.inheritDownloadedFileQuarantine)) throws -> PreparedExtraction
+    {
+        let selectedItems = selectedArchiveItems()
+        guard !selectedItems.isEmpty else {
+            throw paneOperationError("Select one or more archive items first.")
+        }
+
+        guard let level = archiveStack.last else {
+            throw paneOperationError("No archive is open.")
+        }
+
+        let indices = archiveEntryIndices(for: selectedItems)
+        guard !indices.isEmpty else {
+            throw paneOperationError("The selected archive items cannot be extracted.")
+        }
+
+        let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode,
+                                                     pathMode: pathMode,
+                                                     password: password,
+                                                     inheritDownloadedFileQuarantine: inheritDownloadedFileQuarantine)
+        settings.pathPrefixToStrip = archivePathPrefixToStrip(for: selectedItems,
+                                                              destinationURL: destinationURL,
+                                                              pathMode: pathMode,
+                                                              eliminateDuplicates: eliminateDuplicates)
+        settings.preserveNtSecurityInfo = preserveNtSecurityInfo
+
+        return PreparedExtraction(archive: level.archive,
+                                  entryIndices: indices,
+                                  destinationPath: destinationURL.path,
+                                  settings: settings)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(openSelectedItem(_:)):
-            return !selectedPaneItems().isEmpty
+            !selectedPaneItems().isEmpty
         case #selector(openInArchiveViewer(_:)):
-            return selectedArchiveCandidateURL() != nil
+            selectedArchiveCandidateURL() != nil
         case #selector(compressSelected(_:)):
-            return canAddSelectedItemsToArchive()
+            canAddSelectedItemsToArchive()
         case #selector(extractSelected(_:)), #selector(extractHere(_:)):
-            return canExtractSelectionOrArchive()
+            canExtractSelectionOrArchive()
         case #selector(renameSelected(_:)):
-            return canRenameSelection()
+            canRenameSelection()
         case #selector(deleteSelected(_:)):
-            return canDeleteSelection()
+            canDeleteSelection()
         case #selector(createFolderFromMenu(_:)):
-            return canCreateFolderHere()
+            canCreateFolderHere()
         case #selector(showItemProperties(_:)):
-            return !selectedRealPaneItems().isEmpty
+            !selectedRealPaneItems().isEmpty
         default:
-            return true
+            true
         }
     }
 
@@ -2089,7 +2188,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             currentSubdir: level.currentSubdir,
             temporaryDirectory: level.temporaryDirectory,
             nestedIdentity: level.nestedIdentity,
-            nestedWriteBackInfo: level.nestedWriteBackInfo
+            nestedWriteBackInfo: level.nestedWriteBackInfo,
         )
     }
 
@@ -2220,7 +2319,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             currentSubdir: level.currentSubdir,
             temporaryDirectory: level.temporaryDirectory,
             nestedIdentity: level.nestedIdentity,
-            nestedWriteBackInfo: level.nestedWriteBackInfo
+            nestedWriteBackInfo: level.nestedWriteBackInfo,
         )
 
         navigateArchiveSubdir(level.currentSubdir)
@@ -2292,7 +2391,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             FileManagerArchiveChange(archiveURL: archiveURL,
                                      targetSubdir: normalizedTargetSubdir,
                                      selectingPaths: normalizedPaths,
-                                     sourceIdentifier: ObjectIdentifier(self))
+                                     sourceIdentifier: ObjectIdentifier(self)),
         )
     }
 
@@ -2326,7 +2425,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             currentSubdir: subdir,
             temporaryDirectory: level.temporaryDirectory,
             nestedIdentity: level.nestedIdentity,
-            nestedWriteBackInfo: level.nestedWriteBackInfo
+            nestedWriteBackInfo: level.nestedWriteBackInfo,
         )
 
         navigateArchiveSubdir(subdir)
@@ -2392,18 +2491,18 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
                 if let app {
                     if let temporaryDirectory {
-                        self.archiveItemWorkflowService.scheduleCleanup(temporaryDirectory,
-                                                                        when: app)
+                        archiveItemWorkflowService.scheduleCleanup(temporaryDirectory,
+                                                                   when: app)
                     }
                     return
                 }
 
                 if let temporaryDirectory {
-                    self.archiveItemWorkflowService.cleanup(temporaryDirectory)
+                    archiveItemWorkflowService.cleanup(temporaryDirectory)
                 }
 
                 if let error, !self.shouldSuppressExternalOpenError(error) {
-                    self.showErrorAlert(error)
+                    showErrorAlert(error)
                 }
             }
         }
@@ -2455,14 +2554,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                           pathMode: SZPathMode,
                                           eliminateDuplicates: Bool) -> String?
     {
-        let basePrefix: String?
-        if pathMode == .currentPaths,
-           let level = archiveStack.last,
-           !level.currentSubdir.isEmpty
+        let basePrefix: String? = if pathMode == .currentPaths,
+                                     let level = archiveStack.last,
+                                     !level.currentSubdir.isEmpty
         {
-            basePrefix = level.currentSubdir
+            level.currentSubdir
         } else {
-            basePrefix = nil
+            nil
         }
 
         guard eliminateDuplicates,
@@ -2827,17 +2925,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     private func updateLocationIcon() {
-        let image: NSImage?
-
-        if let level = archiveStack.last {
+        let image: NSImage? = if let level = archiveStack.last {
             if level.currentSubdir.isEmpty {
-                image = NSWorkspace.shared.icon(forFile: level.archivePath)
+                NSWorkspace.shared.icon(forFile: level.archivePath)
             } else {
-                image = NSImage(named: NSImage.folderName)
+                NSImage(named: NSImage.folderName)
                     ?? NSWorkspace.shared.icon(forFile: level.filesystemDirectory.path)
             }
         } else {
-            image = NSWorkspace.shared.icon(forFile: currentDirectory.path)
+            NSWorkspace.shared.icon(forFile: currentDirectory.path)
         }
 
         locationIconView.image = image
@@ -2866,12 +2962,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard item.index >= 0,
               let context = currentArchiveItemWorkflowContext() else { return }
 
-        let preserveTemporaryDirectoryOnUnsupported: Bool
-        switch strategy {
+        let preserveTemporaryDirectoryOnUnsupported = switch strategy {
         case .automatic:
-            preserveTemporaryDirectoryOnUnsupported = true
+            true
         case .forceInternal, .forceExternal:
-            preserveTemporaryDirectoryOnUnsupported = false
+            false
         }
 
         do {
@@ -2906,11 +3001,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if isInsideArchive {
             let level = archiveStack.last!
             if !level.currentSubdir.isEmpty {
-                let parent: String
-                if let lastSlash = level.currentSubdir.lastIndex(of: "/") {
-                    parent = String(level.currentSubdir[level.currentSubdir.startIndex ..< lastSlash])
+                let parent = if let lastSlash = level.currentSubdir.lastIndex(of: "/") {
+                    String(level.currentSubdir[level.currentSubdir.startIndex ..< lastSlash])
                 } else {
-                    parent = ""
+                    ""
                 }
                 navigateArchiveSubdir(parent)
             } else {
@@ -3278,7 +3372,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return []
         }
 
-        return urls.map { $0.standardizedFileURL }
+        return urls.map(\.standardizedFileURL)
     }
 
     private func archiveDestinationFileURL(for target: (archive: SZArchive, subdir: String)) -> URL? {
@@ -3336,7 +3430,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
             do {
                 try await ArchiveOperationRunner.run(operationTitle: operationTitle,
-                                                     parentWindow: self.view.window,
+                                                     parentWindow: view.window,
                                                      deferredDisplay: true)
                 { session in
                     try self.transferDroppedFileURLs(urls,
@@ -3345,7 +3439,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                      session: session)
                 }
 
-                self.refresh()
+                refresh()
                 if operation == .move,
                    let sourcePane,
                    sourcePane !== self
@@ -3353,7 +3447,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                     sourcePane.refresh()
                 }
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
@@ -3423,11 +3517,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 return
             }
 
-            self.beginDroppedArchiveTransfer(urls,
-                                             to: target,
-                                             operation: operation,
-                                             sourcePane: sourcePane,
-                                             cleanupDirectory: cleanupDirectory)
+            beginDroppedArchiveTransfer(urls,
+                                        to: target,
+                                        operation: operation,
+                                        sourcePane: sourcePane,
+                                        cleanupDirectory: cleanupDirectory)
         }
     }
 
@@ -3463,17 +3557,17 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             }
 
             guard let self else { return }
-            guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
-                self.showReadOnlyArchiveMutationAlert(action: operation == .move ? "Moving files into archive" : "Adding files to archive")
+            guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
+                showReadOnlyArchiveMutationAlert(action: operation == .move ? "Moving files into archive" : "Adding files to archive")
                 return
             }
 
-            let selectionPaths = self.archiveSelectionPaths(for: urls,
-                                                            targetSubdir: currentTarget.subdir)
+            let selectionPaths = archiveSelectionPaths(for: urls,
+                                                       targetSubdir: currentTarget.subdir)
 
             do {
                 try await ArchiveOperationRunner.run(operationTitle: operationTitle,
-                                                     parentWindow: self.view.window,
+                                                     parentWindow: view.window,
                                                      deferredDisplay: true)
                 { session in
                     try currentTarget.archive.addPaths(urls.map(\.path),
@@ -3482,10 +3576,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                        session: session)
                 }
 
-                self.refreshArchiveAfterMutation(targetSubdir: currentTarget.subdir,
-                                                 selectingPaths: selectionPaths)
-                self.publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir,
-                                                    selectingPaths: selectionPaths)
+                refreshArchiveAfterMutation(targetSubdir: currentTarget.subdir,
+                                            selectingPaths: selectionPaths)
+                publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir,
+                                               selectingPaths: selectionPaths)
                 if operation == .move,
                    let sourcePane,
                    sourcePane !== self
@@ -3493,7 +3587,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                     sourcePane.refresh()
                 }
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
@@ -3526,10 +3620,10 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         return lines.joined(separator: "\n")
     }
 
-    private func transferDroppedFileURLs(_ urls: [URL],
-                                         to destinationDirectory: URL,
-                                         operation: NSDragOperation,
-                                         session: SZOperationSession) throws
+    private nonisolated func transferDroppedFileURLs(_ urls: [URL],
+                                                     to destinationDirectory: URL,
+                                                     operation: NSDragOperation,
+                                                     session: SZOperationSession) throws
     {
         let fileManager = FileManager.default
         var skipAll = false
@@ -3589,9 +3683,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         session.reportProgressFraction(1.0)
     }
 
-    private func overwritePromptMessage(sourceURL: URL,
-                                        destinationURL: URL,
-                                        fileManager: FileManager) -> String
+    private nonisolated func overwritePromptMessage(sourceURL: URL,
+                                                    destinationURL: URL,
+                                                    fileManager: FileManager) -> String
     {
         let sourceAttributes = try? fileManager.attributesOfItem(atPath: sourceURL.path)
         let destinationAttributes = try? fileManager.attributesOfItem(atPath: destinationURL.path)
@@ -3611,8 +3705,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         """
     }
 
-    private func moveDroppedItemPreservingMetadata(from sourceURL: URL,
-                                                   to destinationURL: URL) throws
+    private nonisolated func moveDroppedItemPreservingMetadata(from sourceURL: URL,
+                                                               to destinationURL: URL) throws
     {
         do {
             try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
@@ -3627,8 +3721,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         try FileManager.default.removeItem(at: sourceURL)
     }
 
-    private func copyDroppedItemPreservingMetadata(from sourceURL: URL,
-                                                   to destinationURL: URL) throws
+    private nonisolated func copyDroppedItemPreservingMetadata(from sourceURL: URL,
+                                                               to destinationURL: URL) throws
     {
         let cloneResult = sourceURL.path.withCString { sourcePath in
             destinationURL.path.withCString { destinationPath in
@@ -3754,7 +3848,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
             if let firstError {
                 try? FileManager.default.removeItem(at: stagingDirectory)
-                self.showErrorAlert(firstError)
+                showErrorAlert(firstError)
                 return
             }
 
@@ -3763,11 +3857,11 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 return
             }
 
-            self.beginConfirmedArchiveTransfer(receivedURLs,
-                                               to: target,
-                                               operation: .copy,
-                                               sourcePane: sourcePane,
-                                               cleanupDirectory: stagingDirectory)
+            beginConfirmedArchiveTransfer(receivedURLs,
+                                          to: target,
+                                          operation: .copy,
+                                          sourcePane: sourcePane,
+                                          cleanupDirectory: stagingDirectory)
         }
     }
 
@@ -3860,7 +3954,7 @@ extension FileManagerPaneController {
     private func commitPreparedArchive(_ prepared: FileManagerPreparedArchiveOpen,
                                        replaceCurrentState: Bool) -> Bool
     {
-        if replaceCurrentState && !closeAllArchives(showError: true) {
+        if replaceCurrentState, !closeAllArchives(showError: true) {
             prepared.archive.close()
             archiveItemWorkflowService.cleanup(prepared.temporaryDirectory)
             return false
@@ -3881,7 +3975,7 @@ extension FileManagerPaneController {
             currentSubdir: "",
             temporaryDirectory: prepared.temporaryDirectory,
             nestedIdentity: prepared.nestedWriteBackInfo?.identity,
-            nestedWriteBackInfo: prepared.nestedWriteBackInfo
+            nestedWriteBackInfo: prepared.nestedWriteBackInfo,
         )
         archiveStack.append(level)
         navigateArchiveSubdir("")
@@ -3901,7 +3995,7 @@ extension FileManagerPaneController {
             currentSubdir: subdir,
             temporaryDirectory: level.temporaryDirectory,
             nestedIdentity: level.nestedIdentity,
-            nestedWriteBackInfo: level.nestedWriteBackInfo
+            nestedWriteBackInfo: level.nestedWriteBackInfo,
         )
         level = archiveStack.last!
 
@@ -3947,7 +4041,7 @@ extension FileManagerPaneController {
                     index: -1, path: childPath, pathParts: childParts, name: childName,
                     size: 0, packedSize: 0, modifiedDate: entry.modifiedDate,
                     createdDate: nil, crc: 0, isDirectory: true,
-                    isEncrypted: false, method: "", attributes: 0, comment: ""
+                    isEncrypted: false, method: "", attributes: 0, comment: "",
                 ))
             }
         }
@@ -4042,18 +4136,18 @@ extension FileManagerPaneController {
         if isInsideArchive {
             let destinationURL = archiveHostDirectory()
             Task { @MainActor [weak self] in
-                guard let self, let parentWindow = self.view.window else { return }
+                guard let self, let parentWindow = view.window else { return }
                 do {
+                    let prepared = try prepareExtraction(to: destinationURL,
+                                                         overwriteMode: .ask,
+                                                         inheritDownloadedFileQuarantine: SZSettings.bool(.inheritDownloadedFileQuarantine))
                     try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
                                                          parentWindow: parentWindow)
                     { session in
-                        try self.extractCurrentSelectionOrDisplayedArchiveItems(to: destinationURL,
-                                                                                session: session,
-                                                                                overwriteMode: .ask,
-                                                                                inheritDownloadedFileQuarantine: SZSettings.bool(.inheritDownloadedFileQuarantine))
+                        try FileManagerPaneController.performPreparedExtraction(prepared, session: session)
                     }
                 } catch {
-                    self.showErrorAlert(error)
+                    showErrorAlert(error)
                 }
             }
             return
@@ -4063,7 +4157,7 @@ extension FileManagerPaneController {
 
         let destURL = currentDirectory
         Task { @MainActor [weak self] in
-            guard let self, let parentWindow = self.view.window else { return }
+            guard let self, let parentWindow = view.window else { return }
             do {
                 try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
                                                      parentWindow: parentWindow)
@@ -4078,9 +4172,9 @@ extension FileManagerPaneController {
                     try archive.extract(toPath: destURL.path, settings: settings, session: session)
                     archive.close()
                 }
-                self.refresh()
+                refresh()
             } catch {
-                self.showErrorAlert(error)
+                showErrorAlert(error)
             }
         }
     }
@@ -4109,14 +4203,14 @@ extension FileManagerPaneController {
                 let renamedPath = item.parentPath.isEmpty ? newName : item.parentPath + "/" + newName
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
-                        self.showReadOnlyArchiveMutationAlert(action: "Renaming archive items")
+                    guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
+                        showReadOnlyArchiveMutationAlert(action: "Renaming archive items")
                         return
                     }
 
                     do {
                         try await ArchiveOperationRunner.run(operationTitle: "Renaming...",
-                                                             parentWindow: self.view.window,
+                                                             parentWindow: view.window,
                                                              deferredDisplay: true)
                         { session in
                             try currentTarget.archive.renameItem(atPath: item.path,
@@ -4124,10 +4218,10 @@ extension FileManagerPaneController {
                                                                  newName: newName,
                                                                  session: session)
                         }
-                        self.refreshArchiveAfterMutation(selectingPath: renamedPath)
-                        self.publishArchiveMutationIfNeeded(selectingPaths: [renamedPath])
+                        refreshArchiveAfterMutation(selectingPath: renamedPath)
+                        publishArchiveMutationIfNeeded(selectingPaths: [renamedPath])
                     } catch {
-                        self.showErrorAlert(error)
+                        showErrorAlert(error)
                     }
                 }
             }
@@ -4177,24 +4271,24 @@ extension FileManagerPaneController {
 
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    guard let currentTarget = self.revalidatedArchiveMutationTarget(for: target) else {
-                        self.showReadOnlyArchiveMutationAlert(action: "Deleting archive items")
+                    guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
+                        showReadOnlyArchiveMutationAlert(action: "Deleting archive items")
                         return
                     }
 
                     do {
                         try await ArchiveOperationRunner.run(operationTitle: "Deleting...",
-                                                             parentWindow: self.view.window,
+                                                             parentWindow: view.window,
                                                              deferredDisplay: true)
                         { session in
                             try currentTarget.archive.deleteItems(atPaths: itemPaths,
                                                                   inArchiveSubdir: currentTarget.subdir,
                                                                   session: session)
                         }
-                        self.refreshArchiveAfterMutation()
-                        self.publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir)
+                        refreshArchiveAfterMutation()
+                        publishArchiveMutationIfNeeded(targetSubdir: currentTarget.subdir)
                     } catch {
-                        self.showErrorAlert(error)
+                        showErrorAlert(error)
                     }
                 }
             }
@@ -4263,11 +4357,10 @@ extension FileManagerPaneController {
             let packedText = archiveItem.isDirectory
                 ? "—"
                 : ByteCountFormatter.string(fromByteCount: Int64(archiveItem.packedSize), countStyle: .file)
-            let typeText: String
-            if archiveItem.isDirectory {
-                typeText = archiveItem.index >= 0 ? "Folder in Archive" : "Virtual Folder in Archive"
+            let typeText: String = if archiveItem.isDirectory {
+                archiveItem.index >= 0 ? "Folder in Archive" : "Virtual Folder in Archive"
             } else {
-                typeText = archiveItem.method.isEmpty ? "File in Archive" : archiveItem.method
+                archiveItem.method.isEmpty ? "File in Archive" : archiveItem.method
             }
 
             let details = """

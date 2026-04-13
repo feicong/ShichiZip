@@ -33,14 +33,16 @@ enum SZSettingsKey: String {
 // MARK: - Settings Access
 
 enum SZSettings {
-    private static var defaults: UserDefaults { .standard }
+    private static var defaults: UserDefaults {
+        .standard
+    }
 
     private static func defaultBool(for key: SZSettingsKey) -> Bool {
         switch key {
         case .showRealFileIcons, .workDirRemovableOnly, .inheritDownloadedFileQuarantine:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
@@ -63,7 +65,7 @@ enum SZSettings {
     }
 
     static func string(_ key: SZSettingsKey) -> String {
-        return defaults.string(forKey: key.rawValue) ?? ""
+        defaults.string(forKey: key.rawValue) ?? ""
     }
 
     static func set(_ value: String, for key: SZSettingsKey) {
@@ -72,7 +74,7 @@ enum SZSettings {
     }
 
     static func integer(_ key: SZSettingsKey) -> Int {
-        return defaults.integer(forKey: key.rawValue)
+        defaults.integer(forKey: key.rawValue)
     }
 
     static func set(_ value: Int, for key: SZSettingsKey) {
@@ -126,7 +128,7 @@ enum SZSettings {
     }
 
     static var workDirMode: Int {
-        return defaults.integer(forKey: SZSettingsKey.workDirMode.rawValue)
+        defaults.integer(forKey: SZSettingsKey.workDirMode.rawValue)
     }
 
     private static func useConfiguredWorkDir(for currentDir: URL?) -> Bool {
@@ -147,12 +149,10 @@ enum SZSettings {
     /// If "Use for removable drives only" is enabled, non-removable volumes fall back to the current folder.
     static func resolvedWorkDir(currentDir: URL? = nil) -> URL {
         let fallbackCurrentDir = currentDir ?? FileManager.default.temporaryDirectory
-        let effectiveMode: Int
-
-        if useConfiguredWorkDir(for: currentDir) {
-            effectiveMode = workDirMode
+        let effectiveMode: Int = if useConfiguredWorkDir(for: currentDir) {
+            workDirMode
         } else {
-            effectiveMode = 1
+            1
         }
 
         switch effectiveMode {

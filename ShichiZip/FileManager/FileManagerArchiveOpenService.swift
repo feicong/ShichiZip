@@ -8,11 +8,11 @@ enum FileManagerArchiveOpenMode {
     var openType: String? {
         switch self {
         case .defaultBehavior:
-            return nil
+            nil
         case .wildcard:
-            return "*"
+            "*"
         case .parser:
-            return "#"
+            "#"
         }
     }
 }

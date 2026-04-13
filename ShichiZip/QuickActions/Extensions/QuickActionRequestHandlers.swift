@@ -82,7 +82,7 @@ class ShichiZipQuickActionRequestHandler: NSObject, NSExtensionRequestHandling {
         var urls: [URL] = []
         for (index, itemProvider) in itemProviders.enumerated() {
             log("provider[\(index)] registeredTypeIdentifiers=\(itemProvider.registeredTypeIdentifiers.joined(separator: ", "))")
-            try urls.append(await loadFileURL(from: itemProvider))
+            try await urls.append(loadFileURL(from: itemProvider))
         }
 
         return urls.map(\.standardizedFileURL)
