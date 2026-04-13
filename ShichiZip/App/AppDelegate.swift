@@ -469,9 +469,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func smartQuickExtractPlan(for archiveURL: URL,
-                                       archiveItems: [ArchiveItem],
-                                       eliminateDuplicates: Bool) -> SmartQuickExtractPlan
+    private nonisolated func smartQuickExtractPlan(for archiveURL: URL,
+                                                   archiveItems: [ArchiveItem],
+                                                   eliminateDuplicates: Bool) -> SmartQuickExtractPlan
     {
         let baseDestinationURL = archiveURL.deletingLastPathComponent().standardizedFileURL
         let suggestedFolderName = archiveURL.deletingPathExtension().lastPathComponent
