@@ -24,10 +24,20 @@ enum ArchiveExtractionPostProcessor {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let disableSmartQuickExtractRevealEnvironmentKey = "SHICHIZIP_DISABLE_SMART_QUICK_EXTRACT_REVEAL"
+
     private struct SmartQuickExtractPlan {
         let destinationURL: URL
         let pathPrefixToStrip: String?
         let extractedItems: [ArchiveItem]
+    }
+
+    private static var shouldRevealSmartQuickExtractDestination: Bool {
+        guard let value = getenv(disableSmartQuickExtractRevealEnvironmentKey) else {
+            return true
+        }
+
+        return String(cString: value) != "1"
     }
 
     private var fileManagerWindowController: FileManagerWindowController?
@@ -374,11 +384,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
 
                 let baseDirectory = archiveURL.deletingLastPathComponent().standardizedFileURL
-                if plan.destinationURL != baseDirectory {
-                    NSWorkspace.shared.selectFile(plan.destinationURL.path,
-                                                  inFileViewerRootedAtPath: baseDirectory.path)
-                } else {
-                    NSWorkspace.shared.open(plan.destinationURL)
+                if Self.shouldRevealSmartQuickExtractDestination {
+                    if plan.destinationURL != baseDirectory {
+                        NSWorkspace.shared.selectFile(plan.destinationURL.path,
+                                                      inFileViewerRootedAtPath: baseDirectory.path)
+                    } else {
+                        NSWorkspace.shared.open(plan.destinationURL)
+                    }
                 }
 
                 if let postProcessError {
