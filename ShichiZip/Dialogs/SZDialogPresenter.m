@@ -54,16 +54,19 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
         _secureField.translatesAutoresizingMaskIntoConstraints = NO;
         _secureField.placeholderString = @"Password";
         _secureField.stringValue = password;
+        _secureField.accessibilityIdentifier = @"passwordPrompt.password";
 
         _plainField = [[NSTextField alloc] initWithFrame:NSZeroRect];
         _plainField.translatesAutoresizingMaskIntoConstraints = NO;
         _plainField.placeholderString = @"Password";
         _plainField.stringValue = password;
         _plainField.hidden = YES;
+        _plainField.accessibilityIdentifier = @"passwordPrompt.passwordPlain";
 
         _showPasswordButton = [NSButton checkboxWithTitle:@"Show password" target:self action:@selector(togglePasswordVisibility:)];
         _showPasswordButton.translatesAutoresizingMaskIntoConstraints = NO;
         _showPasswordButton.state = [[NSUserDefaults standardUserDefaults] boolForKey:SZShowPasswordPreferenceKey] ? NSControlStateValueOn : NSControlStateValueOff;
+        _showPasswordButton.accessibilityIdentifier = @"passwordPrompt.showPassword";
     }
     return self;
 }
@@ -214,6 +217,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
     _saveLimitButton = [NSButton checkboxWithTitle:@"Change allowed limit for next operations" target:self action:@selector(toggleSaveLimit:)];
     _saveLimitButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _saveLimitButton.accessibilityIdentifier = @"memoryLimit.saveLimit";
 
     NSNumberFormatter* formatter = [[NSNumberFormatter alloc] init];
     formatter.numberStyle = NSNumberFormatterDecimalStyle;
@@ -228,6 +232,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _limitField.alignment = NSTextAlignmentRight;
     _limitField.stringValue = [NSString stringWithFormat:@"%u", MAX(_requiredGB, 1u)];
     _limitField.enabled = NO;
+    _limitField.accessibilityIdentifier = @"memoryLimit.limitField";
 
     _limitUnitLabel = [NSTextField labelWithString:@"GB"];
     _limitUnitLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -256,6 +261,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _skipButton = [self radioButtonWithTitle:@"Skip archive unpacking" action:@selector(selectActionButton:)];
     _allowButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOff : NSControlStateValueOn;
     _skipButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOn : NSControlStateValueOff;
+    _allowButton.accessibilityIdentifier = @"memoryLimit.allowButton";
+    _skipButton.accessibilityIdentifier = @"memoryLimit.skipButton";
 
     NSStackView* actionStack = [[NSStackView alloc] init];
     actionStack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -269,6 +276,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     _rememberButton = [NSButton checkboxWithTitle:@"Repeat selected action for current operation" target:nil action:NULL];
     _rememberButton.translatesAutoresizingMaskIntoConstraints = NO;
     _rememberButton.hidden = !_showRemember;
+    _rememberButton.accessibilityIdentifier = @"memoryLimit.rememberButton";
     if (_showRemember) {
         [stack addArrangedSubview:_rememberButton];
     }

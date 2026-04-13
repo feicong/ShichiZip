@@ -156,6 +156,10 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         refreshButton = NSButton(title: "Refresh", target: self, action: #selector(refreshContents(_:)))
         parentButton = NSButton(title: "Up", target: self, action: #selector(openParentFolder(_:)))
 
+        deleteButton.setAccessibilityIdentifier("deleteTempFiles.deleteButton")
+        refreshButton.setAccessibilityIdentifier("deleteTempFiles.refreshButton")
+        parentButton.setAccessibilityIdentifier("deleteTempFiles.parentButton")
+
         controlsRow.addArrangedSubview(deleteButton)
         controlsRow.addArrangedSubview(refreshButton)
         controlsRow.addArrangedSubview(parentButton)
@@ -177,6 +181,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         pathField.drawsBackground = true
         pathField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         pathField.lineBreakMode = .byTruncatingMiddle
+        pathField.setAccessibilityIdentifier("deleteTempFiles.pathField")
         pathRow.addArrangedSubview(pathField)
 
         pathField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -199,6 +204,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         tableView.doubleAction = #selector(doubleClickRow(_:))
         tableView.target = self
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
+        tableView.setAccessibilityIdentifier("deleteTempFiles.tableView")
 
         for column in Column.allCases {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.rawValue))
@@ -215,6 +221,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
 
         statusLabel = NSTextField(labelWithString: "")
         statusLabel.textColor = .secondaryLabelColor
+        statusLabel.setAccessibilityIdentifier("deleteTempFiles.statusLabel")
         rootStack.addArrangedSubview(statusLabel)
 
         NSLayoutConstraint.activate([

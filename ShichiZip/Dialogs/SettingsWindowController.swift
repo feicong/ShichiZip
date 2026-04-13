@@ -226,6 +226,7 @@ class SettingsWindowController: NSWindowController {
         tabSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         tabSegmentedControl.selectedSegment = 0
         tabSegmentedControl.segmentStyle = .automatic
+        tabSegmentedControl.setAccessibilityIdentifier("settings.tabSegment")
         contentView.addSubview(tabSegmentedControl)
 
         NSLayoutConstraint.activate([
@@ -314,6 +315,7 @@ class SettingsWindowController: NSWindowController {
 
         let memCheck = NSButton(checkboxWithTitle: "Limit to", target: self, action: #selector(memLimitCheckChanged(_:)))
         memCheck.state = SZSettings.bool(.memLimitEnabled) ? .on : .off
+        memCheck.setAccessibilityIdentifier("settings.memLimitCheck")
         memRow.addArrangedSubview(memCheck)
 
         let memField = NSTextField()
@@ -323,6 +325,7 @@ class SettingsWindowController: NSWindowController {
         memField.isEnabled = SZSettings.bool(.memLimitEnabled)
         memField.target = self
         memField.action = #selector(memLimitChanged(_:))
+        memField.setAccessibilityIdentifier("settings.memLimitField")
         memRow.addArrangedSubview(memField)
 
         let gbLabel = NSTextField(labelWithString: "GB")
@@ -414,6 +417,7 @@ class SettingsWindowController: NSWindowController {
         }
         presetPopup.target = self
         presetPopup.action = #selector(shortcutPresetChanged(_:))
+        presetPopup.setAccessibilityIdentifier("settings.shortcutPreset")
         shortcutPresetPopup = presetPopup
         presetRow.addArrangedSubview(presetPopup)
 
@@ -548,6 +552,7 @@ class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(descriptionLabel)
 
         let openSettingsButton = NSButton(title: "Open Finder Quick Actions Settings", target: self, action: #selector(openFinderQuickActionsSettings(_:)))
+        openSettingsButton.setAccessibilityIdentifier("settings.openQuickActionsSettings")
         stack.addArrangedSubview(openSettingsButton)
 
         let noteLabel = NSTextField(wrappingLabelWithString: "Finder Quick Action enablement is managed by macOS in System Settings.")
@@ -577,11 +582,13 @@ class SettingsWindowController: NSWindowController {
         let systemTempRadio = NSButton(radioButtonWithTitle: "System temp folder", target: self, action: #selector(workDirModeChanged(_:)))
         systemTempRadio.tag = 0
         systemTempRadio.state = mode == 0 ? .on : .off
+        systemTempRadio.setAccessibilityIdentifier("settings.workDirSystemTemp")
         stack.addArrangedSubview(systemTempRadio)
 
         let currentRadio = NSButton(radioButtonWithTitle: "Current folder", target: self, action: #selector(workDirModeChanged(_:)))
         currentRadio.tag = 1
         currentRadio.state = mode == 1 ? .on : .off
+        currentRadio.setAccessibilityIdentifier("settings.workDirCurrent")
         stack.addArrangedSubview(currentRadio)
 
         let specifiedRow = NSStackView()
@@ -591,6 +598,7 @@ class SettingsWindowController: NSWindowController {
         let specifiedRadio = NSButton(radioButtonWithTitle: "Specified:", target: self, action: #selector(workDirModeChanged(_:)))
         specifiedRadio.tag = 2
         specifiedRadio.state = mode == 2 ? .on : .off
+        specifiedRadio.setAccessibilityIdentifier("settings.workDirSpecified")
         specifiedRow.addArrangedSubview(specifiedRadio)
 
         let pathField = NSTextField()
@@ -600,10 +608,12 @@ class SettingsWindowController: NSWindowController {
         pathField.target = self
         pathField.action = #selector(workDirPathChanged(_:))
         pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
+        pathField.setAccessibilityIdentifier("settings.workDirPath")
         specifiedRow.addArrangedSubview(pathField)
 
         let browseBtn = NSButton(title: "...", target: self, action: #selector(browseWorkDir(_:)))
         browseBtn.widthAnchor.constraint(equalToConstant: 30).isActive = true
+        browseBtn.setAccessibilityIdentifier("settings.workDirBrowse")
         specifiedRow.addArrangedSubview(browseBtn)
 
         stack.addArrangedSubview(specifiedRow)
@@ -615,6 +625,7 @@ class SettingsWindowController: NSWindowController {
 
         let removableCheck = NSButton(checkboxWithTitle: "Use for removable drives only", target: self, action: #selector(removableOnlyChanged(_:)))
         removableCheck.state = SZSettings.bool(.workDirRemovableOnly) ? .on : .off
+        removableCheck.setAccessibilityIdentifier("settings.workDirRemovableOnly")
         stack.addArrangedSubview(removableCheck)
 
         return makePageView(containing: stack)

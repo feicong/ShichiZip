@@ -902,9 +902,11 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             archivePathField.addItems(withObjectValues: ArchivePathHistory.entries())
             archivePathField.stringValue = selectedArchivePath
             archivePathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 360).isActive = true
+            archivePathField.setAccessibilityIdentifier("compress.archivePath")
 
             let browseButton = NSButton(title: "Browse...", target: nil, action: nil)
             browseButton.bezelStyle = .rounded
+            browseButton.setAccessibilityIdentifier("compress.browseButton")
 
             let formatPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             availableFormats.forEach { formatPopup.addItem(withTitle: $0.title) }
@@ -913,24 +915,30 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             }
             formatPopup.target = self
             formatPopup.action = #selector(formatChanged(_:))
+            formatPopup.setAccessibilityIdentifier("compress.format")
 
             let levelPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             levelPopup.target = self
             levelPopup.action = #selector(compressionSettingsChanged(_:))
+            levelPopup.setAccessibilityIdentifier("compress.level")
             let methodPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             methodPopup.target = self
             methodPopup.action = #selector(methodChanged(_:))
+            methodPopup.setAccessibilityIdentifier("compress.method")
             let dictionaryPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             dictionaryPopup.target = self
             dictionaryPopup.action = #selector(compressionSettingsChanged(_:))
+            dictionaryPopup.setAccessibilityIdentifier("compress.dictionary")
             let wordPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             wordPopup.target = self
             wordPopup.action = #selector(compressionSettingsChanged(_:))
+            wordPopup.setAccessibilityIdentifier("compress.word")
 
             let solidPopup = NSPopUpButton(frame: .zero, pullsDown: false)
             Self.solidOptions.forEach { solidPopup.addItem(withTitle: $0.title) }
             solidPopup.target = self
             solidPopup.action = #selector(compressionSettingsChanged(_:))
+            solidPopup.setAccessibilityIdentifier("compress.solid")
 
             let threadField = NSComboBox(frame: NSRect(x: 0, y: 0, width: 140, height: 26))
             threadField.usesDataSource = false
@@ -939,6 +947,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             threadField.addItems(withObjectValues: ["Auto"] + Self.threadChoices())
             threadField.stringValue = selectedThreadText
             threadField.delegate = self
+            threadField.setAccessibilityIdentifier("compress.threads")
 
             let threadInfoLabel = makeInfoLabel(minWidth: 52)
             let threadControl = NSStackView(views: [threadField, threadInfoLabel])
@@ -954,6 +963,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             memoryUsagePopup.target = self
             memoryUsagePopup.action = #selector(compressionSettingsChanged(_:))
             memoryUsagePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
+            memoryUsagePopup.setAccessibilityIdentifier("compress.memoryUsage")
 
             let memoryUsageRow = makeFormRow(label: "Memory usage:",
                                              control: memoryUsagePopup,
@@ -974,35 +984,43 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             splitVolumesField.isEditable = true
             splitVolumesField.addItems(withObjectValues: Self.splitVolumePresets)
             splitVolumesField.stringValue = selectedSplitVolumes
+            splitVolumesField.setAccessibilityIdentifier("compress.splitVolumes")
 
             let parametersField = NSTextField(frame: NSRect(x: 0, y: 0, width: 180, height: 24))
             parametersField.stringValue = selectedParameters
             parametersField.placeholderString = "e.g. d=64m fb=273"
+            parametersField.setAccessibilityIdentifier("compress.parameters")
 
             let updateModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
             Self.updateModeOptions.forEach { updateModePopup.addItem(withTitle: $0.title) }
             if let selectedIndex = Self.updateModeOptions.firstIndex(where: { $0.value == selectedUpdateMode }) {
                 updateModePopup.selectItem(at: selectedIndex)
             }
+            updateModePopup.setAccessibilityIdentifier("compress.updateMode")
 
             let pathModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
             Self.pathModeOptions.forEach { pathModePopup.addItem(withTitle: $0.title) }
             if let selectedIndex = Self.pathModeOptions.firstIndex(where: { $0.value == selectedPathMode }) {
                 pathModePopup.selectItem(at: selectedIndex)
             }
+            pathModePopup.setAccessibilityIdentifier("compress.pathMode")
 
             let openSharedCheckbox = NSButton(checkboxWithTitle: "Compress shared files", target: nil, action: nil)
             openSharedCheckbox.state = openSharedFiles ? .on : .off
+            openSharedCheckbox.setAccessibilityIdentifier("compress.openShared")
             let deleteAfterCheckbox = NSButton(checkboxWithTitle: "Delete files after compression", target: nil, action: nil)
             deleteAfterCheckbox.state = deleteAfterCompression ? .on : .off
+            deleteAfterCheckbox.setAccessibilityIdentifier("compress.deleteAfter")
             let createSFXCheckbox = NSButton(checkboxWithTitle: "Create Windows SFX archive",
                                              target: self,
                                              action: #selector(createSFXToggled(_:)))
             createSFXCheckbox.state = createSFX ? .on : .off
+            createSFXCheckbox.setAccessibilityIdentifier("compress.createSFX")
             let excludeMacResourceFilesCheckbox = NSButton(checkboxWithTitle: "Exclude macOS resource files",
                                                            target: nil,
                                                            action: nil)
             excludeMacResourceFilesCheckbox.state = excludeMacResourceFiles ? .on : .off
+            excludeMacResourceFilesCheckbox.setAccessibilityIdentifier("compress.excludeMacResources")
 
             let advancedOptionsButton = NSButton(title: "Options",
                                                  target: self,
@@ -1010,6 +1028,7 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             advancedOptionsButton.bezelStyle = .rounded
             advancedOptionsButton.setContentHuggingPriority(.required, for: .horizontal)
             advancedOptionsButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+            advancedOptionsButton.setAccessibilityIdentifier("compress.advancedOptions")
 
             let advancedOptionsSummaryLabel = NSTextField(labelWithString: "")
             advancedOptionsSummaryLabel.font = .systemFont(ofSize: 11)
@@ -1026,26 +1045,31 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
             advancedOptionsRow.distribution = .fill
 
             let encryptionPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+            encryptionPopup.setAccessibilityIdentifier("compress.encryption")
 
             let securePasswordField = NSSecureTextField(frame: .zero)
             securePasswordField.stringValue = selectedPassword
             securePasswordField.placeholderString = "Optional"
             securePasswordField.delegate = self
+            securePasswordField.setAccessibilityIdentifier("compress.password")
 
             let plainPasswordField = NSTextField(frame: .zero)
             plainPasswordField.stringValue = selectedPassword
             plainPasswordField.placeholderString = "Optional"
             plainPasswordField.delegate = self
+            plainPasswordField.setAccessibilityIdentifier("compress.passwordPlain")
 
             let secureConfirmPasswordField = NSSecureTextField(frame: .zero)
             secureConfirmPasswordField.stringValue = selectedConfirmation
             secureConfirmPasswordField.placeholderString = "Retype password"
             secureConfirmPasswordField.delegate = self
+            secureConfirmPasswordField.setAccessibilityIdentifier("compress.confirmPassword")
 
             let plainConfirmPasswordField = NSTextField(frame: .zero)
             plainConfirmPasswordField.stringValue = selectedConfirmation
             plainConfirmPasswordField.placeholderString = "Retype password"
             plainConfirmPasswordField.delegate = self
+            plainConfirmPasswordField.setAccessibilityIdentifier("compress.confirmPasswordPlain")
 
             let passwordContainer = makePasswordContainer(secureField: securePasswordField,
                                                           plainField: plainPasswordField)
@@ -1056,11 +1080,13 @@ final class CompressDialogController: NSObject, NSTextFieldDelegate, NSComboBoxD
                                                 target: self,
                                                 action: #selector(showPasswordToggled(_:)))
             showPasswordCheckbox.state = showPassword ? .on : .off
+            showPasswordCheckbox.setAccessibilityIdentifier("compress.showPassword")
 
             let encryptNamesCheckbox = NSButton(checkboxWithTitle: "Encrypt file names",
                                                 target: nil,
                                                 action: nil)
             encryptNamesCheckbox.state = encryptNames ? .on : .off
+            encryptNamesCheckbox.setAccessibilityIdentifier("compress.encryptNames")
 
             let dictionaryLabel = NSTextField(labelWithString: "Dictionary size:")
             let wordLabel = NSTextField(labelWithString: "Word size:")

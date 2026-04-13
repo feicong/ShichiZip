@@ -307,6 +307,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         upButton.bezelStyle = .accessoryBarAction
         upButton.isBordered = false
         upButton.refusesFirstResponder = true
+        upButton.setAccessibilityIdentifier("fileManager.upButton")
         container.addSubview(upButton)
 
         locationIconView = NSImageView()
@@ -327,6 +328,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         pathField.target = self
         pathField.action = #selector(pathFieldSubmitted(_:))
         pathField.delegate = self
+        pathField.setAccessibilityIdentifier("fileManager.pathField")
         container.addSubview(pathField)
 
         NSLayoutConstraint.activate([
@@ -400,6 +402,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.registerForDraggedTypes([.fileURL] + promisedFileTypes)
         tableView.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
+        tableView.setAccessibilityIdentifier("fileManager.tableView")
 
         scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -446,6 +449,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         statusLabel.cell?.truncatesLastVisibleLine = true
         statusLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        statusLabel.setAccessibilityIdentifier("fileManager.statusLabel")
         container.addSubview(statusLabel)
 
         NSLayoutConstraint.activate([

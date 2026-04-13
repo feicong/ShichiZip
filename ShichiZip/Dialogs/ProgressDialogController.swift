@@ -48,6 +48,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         operationLabel.font = .boldSystemFont(ofSize: 13)
         operationLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         operationLabel.translatesAutoresizingMaskIntoConstraints = false
+        operationLabel.setAccessibilityIdentifier("progress.operationLabel")
         contentView.addSubview(operationLabel)
 
         fileNameLabel = NSTextField(labelWithString: "")
@@ -56,6 +57,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         fileNameLabel.translatesAutoresizingMaskIntoConstraints = false
+        fileNameLabel.setAccessibilityIdentifier("progress.fileName")
         contentView.addSubview(fileNameLabel)
 
         progressBar = NSProgressIndicator()
@@ -64,18 +66,21 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         progressBar.minValue = 0
         progressBar.maxValue = 1.0
         progressBar.translatesAutoresizingMaskIntoConstraints = false
+        progressBar.setAccessibilityIdentifier("progress.progressBar")
         contentView.addSubview(progressBar)
 
         bytesLabel = NSTextField(labelWithString: "")
         bytesLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         bytesLabel.textColor = .secondaryLabelColor
         bytesLabel.translatesAutoresizingMaskIntoConstraints = false
+        bytesLabel.setAccessibilityIdentifier("progress.bytes")
         contentView.addSubview(bytesLabel)
 
         speedLabel = NSTextField(labelWithString: "")
         speedLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         speedLabel.textColor = .secondaryLabelColor
         speedLabel.translatesAutoresizingMaskIntoConstraints = false
+        speedLabel.setAccessibilityIdentifier("progress.speed")
         contentView.addSubview(speedLabel)
 
         elapsedLabel = NSTextField(labelWithString: "")
@@ -83,11 +88,13 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         elapsedLabel.textColor = .secondaryLabelColor
         elapsedLabel.alignment = .right
         elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
+        elapsedLabel.setAccessibilityIdentifier("progress.elapsed")
         contentView.addSubview(elapsedLabel)
 
         cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked(_:)))
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.keyEquivalent = "\u{1b}" // Escape
+        cancelButton.setAccessibilityIdentifier("progress.cancelButton")
         contentView.addSubview(cancelButton)
 
         NSLayoutConstraint.activate([

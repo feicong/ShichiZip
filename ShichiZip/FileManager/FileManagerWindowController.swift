@@ -553,12 +553,15 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         splitView.translatesAutoresizingMaskIntoConstraints = false
         splitView.dividerStyle = .thin
         splitView.isVertical = true
+        splitView.setAccessibilityIdentifier("fileManager.splitView")
 
         leftPane = FileManagerPaneController()
         leftPane.delegate = self
+        leftPane.view.setAccessibilityIdentifier("fileManager.leftPane")
 
         rightPane = FileManagerPaneController()
         rightPane.delegate = self
+        rightPane.view.setAccessibilityIdentifier("fileManager.rightPane")
 
         splitView.addArrangedSubview(leftPane.view)
         if isDualPane {

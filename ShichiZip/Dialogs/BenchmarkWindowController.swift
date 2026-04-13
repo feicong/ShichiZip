@@ -154,28 +154,34 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         dictPopup.target = self
         dictPopup.action = #selector(paramChanged(_:))
         dictPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
+        dictPopup.setAccessibilityIdentifier("benchmark.dictionary")
 
         threadsPopup = NSPopUpButton()
         threadOptions.forEach { threadsPopup.addItem(withTitle: "\($0)") }
         threadsPopup.target = self
         threadsPopup.action = #selector(paramChanged(_:))
         threadsPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 70).isActive = true
+        threadsPopup.setAccessibilityIdentifier("benchmark.threads")
 
         passesPopup = NSPopUpButton()
         passOptions.forEach { passesPopup.addItem(withTitle: "\($0)") }
         passesPopup.target = self
         passesPopup.action = #selector(paramChanged(_:))
         passesPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 90).isActive = true
+        passesPopup.setAccessibilityIdentifier("benchmark.passes")
 
         memLabel = NSTextField(labelWithString: "--- MB / \(physMB) MB")
         memLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+        memLabel.setAccessibilityIdentifier("benchmark.memoryLabel")
 
         restartBtn = NSButton(title: "Restart", target: self, action: #selector(restartClicked(_:)))
         restartBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
+        restartBtn.setAccessibilityIdentifier("benchmark.restartButton")
 
         stopBtn = NSButton(title: "Stop", target: self, action: #selector(stopClicked(_:)))
         stopBtn.isEnabled = false
         stopBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
+        stopBtn.setAccessibilityIdentifier("benchmark.stopButton")
 
         let threadsControl = NSStackView()
         threadsControl.orientation = .horizontal
@@ -325,6 +331,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         logView.isEditable = false
         logView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         logView.textContainerInset = NSSize(width: 0, height: 2)
+        logView.setAccessibilityIdentifier("benchmark.logView")
         logScroll.documentView = logView
         stack.addArrangedSubview(logScroll)
         logScroll.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true

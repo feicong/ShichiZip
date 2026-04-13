@@ -210,6 +210,7 @@ static NSString* SZModalDialogAppDisplayName(void) {
         NSButton* button = [NSButton buttonWithTitle:title target:_target action:_action];
         button.translatesAutoresizingMaskIntoConstraints = NO;
         button.tag = index;
+        button.accessibilityIdentifier = [NSString stringWithFormat:@"modal.button.%ld", (long)index];
         if (index == (NSInteger)_buttonTitles.count - 1) {
             button.keyEquivalent = @"\r";
         }

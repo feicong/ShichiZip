@@ -166,6 +166,9 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteSelection(_:)))
         clearButton = NSButton(title: "Clear", target: self, action: #selector(clearHistory(_:)))
 
+        deleteButton.setAccessibilityIdentifier("foldersHistory.deleteButton")
+        clearButton.setAccessibilityIdentifier("foldersHistory.clearButton")
+
         controlsRow.addArrangedSubview(deleteButton)
         controlsRow.addArrangedSubview(clearButton)
         rootStack.addArrangedSubview(controlsRow)
@@ -188,6 +191,7 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
         tableView.doubleAction = #selector(doubleClickRow(_:))
         tableView.onDelete = { [weak self] in self?.deleteSelection(nil) }
         tableView.onConfirm = { [weak self] in self?.openSelection(nil) }
+        tableView.setAccessibilityIdentifier("foldersHistory.tableView")
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("path"))
         column.title = "Folder"
@@ -199,6 +203,7 @@ final class FoldersHistoryWindowController: NSObject, NSTableViewDataSource, NST
 
         statusLabel = NSTextField(labelWithString: "")
         statusLabel.textColor = .secondaryLabelColor
+        statusLabel.setAccessibilityIdentifier("foldersHistory.statusLabel")
         rootStack.addArrangedSubview(statusLabel)
 
         NSLayoutConstraint.activate([

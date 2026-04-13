@@ -253,11 +253,13 @@ final class ExtractDialogController: NSObject {
             pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
             pathField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
+            pathField.setAccessibilityIdentifier("extract.destinationPath")
 
             let browseButton = NSButton(title: "Browse...", target: nil, action: nil)
             browseButton.bezelStyle = .rounded
             browseButton.setContentHuggingPriority(.required, for: .horizontal)
             browseButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+            browseButton.setAccessibilityIdentifier("extract.browseButton")
 
             let pathRow = NSStackView(views: [pathField, browseButton])
             pathRow.orientation = .horizontal
@@ -271,6 +273,7 @@ final class ExtractDialogController: NSObject {
                 pathModePopup.selectItem(at: selectedIndex)
             }
             pathModePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
+            pathModePopup.setAccessibilityIdentifier("extract.pathMode")
 
             let overwriteModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
             overwriteModeOptions.forEach { overwriteModePopup.addItem(withTitle: $0.title) }
@@ -278,6 +281,7 @@ final class ExtractDialogController: NSObject {
                 overwriteModePopup.selectItem(at: selectedIndex)
             }
             overwriteModePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
+            overwriteModePopup.setAccessibilityIdentifier("extract.overwriteMode")
 
             let splitDestinationCheckbox = NSButton(checkboxWithTitle: "",
                                                     target: self,
@@ -285,11 +289,13 @@ final class ExtractDialogController: NSObject {
             splitDestinationCheckbox.state = splitDestination ? .on : .off
             splitDestinationCheckbox.toolTip = "Create a separate destination folder"
             splitDestinationCheckbox.setAccessibilityLabel("Create a separate destination folder")
+            splitDestinationCheckbox.setAccessibilityIdentifier("extract.splitDestination")
 
             let splitNameField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
             splitNameField.placeholderString = "Archive"
             splitNameField.stringValue = splitName
             splitNameField.widthAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
+            splitNameField.setAccessibilityIdentifier("extract.splitName")
 
             let splitRow = NSStackView(views: [splitDestinationCheckbox, splitNameField])
             splitRow.orientation = .horizontal
@@ -301,11 +307,13 @@ final class ExtractDialogController: NSObject {
             securePasswordField.placeholderString = "Optional"
             securePasswordField.stringValue = enteredPassword
             securePasswordField.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
+            securePasswordField.setAccessibilityIdentifier("extract.password")
 
             let plainPasswordField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
             plainPasswordField.placeholderString = "Optional"
             plainPasswordField.stringValue = enteredPassword
             plainPasswordField.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
+            plainPasswordField.setAccessibilityIdentifier("extract.passwordPlain")
 
             let passwordContainer = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
             passwordContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -330,16 +338,19 @@ final class ExtractDialogController: NSObject {
                                                 target: self,
                                                 action: #selector(showPasswordToggled(_:)))
             showPasswordCheckbox.state = showPassword ? .on : .off
+            showPasswordCheckbox.setAccessibilityIdentifier("extract.showPassword")
 
             let ntSecurityCheckbox = NSButton(checkboxWithTitle: "NT security information",
                                               target: nil,
                                               action: nil)
             ntSecurityCheckbox.state = preserveNtSecurityInfo ? .on : .off
+            ntSecurityCheckbox.setAccessibilityIdentifier("extract.ntSecurity")
 
             let eliminateDuplicatesCheckbox = NSButton(checkboxWithTitle: "Eliminate duplicate root folder",
                                                        target: nil,
                                                        action: nil)
             eliminateDuplicatesCheckbox.state = eliminateDuplicates ? .on : .off
+            eliminateDuplicatesCheckbox.setAccessibilityIdentifier("extract.eliminateDuplicates")
 
             let moveArchiveToTrashCheckbox = NSButton(checkboxWithTitle: "Move compressed file to Trash after extraction",
                                                       target: nil,
@@ -347,6 +358,7 @@ final class ExtractDialogController: NSObject {
             moveArchiveToTrashCheckbox.state = moveArchiveToTrashAfterExtraction ? .on : .off
             moveArchiveToTrashCheckbox.isEnabled = sourceArchiveAvailableForMoveToTrash
             moveArchiveToTrashCheckbox.alphaValue = sourceArchiveAvailableForMoveToTrash ? 1.0 : 0.55
+            moveArchiveToTrashCheckbox.setAccessibilityIdentifier("extract.moveToTrash")
 
             let inheritDownloadedFileQuarantineCheckbox = NSButton(checkboxWithTitle: "Inherit quarantine from downloaded file (if applicable)",
                                                                    target: nil,
@@ -354,6 +366,7 @@ final class ExtractDialogController: NSObject {
             inheritDownloadedFileQuarantineCheckbox.state = inheritDownloadedFileQuarantine ? .on : .off
             inheritDownloadedFileQuarantineCheckbox.isEnabled = sourceArchiveAvailableForQuarantineInheritance
             inheritDownloadedFileQuarantineCheckbox.alphaValue = sourceArchiveAvailableForQuarantineInheritance ? 1.0 : 0.55
+            inheritDownloadedFileQuarantineCheckbox.setAccessibilityIdentifier("extract.inheritQuarantine")
 
             let accessoryView = makeAccessoryView(pathRow: pathRow,
                                                   splitRow: splitRow,
