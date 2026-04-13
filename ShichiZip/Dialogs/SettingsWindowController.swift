@@ -127,7 +127,7 @@ private final class ShortcutRecorderButton: NSButton {
 
         if isRecording {
             attributedTitle = NSAttributedString(
-                string: "Type Shortcut…",
+                string: SZL10n.string("app.settings.typeShortcut"),
                 attributes: [
                     .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .semibold),
                     .foregroundColor: NSColor.controlAccentColor,
@@ -149,7 +149,7 @@ private final class ShortcutRecorderButton: NSButton {
 
         let placeholderFont = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
         attributedTitle = NSAttributedString(
-            string: "Record Shortcut",
+            string: SZL10n.string("app.settings.recordShortcut"),
             attributes: [
                 .font: placeholderFont,
                 .foregroundColor: NSColor.placeholderTextColor,
@@ -442,7 +442,7 @@ class SettingsWindowController: NSWindowController {
         presetRow.alignment = .centerY
         presetRow.spacing = 8
 
-        let presetLabel = NSTextField(labelWithString: "Scheme:")
+        let presetLabel = NSTextField(labelWithString: SZL10n.string("app.settings.scheme"))
         presetRow.addArrangedSubview(presetLabel)
 
         let presetPopup = NSPopUpButton()
@@ -461,14 +461,14 @@ class SettingsWindowController: NSWindowController {
 
         stack.addArrangedSubview(presetRow)
 
-        let noteLabel = NSTextField(wrappingLabelWithString: "These shortcuts apply to file manager commands. Standard app shortcuts such as Preferences and Quit stay unchanged.")
+        let noteLabel = NSTextField(wrappingLabelWithString: SZL10n.string("app.settings.shortcutsNote"))
         noteLabel.textColor = .secondaryLabelColor
         noteLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         noteLabel.maximumNumberOfLines = 0
         noteLabel.preferredMaxLayoutWidth = 480
         stack.addArrangedSubview(noteLabel)
 
-        let customNoteLabel = NSTextField(wrappingLabelWithString: "Changing an individual binding switches the preset to Custom. Reusing a shortcut clears it from the previous command. Click a shortcut field and press any key combination. Press Escape to cancel recording.")
+        let customNoteLabel = NSTextField(wrappingLabelWithString: SZL10n.string("app.settings.shortcutsCustomNote"))
         customNoteLabel.textColor = .secondaryLabelColor
         customNoteLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         customNoteLabel.maximumNumberOfLines = 0
@@ -479,7 +479,7 @@ class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(separator)
         separator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
 
-        stack.addArrangedSubview(makeSectionLabel("Current Shortcuts"))
+        stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.currentShortcuts")))
 
         let bindingsStack = NSStackView()
         bindingsStack.orientation = .vertical
@@ -507,7 +507,7 @@ class SettingsWindowController: NSWindowController {
             shortcutRecorders[command] = recorder
             row.addArrangedSubview(recorder)
 
-            let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearShortcutBinding(_:)))
+            let clearButton = NSButton(title: SZL10n.string("app.settings.clear"), target: self, action: #selector(clearShortcutBinding(_:)))
             clearButton.identifier = NSUserInterfaceItemIdentifier(command.rawValue)
             row.addArrangedSubview(clearButton)
 
@@ -583,7 +583,7 @@ class SettingsWindowController: NSWindowController {
 
         stack.addArrangedSubview(makeSectionLabel(SZL10n.string("app.settings.finderQuickActions")))
 
-        let descriptionLabel = NSTextField(wrappingLabelWithString: "Open the Finder Quick Actions page in System Settings and review whether \(AppBuildInfo.appDisplayName())'s Quick Actions are currently enabled.")
+        let descriptionLabel = NSTextField(wrappingLabelWithString: SZL10n.string("app.settings.quickActionsDescription", AppBuildInfo.appDisplayName()))
         descriptionLabel.textColor = .secondaryLabelColor
         descriptionLabel.maximumNumberOfLines = 0
         descriptionLabel.preferredMaxLayoutWidth = 440
@@ -593,7 +593,7 @@ class SettingsWindowController: NSWindowController {
         openSettingsButton.setAccessibilityIdentifier("settings.openQuickActionsSettings")
         stack.addArrangedSubview(openSettingsButton)
 
-        let noteLabel = NSTextField(wrappingLabelWithString: "Finder Quick Action enablement is managed by macOS in System Settings.")
+        let noteLabel = NSTextField(wrappingLabelWithString: SZL10n.string("app.settings.quickActionsNote"))
         noteLabel.textColor = .secondaryLabelColor
         noteLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         noteLabel.maximumNumberOfLines = 0
@@ -795,8 +795,8 @@ class SettingsWindowController: NSWindowController {
               NSWorkspace.shared.open(url)
         else {
             let alert = NSAlert()
-            alert.messageText = "Unable to open Finder Quick Actions settings."
-            alert.informativeText = "Open System Settings and go to Extensions > Finder to manage \(AppBuildInfo.appDisplayName())'s Quick Actions."
+            alert.messageText = SZL10n.string("app.settings.quickActionsOpenError")
+            alert.informativeText = SZL10n.string("app.settings.quickActionsOpenErrorDetail", AppBuildInfo.appDisplayName())
             alert.runModal()
             return
         }

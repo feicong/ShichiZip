@@ -307,6 +307,7 @@
 		91C3FAE8FA976852BE2914A1 /* ShichiZipSmartQuickExtractAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShichiZipSmartQuickExtractAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		937563A1E648A0013C4DD0C3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		943D7807E6F63DDC432DA377 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Upstream.strings; sourceTree = "<group>"; };
+		945A5F8AA83B183AF5CE6523 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/App.strings"; sourceTree = "<group>"; };
 		94DD25F00BFADA20E83D1391 /* co */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = co; path = co.lproj/Upstream.strings; sourceTree = "<group>"; };
 		95C370EF40C400DBB23EE405 /* cs */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = cs; path = cs.lproj/Upstream.strings; sourceTree = "<group>"; };
 		98737207F41E39FE2CB71138 /* ShichiZipTests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ShichiZipTests-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -1313,6 +1314,7 @@
 			isa = PBXVariantGroup;
 			children = (
 				07988C291C473ACECE53B52E /* en */,
+				945A5F8AA83B183AF5CE6523 /* zh-Hans */,
 			);
 			name = App.strings;
 			sourceTree = "<group>";

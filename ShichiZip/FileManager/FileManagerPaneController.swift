@@ -72,7 +72,7 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
     @MainActor
     private func writePromiseResult(to url: URL) -> Result<Void, Error> {
         Result {
-            try ArchiveOperationRunner.runSynchronously(operationTitle: "Extracting...",
+            try ArchiveOperationRunner.runSynchronously(operationTitle: SZL10n.string("app.progress.extracting"),
                                                         initialFileName: self.item.path,
                                                         deferredDisplay: true)
             { session in
@@ -188,6 +188,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     private var settingsObserver: NSObjectProtocol?
     private var viewPreferencesObserver: NSObjectProtocol?
     private var archiveChangeObserver: NSObjectProtocol?
+    private var languageObserver: NSObjectProtocol?
     private var liveScrollStartObserver: NSObjectProtocol?
     private var liveScrollEndObserver: NSObjectProtocol?
     private var recentDirectories: [URL] = []
@@ -281,6 +282,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if let archiveChangeObserver {
             NotificationCenter.default.removeObserver(archiveChangeObserver)
         }
+        if let languageObserver {
+            NotificationCenter.default.removeObserver(languageObserver)
+        }
         if let liveScrollStartObserver {
             NotificationCenter.default.removeObserver(liveScrollStartObserver)
         }
@@ -364,28 +368,28 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.intercellSpacing = NSSize(width: tableView.intercellSpacing.width, height: 0)
 
         let nameCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-        nameCol.title = "Name"
+        nameCol.title = SZL10n.string("column.name")
         nameCol.width = 250
         nameCol.minWidth = 100
         nameCol.sortDescriptorPrototype = NSSortDescriptor(key: "name", ascending: true, selector: #selector(NSString.localizedStandardCompare(_:)))
         tableView.addTableColumn(nameCol)
 
         let sizeCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("size"))
-        sizeCol.title = "Size"
+        sizeCol.title = SZL10n.string("column.size")
         sizeCol.width = 80
         sizeCol.minWidth = 50
         sizeCol.sortDescriptorPrototype = NSSortDescriptor(key: "size", ascending: false)
         tableView.addTableColumn(sizeCol)
 
         let modifiedCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("modified"))
-        modifiedCol.title = "Modified"
+        modifiedCol.title = SZL10n.string("column.modified")
         modifiedCol.width = 140
         modifiedCol.minWidth = 80
         modifiedCol.sortDescriptorPrototype = NSSortDescriptor(key: "modified", ascending: false)
         tableView.addTableColumn(modifiedCol)
 
         let createdCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("created"))
-        createdCol.title = "Created"
+        createdCol.title = SZL10n.string("column.created")
         createdCol.width = 140
         createdCol.minWidth = 80
         createdCol.sortDescriptorPrototype = NSSortDescriptor(key: "created", ascending: false)
@@ -505,6 +509,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                     return
                 }
                 self.handlePublishedArchiveChange(change)
+            }
+        }
+
+        languageObserver = NotificationCenter.default.addObserver(
+            forName: .szLanguageDidChange,
+            object: nil,
+            queue: .main,
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.tableView.menu = self?.buildContextMenu()
             }
         }
 
@@ -1184,7 +1198,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             }
         }
 
-        let stagedPreview = try await ArchiveOperationRunner.run(operationTitle: "Preparing Preview...",
+        let stagedPreview = try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.working"),
                                                                  initialFileName: archiveItems.count == 1 ? archiveItems[0].path : nil,
                                                                  parentWindow: view.window,
                                                                  deferredDisplay: true)
@@ -1393,7 +1407,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 let createdPath = currentTarget.subdir.isEmpty ? name : currentTarget.subdir + "/" + name
 
                 do {
-                    try await ArchiveOperationRunner.run(operationTitle: "Creating Folder...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("create.folder"),
                                                          parentWindow: view.window,
                                                          deferredDisplay: true)
                     { session in
@@ -1465,8 +1479,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         let selectedSummary = makeStatusSummary(for: selectedItems)
         let segments = [
-            "\(selectedSummary.itemCount)/\(displayedSummary.itemCount) selected — \(makeSelectedSummaryText(selectedSummary))",
-            "total \(displayedSummaryText)",
+            "\(selectedSummary.itemCount)/\(displayedSummary.itemCount) \(SZL10n.string("app.fileManager.statusSelected")) — \(makeSelectedSummaryText(selectedSummary))",
+            "\(SZL10n.string("app.fileManager.statusTotal")) \(displayedSummaryText)",
         ]
 
         statusLabel.stringValue = segments.joined(separator: "  •  ")
@@ -1543,19 +1557,23 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     private func makeSummaryText(_ summary: StatusSummary) -> String {
         let sizeString = ByteCountFormatter.string(fromByteCount: Int64(summary.totalSize), countStyle: .file)
-        return "\(summary.fileCount) \(summary.fileCount == 1 ? "file" : "files"), \(summary.folderCount) \(summary.folderCount == 1 ? "folder" : "folders") — \(sizeString)"
+        let fileWord = summary.fileCount == 1 ? SZL10n.string("app.fileManager.statusFile") : SZL10n.string("app.fileManager.statusFiles")
+        let folderWord = summary.folderCount == 1 ? SZL10n.string("app.fileManager.statusFolder") : SZL10n.string("app.fileManager.statusFolders")
+        return "\(summary.fileCount) \(fileWord), \(summary.folderCount) \(folderWord) — \(sizeString)"
     }
 
     private func makeSelectedSummaryText(_ summary: StatusSummary) -> String {
         let sizeString = ByteCountFormatter.string(fromByteCount: Int64(summary.totalSize), countStyle: .file)
+        let fileWord = summary.fileCount == 1 ? SZL10n.string("app.fileManager.statusFile") : SZL10n.string("app.fileManager.statusFiles")
+        let folderWord = summary.folderCount == 1 ? SZL10n.string("app.fileManager.statusFolder") : SZL10n.string("app.fileManager.statusFolders")
 
         switch (summary.fileCount, summary.folderCount) {
         case (_, 0):
-            return "\(summary.fileCount) \(summary.fileCount == 1 ? "file" : "files"), \(sizeString)"
+            return "\(summary.fileCount) \(fileWord), \(sizeString)"
         case (0, _):
-            return "\(summary.folderCount) \(summary.folderCount == 1 ? "folder" : "folders")"
+            return "\(summary.folderCount) \(folderWord)"
         default:
-            return "\(summary.fileCount) \(summary.fileCount == 1 ? "file" : "files"), \(summary.folderCount) \(summary.folderCount == 1 ? "folder" : "folders"), \(sizeString)"
+            return "\(summary.fileCount) \(fileWord), \(summary.folderCount) \(folderWord), \(sizeString)"
         }
     }
 
@@ -2210,7 +2228,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return (nil, nil)
         }
 
-        try ArchiveOperationRunner.runSynchronously(operationTitle: "Updating archive...",
+        try ArchiveOperationRunner.runSynchronously(operationTitle: SZL10n.string("progress.updating"),
                                                     initialFileName: (writeBackInfo.parentItemPath as NSString).lastPathComponent,
                                                     parentWindow: view.window,
                                                     deferredDisplay: true)
@@ -3427,7 +3445,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                           operation: NSDragOperation,
                                           sourcePane: FileManagerPaneController?)
     {
-        let operationTitle = operation == .move ? "Moving..." : "Copying..."
+        let operationTitle = operation == .move ? SZL10n.string("fileop.moving") : SZL10n.string("fileop.copying")
 
         Task { @MainActor [weak self, weak sourcePane] in
             guard let self else { return }
@@ -3500,7 +3518,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             return
         }
 
-        let confirmTitle = operation == .move ? "Move" : "Add"
+        let confirmTitle = operation == .move ? SZL10n.string("toolbar.move") : SZL10n.string("toolbar.add")
         szBeginConfirmation(on: window,
                             title: archiveTransferConfirmationTitle(for: urls, operation: operation),
                             message: archiveTransferConfirmationMessage(forSubdir: target.subdir,
@@ -3551,7 +3569,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                              sourcePane: FileManagerPaneController?,
                                              cleanupDirectory: URL? = nil)
     {
-        let operationTitle = operation == .move ? "Moving..." : "Copying..."
+        let operationTitle = operation == .move ? SZL10n.string("fileop.moving") : SZL10n.string("fileop.copying")
 
         Task { @MainActor [weak self, weak sourcePane] in
             defer {
@@ -4145,7 +4163,7 @@ extension FileManagerPaneController {
                     let prepared = try prepareExtraction(to: destinationURL,
                                                          overwriteMode: .ask,
                                                          inheritDownloadedFileQuarantine: SZSettings.bool(.inheritDownloadedFileQuarantine))
-                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.extracting"),
                                                          parentWindow: parentWindow)
                     { session in
                         try FileManagerPaneController.performPreparedExtraction(prepared, session: session)
@@ -4163,7 +4181,7 @@ extension FileManagerPaneController {
         Task { @MainActor [weak self] in
             guard let self, let parentWindow = view.window else { return }
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.extracting"),
                                                      parentWindow: parentWindow)
                 { session in
                     let archive = SZArchive()
@@ -4196,9 +4214,9 @@ extension FileManagerPaneController {
 
             guard let window = view.window else { return }
             szBeginTextInput(on: window,
-                             title: "Rename",
+                             title: SZL10n.string("menu.rename"),
                              initialValue: item.name,
-                             confirmTitle: "Rename")
+                             confirmTitle: SZL10n.string("menu.rename"))
             { [weak self] value in
                 guard let self,
                       let newName = value else { return }
@@ -4213,7 +4231,7 @@ extension FileManagerPaneController {
                     }
 
                     do {
-                        try await ArchiveOperationRunner.run(operationTitle: "Renaming...",
+                        try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("fileop.renaming"),
                                                              parentWindow: view.window,
                                                              deferredDisplay: true)
                         { session in
@@ -4238,9 +4256,9 @@ extension FileManagerPaneController {
 
         guard let window = view.window else { return }
         szBeginTextInput(on: window,
-                         title: "Rename",
+                         title: SZL10n.string("menu.rename"),
                          initialValue: item.name,
-                         confirmTitle: "Rename")
+                         confirmTitle: SZL10n.string("menu.rename"))
         { [weak self] value in
             guard let newName = value else { return }
             guard !newName.isEmpty, newName != item.name else { return }
@@ -4267,9 +4285,9 @@ extension FileManagerPaneController {
             let itemPaths = selectedItems.map(\.path)
             guard let window = view.window else { return }
             szBeginConfirmation(on: window,
-                                title: "Delete \(itemPaths.count) item(s) from archive?",
-                                message: "These items will be permanently removed from the archive.",
-                                confirmTitle: "Delete")
+                                title: SZL10n.string("app.fileManager.deleteFromArchiveTitle", itemPaths.count),
+                                message: SZL10n.string("app.fileManager.deleteFromArchiveMessage"),
+                                confirmTitle: SZL10n.string("toolbar.delete"))
             { [weak self] confirmed in
                 guard let self, confirmed else { return }
 
@@ -4281,7 +4299,7 @@ extension FileManagerPaneController {
                     }
 
                     do {
-                        try await ArchiveOperationRunner.run(operationTitle: "Deleting...",
+                        try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("progress.deleting"),
                                                              parentWindow: view.window,
                                                              deferredDisplay: true)
                         { session in
@@ -4304,9 +4322,9 @@ extension FileManagerPaneController {
 
         guard let window = view.window else { return }
         szBeginConfirmation(on: window,
-                            title: "Delete \(paths.count) item(s)?",
-                            message: "Items will be moved to Trash.",
-                            confirmTitle: "Move to Trash")
+                            title: SZL10n.string("app.fileManager.deleteItemsTitle", paths.count),
+                            message: SZL10n.string("app.fileManager.deleteItemsMessage"),
+                            confirmTitle: SZL10n.string("toolbar.delete"))
         { [weak self] confirmed in
             guard confirmed else { return }
             for path in paths {
@@ -4319,9 +4337,9 @@ extension FileManagerPaneController {
     @objc private func createFolderFromMenu(_: Any?) {
         guard let window = view.window else { return }
         szBeginTextInput(on: window,
-                         title: "Create Folder",
-                         placeholder: "New Folder",
-                         confirmTitle: "Create")
+                         title: SZL10n.string("create.folder"),
+                         placeholder: SZL10n.string("create.newFolder"),
+                         confirmTitle: SZL10n.string("create.folder"))
         { [weak self] value in
             guard let name = value, !name.isEmpty else { return }
             self?.createFolder(named: name)

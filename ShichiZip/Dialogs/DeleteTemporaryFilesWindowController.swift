@@ -13,15 +13,15 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         var title: String {
             switch self {
             case .name:
-                "Name"
+                SZL10n.string("column.name")
             case .modified:
-                "Modified"
+                SZL10n.string("column.modified")
             case .size:
-                "Size"
+                SZL10n.string("column.size")
             case .files:
-                "Files"
+                SZL10n.string("column.files")
             case .folders:
-                "Folders"
+                SZL10n.string("column.folders")
             case .item:
                 "Item"
             }
@@ -112,7 +112,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered,
                               defer: false)
-        window.title = "Delete Temporary Files"
+        window.title = SZL10n.string("app.deleteTempFiles.title")
         window.minSize = NSSize(width: 700, height: 380)
         window.center()
 
@@ -152,9 +152,9 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         controlsRow.alignment = .centerY
         controlsRow.spacing = 8
 
-        deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteSelection(_:)))
-        refreshButton = NSButton(title: "Refresh", target: self, action: #selector(refreshContents(_:)))
-        parentButton = NSButton(title: "Up", target: self, action: #selector(openParentFolder(_:)))
+        deleteButton = NSButton(title: SZL10n.string("toolbar.delete"), target: self, action: #selector(deleteSelection(_:)))
+        refreshButton = NSButton(title: SZL10n.string("view.refresh"), target: self, action: #selector(refreshContents(_:)))
+        parentButton = NSButton(title: SZL10n.string("view.upOneLevel"), target: self, action: #selector(openParentFolder(_:)))
 
         deleteButton.setAccessibilityIdentifier("deleteTempFiles.deleteButton")
         refreshButton.setAccessibilityIdentifier("deleteTempFiles.refreshButton")
@@ -171,7 +171,7 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         pathRow.alignment = .centerY
         pathRow.spacing = 8
 
-        let pathLabel = NSTextField(labelWithString: "Folder:")
+        let pathLabel = NSTextField(labelWithString: SZL10n.string("app.deleteTempFiles.folder"))
         pathLabel.font = .systemFont(ofSize: 12, weight: .medium)
         pathRow.addArrangedSubview(pathLabel)
 
@@ -245,11 +245,11 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         pathField.stringValue = currentDirectory.path
 
         if isLoading {
-            statusLabel.stringValue = "Loading temporary files…"
+            statusLabel.stringValue = SZL10n.string("app.deleteTempFiles.loading")
         } else if isDeleting {
-            statusLabel.stringValue = "Deleting selected items…"
+            statusLabel.stringValue = SZL10n.string("app.deleteTempFiles.deleting")
         } else {
-            let itemLabel = items.count == 1 ? "item" : "items"
+            let itemLabel = items.count == 1 ? SZL10n.string("app.deleteTempFiles.item") : SZL10n.string("app.deleteTempFiles.items")
             statusLabel.stringValue = "\(items.count) \(itemLabel)"
         }
     }
@@ -529,18 +529,18 @@ final class DeleteTemporaryFilesWindowController: NSWindowController, NSWindowDe
         let message: String
         if selectedItems.count == 1, let item = selectedItems.first {
             message = item.isDirectory
-                ? "Delete \"\(item.name)\" and all of its contents?"
-                : "Delete \"\(item.name)\"?"
+                ? SZL10n.string("app.deleteTempFiles.deleteContents", item.name)
+                : SZL10n.string("app.deleteTempFiles.deleteFile", item.name)
         } else {
             let preview = selectedItems.prefix(5).map(\.name).joined(separator: "\n")
             let suffix = selectedItems.count > 5 ? "\n…" : ""
-            message = "Delete \(selectedItems.count) selected items?\n\n\(preview)\(suffix)"
+            message = SZL10n.string("app.deleteTempFiles.deleteMultiple", selectedItems.count) + "\n\n\(preview)\(suffix)"
         }
 
         szBeginConfirmation(on: window,
-                            title: "Delete Temporary Files",
+                            title: SZL10n.string("app.deleteTempFiles.title"),
                             message: message,
-                            confirmTitle: "Delete",
+                            confirmTitle: SZL10n.string("toolbar.delete"),
                             style: .warning)
         { [weak self] confirmed in
             guard confirmed else { return }

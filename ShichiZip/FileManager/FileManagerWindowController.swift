@@ -9,8 +9,8 @@ func szPresentTransferAncestryConflict(_ conflict: FileManagerTransferPathValida
     let action = move ? "move" : "copy"
 
     if !conflict.sourceIsDirectory {
-        szPresentMessage(title: "Cannot \(action) files onto itself",
-                         message: "Choose a different destination folder.",
+        szPresentMessage(title: SZL10n.string("app.fileManager.cannotActionOntoItself", action),
+                         message: SZL10n.string("app.fileManager.chooseDifferentDestination"),
                          style: .warning,
                          for: window)
         return
@@ -20,11 +20,11 @@ func szPresentTransferAncestryConflict(_ conflict: FileManagerTransferPathValida
         ? conflict.sourceURL.path
         : conflict.sourceURL.lastPathComponent
     let title = conflict.kind == .sameDestination
-        ? "Cannot \(action) a folder into itself"
-        : "Cannot \(action) a folder into its descendant"
+        ? SZL10n.string("app.fileManager.cannotActionIntoSelf", action)
+        : SZL10n.string("app.fileManager.cannotActionIntoDescendant", action)
 
     szPresentMessage(title: title,
-                     message: "Choose a destination outside \"\(sourceFolderName)\".",
+                     message: SZL10n.string("app.fileManager.chooseOutside", sourceFolderName),
                      style: .warning,
                      for: window)
 }
@@ -33,8 +33,8 @@ func szPresentTransferArchiveSelfConflict(move: Bool,
                                           for window: NSWindow?)
 {
     let action = move ? "move" : "copy"
-    szPresentMessage(title: "Cannot \(action) an archive into itself",
-                     message: "Choose a different destination archive.",
+    szPresentMessage(title: SZL10n.string("app.fileManager.cannotActionArchiveIntoSelf", action),
+                     message: SZL10n.string("app.fileManager.chooseDifferentArchive"),
                      style: .warning,
                      for: window)
 }
@@ -84,8 +84,8 @@ private final class FileOperationDestinationPicker: NSObject {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
-        panel.prompt = "Choose"
-        panel.message = "Choose destination folder:"
+        panel.prompt = SZL10n.string("app.choose")
+        panel.message = SZL10n.string("app.chooseDestination")
         panel.directoryURL = suggestedDirectoryURL()
 
         if let ownerWindow {
@@ -1015,8 +1015,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             openPanel.canChooseDirectories = true
             openPanel.allowsMultipleSelection = true
             openPanel.resolvesAliases = true
-            openPanel.prompt = "Add"
-            openPanel.message = "Select files or folders to add to the archive."
+            openPanel.prompt = SZL10n.string("toolbar.add")
+            openPanel.message = SZL10n.string("app.fileManager.selectFilesToAdd")
             openPanel.directoryURL = suggestedArchiveAddSourceDirectory(for: activePane)
 
             let handleSelection = { [weak self] in
@@ -1050,7 +1050,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         Task { @MainActor [weak self] in
             guard let self, let parentWindow = window else { return }
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
+                try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.compressing"),
                                                      parentWindow: parentWindow)
                 { session in
                     try SZArchive.create(atPath: result.archiveURL.path,
@@ -1086,19 +1086,19 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                                                                     preserveNtSecurityInfo: extractResult.preserveNtSecurityInfo,
                                                                     eliminateDuplicates: extractResult.eliminateDuplicates,
                                                                     inheritDownloadedFileQuarantine: extractResult.inheritDownloadedFileQuarantine)
-                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.extracting"),
                                                          parentWindow: parentWindow)
                     { session in
                         try FileManagerPaneController.performPreparedExtraction(prepared, session: session)
                     }
                 } else {
-                    try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.extracting"),
                                                          parentWindow: parentWindow)
                     { session in
                         guard let archiveURL = archiveCandidateURL else {
                             throw NSError(domain: SZArchiveErrorDomain,
                                           code: -1,
-                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to extract."])
+                                          userInfo: [NSLocalizedDescriptionKey: SZL10n.string("app.fileManager.selectArchiveToExtract")])
                         }
                         let archive = SZArchive()
                         try archive.open(atPath: archiveURL.path,
@@ -1168,19 +1168,19 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             do {
                 if isVirtualLocation {
                     let archive = try activePane.currentArchiveForTest()
-                    try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("progress.testing"),
                                                          parentWindow: parentWindow)
                     { session in
                         try archive.test(with: session)
                     }
                 } else {
-                    try await ArchiveOperationRunner.run(operationTitle: "Testing archive...",
+                    try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("progress.testing"),
                                                          parentWindow: parentWindow)
                     { session in
                         guard let archiveURL = archiveCandidateURL else {
                             throw NSError(domain: SZArchiveErrorDomain,
                                           code: -1,
-                                          userInfo: [NSLocalizedDescriptionKey: "Select an archive to test."])
+                                          userInfo: [NSLocalizedDescriptionKey: SZL10n.string("app.fileManager.selectArchiveToTest")])
                         }
                         let archive = SZArchive()
                         try archive.open(atPath: archiveURL.path, session: session)
@@ -1188,8 +1188,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
                         archive.close()
                     }
                 }
-                szPresentMessage(title: "Test OK",
-                                 message: "No errors found.",
+                szPresentMessage(title: SZL10n.string("app.fileManager.testOK"),
+                                 message: SZL10n.string("app.fileManager.noErrorsFound"),
                                  for: window)
             } catch {
                 showErrorAlert(error)
@@ -1579,10 +1579,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
         guard let window else { return }
         szBeginTextInput(on: window,
-                         title: "Create Folder",
-                         message: "Enter folder name.",
-                         placeholder: "New Folder",
-                         confirmTitle: "Create")
+                         title: SZL10n.string("create.folder"),
+                         message: SZL10n.string("app.fileManager.enterFolderName"),
+                         placeholder: SZL10n.string("create.newFolder"),
+                         confirmTitle: SZL10n.string("create.folder"))
         { [weak self] value in
             guard let name = value, !name.isEmpty else { return }
             self?.activePane.createFolder(named: name)
@@ -1597,10 +1597,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
 
         guard let window else { return }
         szBeginTextInput(on: window,
-                         title: "Create File",
-                         message: "Enter file name.",
+                         title: SZL10n.string("create.file"),
+                         message: SZL10n.string("app.fileManager.enterFileName"),
                          placeholder: "New File.txt",
-                         confirmTitle: "Create")
+                         confirmTitle: SZL10n.string("create.folder"))
         { [weak self] value in
             guard let name = value, !name.isEmpty else { return }
             self?.activePane.createFile(named: name)
@@ -1622,7 +1622,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let hashValues = try await ArchiveOperationRunner.run(operationTitle: "Calculating checksum...",
+                let hashValues = try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.fileManager.calculatingChecksum"),
                                                                       initialFileName: itemPath,
                                                                       parentWindow: window,
                                                                       deferredDisplay: true)
@@ -1858,9 +1858,9 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private func promptForFileOperationDestination(forMove move: Bool,
                                                    sourcePane: FileManagerPaneController) -> FileOperationDestinationTarget?
     {
-        let title = move ? "Move" : "Copy"
-        let actionTitle = move ? "Move" : "Copy"
-        let labelTitle = move ? "Move to:" : "Copy to:"
+        let title = move ? SZL10n.string("toolbar.move") : SZL10n.string("toolbar.copy")
+        let actionTitle = move ? SZL10n.string("toolbar.move") : SZL10n.string("toolbar.copy")
+        let labelTitle = move ? SZL10n.string("fileop.moveTo") : SZL10n.string("fileop.copyTo")
         let historyEntries = FileOperationDestinationHistory.entries()
         let defaultPath = suggestedDestinationPath(for: sourcePane)
         let infoText = fileOperationInfoText(for: sourcePane)
@@ -1875,7 +1875,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
             pathField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-            let browseButton = NSButton(title: "Browse…", target: nil, action: nil)
+            let browseButton = NSButton(title: SZL10n.string("app.browse"), target: nil, action: nil)
             browseButton.bezelStyle = .rounded
             browseButton.setContentHuggingPriority(.required, for: .horizontal)
             browseButton.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -1900,7 +1900,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
             let controller = SZModalDialogController(style: .informational,
                                                      title: title,
                                                      message: infoText,
-                                                     buttonTitles: ["Cancel", actionTitle],
+                                                     buttonTitles: [SZL10n.string("common.cancel"), actionTitle],
                                                      accessoryView: stack,
                                                      preferredFirstResponder: pathField,
                                                      cancelButtonIndex: 0)
@@ -2248,7 +2248,7 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func showUnsupportedOperationAlert(_ message: String) {
-        szPresentMessage(title: "Operation Not Available",
+        szPresentMessage(title: SZL10n.string("app.fileManager.operationNotAvailable"),
                          message: message,
                          for: window)
     }

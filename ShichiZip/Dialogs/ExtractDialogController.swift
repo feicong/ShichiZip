@@ -146,8 +146,8 @@ final class ExtractDialogController: NSObject {
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
             panel.canCreateDirectories = true
-            panel.prompt = "Choose"
-            panel.message = "Choose destination folder:"
+            panel.prompt = SZL10n.string("app.choose")
+            panel.message = SZL10n.string("app.chooseDestination")
             panel.directoryURL = suggestedDirectoryURL()
 
             if let ownerWindow {
@@ -255,7 +255,7 @@ final class ExtractDialogController: NSObject {
             pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
             pathField.setAccessibilityIdentifier("extract.destinationPath")
 
-            let browseButton = NSButton(title: "Browse...", target: nil, action: nil)
+            let browseButton = NSButton(title: SZL10n.string("app.browse"), target: nil, action: nil)
             browseButton.bezelStyle = .rounded
             browseButton.setContentHuggingPriority(.required, for: .horizontal)
             browseButton.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -287,8 +287,8 @@ final class ExtractDialogController: NSObject {
                                                     target: self,
                                                     action: #selector(splitDestinationToggled(_:)))
             splitDestinationCheckbox.state = splitDestination ? .on : .off
-            splitDestinationCheckbox.toolTip = "Create a separate destination folder"
-            splitDestinationCheckbox.setAccessibilityLabel("Create a separate destination folder")
+            splitDestinationCheckbox.toolTip = SZL10n.string("app.extract.createSeparateFolder")
+            splitDestinationCheckbox.setAccessibilityLabel(SZL10n.string("app.extract.createSeparateFolder"))
             splitDestinationCheckbox.setAccessibilityIdentifier("extract.splitDestination")
 
             let splitNameField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
@@ -304,13 +304,13 @@ final class ExtractDialogController: NSObject {
             splitRow.distribution = .fill
 
             let securePasswordField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-            securePasswordField.placeholderString = "Optional"
+            securePasswordField.placeholderString = SZL10n.string("app.optional")
             securePasswordField.stringValue = enteredPassword
             securePasswordField.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
             securePasswordField.setAccessibilityIdentifier("extract.password")
 
             let plainPasswordField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-            plainPasswordField.placeholderString = "Optional"
+            plainPasswordField.placeholderString = SZL10n.string("app.optional")
             plainPasswordField.stringValue = enteredPassword
             plainPasswordField.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
             plainPasswordField.setAccessibilityIdentifier("extract.passwordPlain")
@@ -334,25 +334,25 @@ final class ExtractDialogController: NSObject {
                 plainPasswordField.bottomAnchor.constraint(equalTo: passwordContainer.bottomAnchor),
             ])
 
-            let showPasswordCheckbox = NSButton(checkboxWithTitle: "Show password",
+            let showPasswordCheckbox = NSButton(checkboxWithTitle: SZL10n.string("password.showPassword"),
                                                 target: self,
                                                 action: #selector(showPasswordToggled(_:)))
             showPasswordCheckbox.state = showPassword ? .on : .off
             showPasswordCheckbox.setAccessibilityIdentifier("extract.showPassword")
 
-            let ntSecurityCheckbox = NSButton(checkboxWithTitle: "NT security information",
+            let ntSecurityCheckbox = NSButton(checkboxWithTitle: SZL10n.string("extract.restoreSecurity"),
                                               target: nil,
                                               action: nil)
             ntSecurityCheckbox.state = preserveNtSecurityInfo ? .on : .off
             ntSecurityCheckbox.setAccessibilityIdentifier("extract.ntSecurity")
 
-            let eliminateDuplicatesCheckbox = NSButton(checkboxWithTitle: "Eliminate duplicate root folder",
+            let eliminateDuplicatesCheckbox = NSButton(checkboxWithTitle: SZL10n.string("extract.eliminateDuplication"),
                                                        target: nil,
                                                        action: nil)
             eliminateDuplicatesCheckbox.state = eliminateDuplicates ? .on : .off
             eliminateDuplicatesCheckbox.setAccessibilityIdentifier("extract.eliminateDuplicates")
 
-            let moveArchiveToTrashCheckbox = NSButton(checkboxWithTitle: "Move compressed file to Trash after extraction",
+            let moveArchiveToTrashCheckbox = NSButton(checkboxWithTitle: SZL10n.string("app.extract.moveToTrash"),
                                                       target: nil,
                                                       action: nil)
             moveArchiveToTrashCheckbox.state = moveArchiveToTrashAfterExtraction ? .on : .off
@@ -360,7 +360,7 @@ final class ExtractDialogController: NSObject {
             moveArchiveToTrashCheckbox.alphaValue = sourceArchiveAvailableForMoveToTrash ? 1.0 : 0.55
             moveArchiveToTrashCheckbox.setAccessibilityIdentifier("extract.moveToTrash")
 
-            let inheritDownloadedFileQuarantineCheckbox = NSButton(checkboxWithTitle: "Inherit quarantine from downloaded file (if applicable)",
+            let inheritDownloadedFileQuarantineCheckbox = NSButton(checkboxWithTitle: SZL10n.string("app.extract.inheritQuarantine"),
                                                                    target: nil,
                                                                    action: nil)
             inheritDownloadedFileQuarantineCheckbox.state = inheritDownloadedFileQuarantine ? .on : .off
@@ -380,9 +380,9 @@ final class ExtractDialogController: NSObject {
                                                   eliminateDuplicatesCheckbox: eliminateDuplicatesCheckbox)
 
             let controller = SZModalDialogController(style: .informational,
-                                                     title: "Extract",
+                                                     title: SZL10n.string("extract.title"),
                                                      message: messageText,
-                                                     buttonTitles: ["Cancel", "Extract"],
+                                                     buttonTitles: [SZL10n.string("common.cancel"), SZL10n.string("extract.title")],
                                                      accessoryView: accessoryView,
                                                      preferredFirstResponder: pathField,
                                                      cancelButtonIndex: 0)
@@ -465,21 +465,21 @@ final class ExtractDialogController: NSObject {
     private func makePathModeOptions() -> [ModeOption<SZPathMode>] {
         var options: [ModeOption<SZPathMode>] = []
         if showsCurrentPathsOption {
-            options.append(ModeOption(title: "Current Paths", value: .currentPaths))
+            options.append(ModeOption(title: SZL10n.string("app.extract.currentPaths"), value: .currentPaths))
         }
-        options.append(ModeOption(title: "Full Paths", value: .fullPaths))
-        options.append(ModeOption(title: "No Paths", value: .noPaths))
-        options.append(ModeOption(title: "Absolute Paths", value: .absolutePaths))
+        options.append(ModeOption(title: SZL10n.string("extract.fullPathnames"), value: .fullPaths))
+        options.append(ModeOption(title: SZL10n.string("extract.noPathnames"), value: .noPaths))
+        options.append(ModeOption(title: SZL10n.string("extract.absolutePathnames"), value: .absolutePaths))
         return options
     }
 
     private func makeOverwriteModeOptions() -> [ModeOption<SZOverwriteMode>] {
         [
-            ModeOption(title: "Ask", value: .ask),
-            ModeOption(title: "Overwrite", value: .overwrite),
-            ModeOption(title: "Skip Existing", value: .skip),
-            ModeOption(title: "Rename", value: .rename),
-            ModeOption(title: "Rename Existing", value: .renameExisting),
+            ModeOption(title: SZL10n.string("extract.askBeforeOverwrite"), value: .ask),
+            ModeOption(title: SZL10n.string("extract.overwriteWithoutPrompt"), value: .overwrite),
+            ModeOption(title: SZL10n.string("extract.skipExisting"), value: .skip),
+            ModeOption(title: SZL10n.string("extract.autoRename"), value: .rename),
+            ModeOption(title: SZL10n.string("extract.autoRenameExisting"), value: .renameExisting),
         ]
     }
 
@@ -495,11 +495,11 @@ final class ExtractDialogController: NSObject {
                                    eliminateDuplicatesCheckbox: NSButton) -> NSView
     {
         let formStack = NSStackView(views: [
-            makeFormRow(label: "Extract to:", control: pathRow),
-            makeFormRow(label: "Separate folder:", control: splitRow),
-            makeFormRow(label: "Path mode:", control: pathModePopup),
-            makeFormRow(label: "Overwrite mode:", control: overwriteModePopup),
-            makeFormRow(label: "Password:", control: passwordContainer),
+            makeFormRow(label: SZL10n.string("extract.extractTo"), control: pathRow),
+            makeFormRow(label: SZL10n.string("app.extract.separateFolder"), control: splitRow),
+            makeFormRow(label: SZL10n.string("extract.pathMode"), control: pathModePopup),
+            makeFormRow(label: SZL10n.string("extract.overwriteMode"), control: overwriteModePopup),
+            makeFormRow(label: SZL10n.string("password.password") + ":", control: passwordContainer),
         ])
         formStack.orientation = .vertical
         formStack.alignment = .leading
@@ -513,7 +513,7 @@ final class ExtractDialogController: NSObject {
         passwordOptionsRow.views.first?.widthAnchor.constraint(equalToConstant: 128).isActive = true
         formStack.addArrangedSubview(passwordOptionsRow)
 
-        let optionsLabel = NSTextField(labelWithString: "Options")
+        let optionsLabel = NSTextField(labelWithString: SZL10n.string("compress.options"))
         optionsLabel.font = .systemFont(ofSize: 12, weight: .semibold)
 
         let optionsStack = NSStackView(views: [

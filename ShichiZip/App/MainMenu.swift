@@ -202,22 +202,22 @@ enum FileManagerShortcutPreset: Int, CaseIterable {
     var displayName: String {
         switch self {
         case .finder:
-            "Finder-like"
+            SZL10n.string("app.settings.finderLike")
         case .commander:
-            "Commander-like"
+            SZL10n.string("app.settings.commanderLike")
         case .custom:
-            "Custom"
+            SZL10n.string("app.settings.custom")
         }
     }
 
     var descriptionText: String {
         switch self {
         case .finder:
-            "Uses macOS-style file manager shortcuts, including Return to rename and Command+Arrow navigation."
+            SZL10n.string("app.settings.finderLikeDescription")
         case .commander:
-            "Uses the classic 7-Zip function-key workflow for file operations and pane management."
+            SZL10n.string("app.settings.commanderLikeDescription")
         case .custom:
-            "Uses your saved per-command file manager shortcuts."
+            SZL10n.string("app.settings.customDescription")
         }
     }
 }
@@ -238,27 +238,27 @@ enum FileManagerShortcutCommand: String, CaseIterable {
     var title: String {
         switch self {
         case .openSelectedItem:
-            "Open selected item"
+            SZL10n.string("app.shortcut.openSelectedItem")
         case .toggleQuickLook:
-            "Quick Look"
+            SZL10n.string("app.shortcut.quickLook")
         case .goUpOneLevel:
-            "Up one level"
+            SZL10n.string("app.shortcut.upOneLevel")
         case .renameSelection:
-            "Rename"
+            SZL10n.string("app.shortcut.rename")
         case .switchPanes:
-            "Switch panes"
+            SZL10n.string("app.shortcut.switchPanes")
         case .copyFiles:
-            "Copy To"
+            SZL10n.string("app.shortcut.copyTo")
         case .moveFiles:
-            "Move To"
+            SZL10n.string("app.shortcut.moveTo")
         case .createFolder:
-            "Create folder"
+            SZL10n.string("app.shortcut.createFolder")
         case .deleteFiles:
-            "Delete"
+            SZL10n.string("app.shortcut.delete")
         case .toggleDualPane:
-            "Toggle dual pane"
+            SZL10n.string("app.shortcut.toggleDualPane")
         case .refreshActivePane:
-            "Refresh"
+            SZL10n.string("app.shortcut.refresh")
         }
     }
 }

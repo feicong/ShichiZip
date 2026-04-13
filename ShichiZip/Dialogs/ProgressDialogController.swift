@@ -19,7 +19,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     private var lastMetricsUpdateTime: TimeInterval = 0
     var showRequestHandler: (() -> Void)?
 
-    var operationTitle: String = "Working..." {
+    var operationTitle: String = SZL10n.string("app.progress.working") {
         didSet {
             DispatchQueue.main.async { [weak self] in
                 self?.operationLabel?.stringValue = self?.operationTitle ?? ""
@@ -91,7 +91,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         elapsedLabel.setAccessibilityIdentifier("progress.elapsed")
         contentView.addSubview(elapsedLabel)
 
-        cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked(_:)))
+        cancelButton = NSButton(title: SZL10n.string("common.cancel"), target: self, action: #selector(cancelClicked(_:)))
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.keyEquivalent = "\u{1b}" // Escape
         cancelButton.setAccessibilityIdentifier("progress.cancelButton")
@@ -133,7 +133,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             lastMetricsUpdateTime = 0
             cancelled = false
             cancelButton.isEnabled = true
-            cancelButton.title = "Cancel"
+            cancelButton.title = SZL10n.string("common.cancel")
             progressBar.stopAnimation(nil)
             progressBar.isIndeterminate = false
             progressBar.doubleValue = 0
@@ -196,7 +196,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     @objc private func cancelClicked(_: Any?) {
         cancelled = true
         cancelButton.isEnabled = false
-        cancelButton.title = "Cancelling..."
+        cancelButton.title = SZL10n.string("app.progress.cancelling")
     }
 
     // MARK: - SZProgressDelegate (matches ProgressDialog2.cpp)
@@ -237,15 +237,15 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
             if elapsed > Self.metricsUpdateInterval {
                 let speed = Double(completed) / elapsed
                 let speedStr = ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file)
-                speedLabel.stringValue = "Speed: \(speedStr)/s"
+                speedLabel.stringValue = SZL10n.string("progress.speed") + " \(speedStr)/s"
 
                 let elapsedStr = formatDuration(elapsed)
                 if total > 0, completed > 0 {
                     let remaining = elapsed * Double(total - completed) / Double(completed)
                     let remainStr = formatDuration(remaining)
-                    elapsedLabel.stringValue = "Elapsed: \(elapsedStr)  Remaining: \(remainStr)"
+                    elapsedLabel.stringValue = SZL10n.string("progress.elapsedTime") + " \(elapsedStr)  " + SZL10n.string("progress.remainingTime") + " \(remainStr)"
                 } else {
-                    elapsedLabel.stringValue = "Elapsed: \(elapsedStr)"
+                    elapsedLabel.stringValue = SZL10n.string("progress.elapsedTime") + " \(elapsedStr)"
                 }
             }
         }
@@ -276,7 +276,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     @objc func progressResetCancellationRequest() {
         cancelled = false
         cancelButton.isEnabled = false
-        cancelButton.title = "Finalizing..."
+        cancelButton.title = SZL10n.string("app.progress.finalizing")
     }
 
     @objc func progressDidUpdateSpeed(_: Double) {

@@ -129,8 +129,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.prompt = "Open"
-        panel.message = "Choose archive files to open in \(AppBuildInfo.appDisplayName())"
+        panel.prompt = SZL10n.string("menu.open")
+        panel.message = SZL10n.string("app.panel.chooseArchives", AppBuildInfo.appDisplayName())
 
         panel.begin { [weak self] response in
             guard response == .OK else { return }
@@ -188,8 +188,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
-        panel.prompt = "Add"
-        panel.message = "Select files and folders to compress"
+        panel.prompt = SZL10n.string("toolbar.add")
+        panel.message = SZL10n.string("app.panel.selectFilesToCompress")
 
         guard panel.runModal() == .OK else { return }
 
@@ -202,7 +202,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task { @MainActor in
             do {
-                try await ArchiveOperationRunner.run(operationTitle: "Compressing...",
+                try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.compressing"),
                                                      parentWindow: parentWindow)
                 { session in
                     try SZArchive.create(atPath: result.archiveURL.path,
@@ -244,7 +244,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let summary = AppBuildInfo.aboutSummary()
         let parentWindow = NSApp.keyWindow ?? NSApp.mainWindow
 
-        szShowDetailsDialog(title: "About \(appName)",
+        szShowDetailsDialog(title: SZL10n.string("app.menu.about", appName),
                             summary: summary,
                             details: details,
                             detailsHeight: 320,
@@ -337,7 +337,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
 
             do {
-                let plan = try await ArchiveOperationRunner.run(operationTitle: "Extracting...",
+                let plan = try await ArchiveOperationRunner.run(operationTitle: SZL10n.string("app.progress.extracting"),
                                                                 initialFileName: archiveURL.lastPathComponent,
                                                                 parentWindow: parentWindow,
                                                                 deferredDisplay: false)

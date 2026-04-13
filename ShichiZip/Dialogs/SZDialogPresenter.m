@@ -1,6 +1,7 @@
 #import "SZDialogPresenter.h"
 
 #import "../Bridge/SZArchive.h"
+#import "../Bridge/SZBridgeCommon.h"
 
 static NSString* const SZShowPasswordPreferenceKey = @"SZShowPasswordInPrompts";
 
@@ -52,18 +53,18 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 
         _secureField = [[NSSecureTextField alloc] initWithFrame:NSZeroRect];
         _secureField.translatesAutoresizingMaskIntoConstraints = NO;
-        _secureField.placeholderString = @"Password";
+        _secureField.placeholderString = SZLocalizedString(@"password.password");
         _secureField.stringValue = password;
         _secureField.accessibilityIdentifier = @"passwordPrompt.password";
 
         _plainField = [[NSTextField alloc] initWithFrame:NSZeroRect];
         _plainField.translatesAutoresizingMaskIntoConstraints = NO;
-        _plainField.placeholderString = @"Password";
+        _plainField.placeholderString = SZLocalizedString(@"password.password");
         _plainField.stringValue = password;
         _plainField.hidden = YES;
         _plainField.accessibilityIdentifier = @"passwordPrompt.passwordPlain";
 
-        _showPasswordButton = [NSButton checkboxWithTitle:@"Show password" target:self action:@selector(togglePasswordVisibility:)];
+        _showPasswordButton = [NSButton checkboxWithTitle:SZLocalizedString(@"password.showPassword") target:self action:@selector(togglePasswordVisibility:)];
         _showPasswordButton.translatesAutoresizingMaskIntoConstraints = NO;
         _showPasswordButton.state = [[NSUserDefaults standardUserDefaults] boolForKey:SZShowPasswordPreferenceKey] ? NSControlStateValueOn : NSControlStateValueOff;
         _showPasswordButton.accessibilityIdentifier = @"passwordPrompt.showPassword";
@@ -257,8 +258,8 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     actionLabel.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
     [stack addArrangedSubview:actionLabel];
 
-    _allowButton = [self radioButtonWithTitle:@"Allow archive unpacking" action:@selector(selectActionButton:)];
-    _skipButton = [self radioButtonWithTitle:@"Skip archive unpacking" action:@selector(selectActionButton:)];
+    _allowButton = [self radioButtonWithTitle:SZLocalizedString(@"memory.allowUnpacking") action:@selector(selectActionButton:)];
+    _skipButton = [self radioButtonWithTitle:SZLocalizedString(@"memory.skipUnpacking") action:@selector(selectActionButton:)];
     _allowButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOff : NSControlStateValueOn;
     _skipButton.state = self.installedRAMIsInsufficient ? NSControlStateValueOn : NSControlStateValueOff;
     _allowButton.accessibilityIdentifier = @"memoryLimit.allowButton";
@@ -365,7 +366,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
 }
 
 + (void)presentError:(NSError*)error forWindow:(NSWindow*)window {
-    NSString* title = error.localizedDescription.length > 0 ? error.localizedDescription : @"Operation Failed";
+    NSString* title = error.localizedDescription.length > 0 ? error.localizedDescription : SZLocalizedString(@"common.ok");
     NSString* message = [self errorDetailsForError:error];
     SZDialogStyle style = SZDialogStyleCritical;
     BOOL useDedicatedPopup = NO;
@@ -377,7 +378,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:style
                                                                                    title:title
                                                                                  message:message
-                                                                            buttonTitles:@[ @"OK" ]
+                                                                            buttonTitles:@[ SZLocalizedString(@"common.ok") ]
                                                                            accessoryView:nil
                                                                  preferredFirstResponder:nil
                                                                        cancelButtonIndex:0];
@@ -437,7 +438,7 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:SZDialogStyleWarning
                                                                                    title:title
                                                                                  message:message
-                                                                            buttonTitles:@[ @"Cancel", @"OK" ]
+                                                                            buttonTitles:@[ SZLocalizedString(@"common.cancel"), SZLocalizedString(@"common.ok") ]
                                                                            accessoryView:accessoryController.view
                                                                  preferredFirstResponder:accessoryController.preferredFirstResponderView
                                                                        cancelButtonIndex:0];
@@ -475,9 +476,9 @@ static uint32_t SZDialogRoundUpByteCountToGB(uint64_t byteCount) {
     }
 
     SZModalDialogController* controller = [[SZModalDialogController alloc] initWithStyle:(accessoryController.installedRAMIsInsufficient ? SZDialogStyleCritical : SZDialogStyleWarning)
-                                                                                   title:@"Memory Usage Limit Exceeded"
+                                                                                   title:SZLocalizedString(@"memory.usageRequest")
                                                                                  message:message
-                                                                            buttonTitles:@[ @"Cancel", @"Continue" ]
+                                                                            buttonTitles:@[ SZLocalizedString(@"common.cancel"), SZLocalizedString(@"common.continue") ]
                                                                            accessoryView:accessoryController.view
                                                                  preferredFirstResponder:accessoryController.preferredFirstResponderView
                                                                        cancelButtonIndex:0];

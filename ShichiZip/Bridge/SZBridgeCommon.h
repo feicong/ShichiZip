@@ -103,6 +103,35 @@ static inline NSError* SZMakeDetailedError(NSInteger code, NSString* desc, NSStr
                            }];
 }
 
+/// Look up a localized string: checks App.strings first, then Upstream.strings.
+/// Mirrors the SZL10n.string() Swift API for use in Objective-C bridge code.
+static inline NSString* SZLocalizedString(NSString* key) {
+    // Check override bundle from language preference
+    NSString* override = [[NSUserDefaults standardUserDefaults] stringForKey:@"LanguageOverride"];
+    NSBundle* bundle = [NSBundle mainBundle];
+    if (override.length > 0) {
+        NSString* lpath = [bundle pathForResource:override ofType:@"lproj"];
+        if (lpath) {
+            NSBundle* overrideBundle = [NSBundle bundleWithPath:lpath];
+            if (overrideBundle) bundle = overrideBundle;
+        }
+    }
+    // App table first
+    NSString* appValue = [bundle localizedStringForKey:key value:nil table:@"App"];
+    if (![appValue isEqualToString:key]) return appValue;
+    // Upstream table
+    NSString* upstreamValue = [bundle localizedStringForKey:key value:nil table:@"Upstream"];
+    if (![upstreamValue isEqualToString:key]) return upstreamValue;
+    // Fallback to main bundle if override was active
+    if (bundle != [NSBundle mainBundle]) {
+        appValue = [[NSBundle mainBundle] localizedStringForKey:key value:nil table:@"App"];
+        if (![appValue isEqualToString:key]) return appValue;
+        upstreamValue = [[NSBundle mainBundle] localizedStringForKey:key value:nil table:@"Upstream"];
+        if (![upstreamValue isEqualToString:key]) return upstreamValue;
+    }
+    return key;
+}
+
 static NSString* const SZSettingsDidChangeNotificationName = @"SZSettingsDidChange";
 static NSString* const SZSettingsDidChangeKeyUserInfoKey = @"key";
 static NSString* const SZExtractionMemoryLimitEnabledPreferenceKey = @"MemLimitEnabled";

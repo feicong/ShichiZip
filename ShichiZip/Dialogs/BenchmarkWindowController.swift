@@ -57,7 +57,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false,
         )
-        window.title = "Benchmark"
+        window.title = SZL10n.string("benchmark.title")
         window.minSize = NSSize(width: 720, height: 500)
         window.center()
         self.init(window: window)
@@ -174,11 +174,11 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         memLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
         memLabel.setAccessibilityIdentifier("benchmark.memoryLabel")
 
-        restartBtn = NSButton(title: "Restart", target: self, action: #selector(restartClicked(_:)))
+        restartBtn = NSButton(title: SZL10n.string("common.restart"), target: self, action: #selector(restartClicked(_:)))
         restartBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
         restartBtn.setAccessibilityIdentifier("benchmark.restartButton")
 
-        stopBtn = NSButton(title: "Stop", target: self, action: #selector(stopClicked(_:)))
+        stopBtn = NSButton(title: SZL10n.string("common.stop"), target: self, action: #selector(stopClicked(_:)))
         stopBtn.isEnabled = false
         stopBtn.widthAnchor.constraint(equalToConstant: 92).isActive = true
         stopBtn.setAccessibilityIdentifier("benchmark.stopButton")
@@ -194,16 +194,16 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         controlsColumn.orientation = .vertical
         controlsColumn.alignment = .leading
         controlsColumn.spacing = 8
-        controlsColumn.addArrangedSubview(controlRow(title: "Dictionary size", control: dictPopup))
-        controlsColumn.addArrangedSubview(controlRow(title: "CPU threads", control: threadsControl))
-        controlsColumn.addArrangedSubview(controlRow(title: "Passes", control: passesPopup))
+        controlsColumn.addArrangedSubview(controlRow(title: SZL10n.string("app.benchmark.dictionarySize"), control: dictPopup))
+        controlsColumn.addArrangedSubview(controlRow(title: SZL10n.string("app.benchmark.cpuThreads"), control: threadsControl))
+        controlsColumn.addArrangedSubview(controlRow(title: SZL10n.string("benchmark.passes"), control: passesPopup))
         controlsColumn.setContentHuggingPriority(.required, for: .horizontal)
 
         let memoryGroup = NSStackView()
         memoryGroup.orientation = .vertical
         memoryGroup.alignment = .leading
         memoryGroup.spacing = 3
-        memoryGroup.addArrangedSubview(secondaryLabel("Estimated memory"))
+        memoryGroup.addArrangedSubview(secondaryLabel(SZL10n.string("app.benchmark.estimatedMemory")))
         memoryGroup.addArrangedSubview(memLabel)
         memoryGroup.addArrangedSubview(secondaryLabel("Usable limit: \(Self.displayMegabytes(memoryLimitBytes)) MB"))
         memoryGroup.setContentHuggingPriority(.required, for: .horizontal)
@@ -249,7 +249,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         grid.rowSpacing = 3
         grid.column(at: 0).xPlacement = .leading
 
-        let headers = ["", "", "Size", "Speed", "CPU Usage", "Rating / Usage", "Rating"]
+        let headers = ["", "", SZL10n.string("column.size"), SZL10n.string("progress.speed"), SZL10n.string("benchmark.cpuUsage"), SZL10n.string("benchmark.ratingPerUsage"), SZL10n.string("benchmark.rating")]
         let headerRow = headers.map { title -> NSTextField in
             let view = NSTextField(labelWithString: title)
             view.font = .boldSystemFont(ofSize: 11)
@@ -263,19 +263,19 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
         cCurSize = metricField(); cCurSpeed = metricField(); cCurUsage = metricField(); cCurRpu = metricField(); cCurRating = metricField()
         cResSize = metricField(); cResSpeed = metricField(); cResUsage = metricField(); cResRpu = metricField(); cResRating = metricField()
-        let compressTitle = label("Compressing")
+        let compressTitle = label(SZL10n.string("benchmark.compressing"))
         compressTitle.font = .boldSystemFont(ofSize: 11)
-        grid.addRow(with: [compressTitle, label("Current"), cCurSize, cCurSpeed, cCurUsage, cCurRpu, cCurRating])
-        grid.addRow(with: [NSView(), label("Resulting"), cResSize, cResSpeed, cResUsage, cResRpu, cResRating])
+        grid.addRow(with: [compressTitle, label(SZL10n.string("benchmark.current")), cCurSize, cCurSpeed, cCurUsage, cCurRpu, cCurRating])
+        grid.addRow(with: [NSView(), label(SZL10n.string("benchmark.resulting")), cResSize, cResSpeed, cResUsage, cResRpu, cResRating])
 
         grid.addRow(with: (0 ..< 7).map { _ in NSView() })
 
         dCurSize = metricField(); dCurSpeed = metricField(); dCurUsage = metricField(); dCurRpu = metricField(); dCurRating = metricField()
         dResSize = metricField(); dResSpeed = metricField(); dResUsage = metricField(); dResRpu = metricField(); dResRating = metricField()
-        let decompressTitle = label("Decompressing")
+        let decompressTitle = label(SZL10n.string("benchmark.decompressing"))
         decompressTitle.font = .boldSystemFont(ofSize: 11)
-        grid.addRow(with: [decompressTitle, label("Current"), dCurSize, dCurSpeed, dCurUsage, dCurRpu, dCurRating])
-        grid.addRow(with: [NSView(), label("Resulting"), dResSize, dResSpeed, dResUsage, dResRpu, dResRating])
+        grid.addRow(with: [decompressTitle, label(SZL10n.string("benchmark.current")), dCurSize, dCurSpeed, dCurUsage, dCurRpu, dCurRating])
+        grid.addRow(with: [NSView(), label(SZL10n.string("benchmark.resulting")), dResSize, dResSpeed, dResUsage, dResRpu, dResRating])
 
         stack.addArrangedSubview(grid)
 
@@ -289,7 +289,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         totRating = metricField()
         let totalGrid = NSGridView(numberOfColumns: 7, rows: 0)
         totalGrid.columnSpacing = 10
-        let totalTitle = label("Total Rating")
+        let totalTitle = label(SZL10n.string("benchmark.totalRating"))
         totalTitle.font = .boldSystemFont(ofSize: 12)
         totalGrid.addRow(with: [totalTitle, NSView(), NSView(), NSView(), totUsage, totRpu, totRating])
         for index in 2 ... 6 {
@@ -309,13 +309,13 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         let elapsedRow = NSStackView()
         elapsedRow.spacing = 4
         elapsedL = metricField("0 s")
-        elapsedRow.addArrangedSubview(label("Elapsed time:"))
+        elapsedRow.addArrangedSubview(label(SZL10n.string("progress.elapsedTime")))
         elapsedRow.addArrangedSubview(elapsedL)
 
         let passesRow = NSStackView()
         passesRow.spacing = 4
         passesL = metricField("0 / 1")
-        passesRow.addArrangedSubview(label("Passes:"))
+        passesRow.addArrangedSubview(label(SZL10n.string("benchmark.passes")))
         passesRow.addArrangedSubview(passesL)
 
         statusRow.addArrangedSubview(elapsedRow)
@@ -343,7 +343,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         systemLabel.textColor = .secondaryLabelColor
         bottomRow.addArrangedSubview(systemLabel)
         bottomRow.addArrangedSubview(NSView())
-        let closeBtn = NSButton(title: "Close", target: self, action: #selector(closeClicked(_:)))
+        let closeBtn = NSButton(title: SZL10n.string("common.close"), target: self, action: #selector(closeClicked(_:)))
         closeBtn.keyEquivalent = "\u{1b}"
         bottomRow.addArrangedSubview(closeBtn)
         stack.addArrangedSubview(bottomRow)
@@ -515,7 +515,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
 
         if !success, let errorMessage, window?.isVisible == true {
             let alert = NSAlert()
-            alert.messageText = "Benchmark Error"
+            alert.messageText = SZL10n.string("app.benchmark.error")
             alert.informativeText = errorMessage
             alert.alertStyle = .warning
             if let window {
@@ -598,7 +598,7 @@ class BenchmarkWindowController: NSWindowController, NSWindowDelegate {
         stopBtn.isEnabled = false
 
         let alert = NSAlert()
-        alert.messageText = "Insufficient Memory"
+        alert.messageText = SZL10n.string("app.benchmark.insufficientMemory")
         alert.informativeText = "The selected benchmark settings require \(Self.displayMegabytes(required)) MB, but the usable RAM limit is \(Self.displayMegabytes(memoryLimitBytes)) MB out of \(Self.displayMegabytes(physicalMemoryBytes)) MB installed."
         alert.alertStyle = .warning
         if let window {
