@@ -14,7 +14,6 @@ jobs:
   macos-build:
     name: macOS Build (${{ matrix.artifact_prefix }}, ${{ matrix.target_arch }})
     runs-on: macos-26
-    timeout-minutes: 45
     environment: development
     strategy:
       fail-fast: false
