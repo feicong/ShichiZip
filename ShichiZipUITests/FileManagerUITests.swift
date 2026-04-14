@@ -67,4 +67,30 @@ final class FileManagerUITests: ShichiZipUITestCase {
         )
         wait(for: [expectation], timeout: 5)
     }
+
+    func testDeleteTemporaryFilesWindowOpens() {
+        // Open via Tools menu
+        app.menuBars.menuBarItems["Tools"].click()
+        app.menuBars.menuBarItems["Tools"].menus.menuItems["Delete Temporary Files..."].click()
+
+        // The window should appear with its table and controls
+        let table = app.tables.matching(identifier: "deleteTempFiles.tableView").firstMatch
+        XCTAssertTrue(table.waitForExistence(timeout: 10),
+                      "Delete Temporary Files table should appear")
+
+        // The path field is a non-editable NSTextField, which XCUI may
+        // expose as either a textField or staticText depending on its state.
+        let pathField = app.descendants(matching: .any)
+            .matching(identifier: "deleteTempFiles.pathField").firstMatch
+        XCTAssertTrue(pathField.waitForExistence(timeout: 5), "Path field should exist")
+
+        let statusLabel = app.staticTexts.matching(identifier: "deleteTempFiles.statusLabel").firstMatch
+        XCTAssertTrue(statusLabel.exists, "Status label should exist")
+
+        let deleteButton = app.buttons.matching(identifier: "deleteTempFiles.deleteButton").firstMatch
+        XCTAssertTrue(deleteButton.exists, "Delete button should exist")
+
+        let refreshButton = app.buttons.matching(identifier: "deleteTempFiles.refreshButton").firstMatch
+        XCTAssertTrue(refreshButton.exists, "Refresh button should exist")
+    }
 }

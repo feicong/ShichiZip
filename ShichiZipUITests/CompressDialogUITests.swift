@@ -67,50 +67,184 @@ final class CompressDialogUITests: ShichiZipUITestCase {
         XCTAssertTrue(app.state == .runningForeground)
     }
 
-    func testCompressCreatesArchive() throws {
-        let tempDir = try makeTemporaryDirectory(named: "compressCreate")
-        try createTextFile(at: tempDir.appendingPathComponent("document.txt"), content: "Hello, world!")
+    // MARK: - Compress & Verify via App
 
-        navigateLeftPane(to: tempDir.path)
+    /// Compresses multiple files as .7z, opens the resulting archive
+    /// in the app, and verifies the entries appear in the file list.
+    /// Then extracts via the Extract dialog and checks the files on disk.
+    func testCompressAs7zAndVerify() throws {
+        let tempDir = try makeTemporaryDirectory(named: "compress7z")
+        try createTextFile(at: tempDir.appendingPathComponent("alpha.txt"), content: "alpha content")
+        try createTextFile(at: tempDir.appendingPathComponent("beta.txt"), content: "beta content")
 
+        let archivePath = try compressFiles(["alpha.txt", "beta.txt"],
+                                            in: tempDir,
+                                            format: "7z")
+        XCTAssertTrue(archivePath.hasSuffix(".7z"), "Should produce .7z, got: \(archivePath)")
+
+        verifyArchiveContents(archivePath: archivePath,
+                              expectedFiles: ["alpha.txt", "beta.txt"])
+
+        // Extract via the app and verify file content
+        let extractDir = try extractViaApp(archivePath: archivePath)
+
+        let alphaContent = try String(contentsOf: extractDir.appendingPathComponent("alpha.txt"), encoding: .utf8)
+        let betaContent = try String(contentsOf: extractDir.appendingPathComponent("beta.txt"), encoding: .utf8)
+        XCTAssertEqual(alphaContent, "alpha content")
+        XCTAssertEqual(betaContent, "beta content")
+    }
+
+    /// Compresses a file as .zip, opens it in the app, and verifies
+    /// the entry appears. Then extracts and checks content.
+    func testCompressAsZipAndVerify() throws {
+        let tempDir = try makeTemporaryDirectory(named: "compressZip")
+        try createTextFile(at: tempDir.appendingPathComponent("data.txt"), content: "zip test data")
+
+        let archivePath = try compressFiles(["data.txt"],
+                                            in: tempDir,
+                                            format: "zip")
+        XCTAssertTrue(archivePath.hasSuffix(".zip"), "Should produce .zip, got: \(archivePath)")
+
+        verifyArchiveContents(archivePath: archivePath,
+                              expectedFiles: ["data.txt"])
+
+        let extractDir = try extractViaApp(archivePath: archivePath)
+
+        let content = try String(contentsOf: extractDir.appendingPathComponent("data.txt"), encoding: .utf8)
+        XCTAssertEqual(content, "zip test data")
+    }
+
+    // MARK: - Helpers
+
+    /// Selects files in the left pane, opens the Add dialog, optionally
+    /// changes format, clicks OK, and waits for the archive to appear.
+    /// Returns the archive path on disk.
+    private func compressFiles(_ fileNames: [String],
+                               in directory: URL,
+                               format: String) throws -> String
+    {
+        navigateLeftPane(to: directory.path)
         let table = leftPaneTable
         XCTAssertTrue(table.waitForExistence(timeout: 10))
 
-        let fileCell = table.cells.staticTexts["document.txt"]
-        XCTAssertTrue(fileCell.waitForExistence(timeout: 5))
-        fileCell.click()
+        // Select file(s)
+        let firstCell = table.cells.staticTexts[fileNames[0]]
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 5))
+        firstCell.click()
 
-        // Open Add to Archive dialog
+        for name in fileNames.dropFirst() {
+            let cell = table.cells.staticTexts[name]
+            XCTAssertTrue(cell.waitForExistence(timeout: 5))
+            XCUIElement.perform(withKeyModifiers: .command) {
+                cell.click()
+            }
+        }
+
+        // Open Add to Archive
         app.menuBars.menuBarItems["File"].click()
         app.menuBars.menuBarItems["File"].menus.menuItems["Add"].click()
 
         let archivePathField = app.comboBoxes.matching(identifier: "compress.archivePath").firstMatch
         XCTAssertTrue(archivePathField.waitForExistence(timeout: 5))
 
-        // Read the prefilled archive path
-        let prefilledPath = archivePathField.value as? String ?? ""
-        XCTAssertFalse(prefilledPath.isEmpty, "Archive path should be prefilled")
-        XCTAssertTrue(prefilledPath.hasSuffix(".7z"), "Default archive should be .7z, got: \(prefilledPath)")
+        // Change format if not the default
+        let formatPopup = app.popUpButtons.matching(identifier: "compress.format").firstMatch
+        XCTAssertTrue(formatPopup.exists)
+        formatPopup.click()
+        formatPopup.menuItems[format].click()
 
-        // Click OK to create the archive
+        let archivePath = archivePathField.value as? String ?? ""
+        XCTAssertFalse(archivePath.isEmpty)
+
+        // Click OK
         let okButton = app.buttons.matching(identifier: "modal.button.1").firstMatch
-        XCTAssertTrue(okButton.exists, "OK button should exist")
+        XCTAssertTrue(okButton.exists)
         okButton.click()
 
-        // Wait for the archive to be created on disk
-        let deadline = Date().addingTimeInterval(15)
-        var archiveExists = false
-        while Date() < deadline {
-            archiveExists = FileManager.default.fileExists(atPath: prefilledPath)
-            if archiveExists { break }
-            usleep(500_000)
+        // Wait for the archive to appear on disk
+        XCTAssertTrue(waitForFile(at: URL(fileURLWithPath: archivePath)),
+                      "Archive should be created at \(archivePath)")
+        return archivePath
+    }
+
+    /// Opens the archive in the app's file manager (assumes the pane
+    /// is already showing the directory that contains it) and asserts
+    /// the expected file names appear in the table.
+    private func verifyArchiveContents(archivePath: String,
+                                       expectedFiles: [String])
+    {
+        let archiveURL = URL(fileURLWithPath: archivePath)
+
+        let table = leftPaneTable
+        XCTAssertTrue(table.waitForExistence(timeout: 10))
+
+        let archiveCell = table.cells.staticTexts[archiveURL.lastPathComponent]
+        XCTAssertTrue(archiveCell.waitForExistence(timeout: 5),
+                      "Archive should appear in file list")
+        archiveCell.doubleClick()
+
+        // Wait for the archive to open
+        let pathField = leftPanePathField
+        let openPredicate = NSPredicate(format: "value CONTAINS %@",
+                                        archiveURL.lastPathComponent)
+        let openExpectation = XCTNSPredicateExpectation(predicate: openPredicate,
+                                                        object: pathField)
+        wait(for: [openExpectation], timeout: 10)
+
+        // Every expected file should be visible inside the archive
+        for fileName in expectedFiles {
+            let cell = table.cells.staticTexts[fileName]
+            XCTAssertTrue(cell.waitForExistence(timeout: 5),
+                          "\(fileName) should be visible inside the archive")
+        }
+    }
+
+    /// Triggers Extract from the currently open archive, ensures
+    /// "separate folder" is checked so files go into a clean subdirectory,
+    /// clicks Extract, and waits for files to appear.
+    /// Returns the extraction subdirectory URL.
+    private func extractViaApp(archivePath: String) throws -> URL {
+        let archiveURL = URL(fileURLWithPath: archivePath)
+
+        // Open extract dialog
+        app.menuBars.menuBarItems["File"].click()
+        app.menuBars.menuBarItems["File"].menus.menuItems["Extract…"].click()
+
+        let destinationField = app.comboBoxes.matching(identifier: "extract.destinationPath").firstMatch
+        XCTAssertTrue(destinationField.waitForExistence(timeout: 5))
+
+        let destPath = destinationField.value as? String ?? ""
+        XCTAssertFalse(destPath.isEmpty, "Destination should be prefilled")
+
+        // Ensure "separate folder" is checked — this extracts into a
+        // subdirectory named after the archive, avoiding overwrite
+        // conflicts with the original source files.
+        let splitCheckbox = app.checkBoxes.matching(identifier: "extract.splitDestination").firstMatch
+        if splitCheckbox.exists, splitCheckbox.value as? Int == 0 {
+            splitCheckbox.click()
         }
 
-        XCTAssertTrue(archiveExists, "Archive should exist at \(prefilledPath)")
+        // Click Extract
+        let extractButton = app.buttons.matching(identifier: "modal.button.1").firstMatch
+        XCTAssertTrue(extractButton.exists)
+        extractButton.click()
 
-        // Verify the archive is non-empty
-        let attrs = try FileManager.default.attributesOfItem(atPath: prefilledPath)
-        let fileSize = attrs[.size] as? Int ?? 0
-        XCTAssertGreaterThan(fileSize, 0, "Archive should be non-empty")
+        // The separate-folder option creates a subdirectory named after
+        // the archive (without extension).
+        let archiveStem = archiveURL.deletingPathExtension().lastPathComponent
+        let extractDir = URL(fileURLWithPath: destPath)
+            .appendingPathComponent(archiveStem, isDirectory: true)
+
+        // Wait for extraction to complete
+        let deadline = Date().addingTimeInterval(15)
+        var found = false
+        while Date() < deadline {
+            let contents = (try? FileManager.default.contentsOfDirectory(atPath: extractDir.path)) ?? []
+            if !contents.isEmpty { found = true; break }
+            usleep(500_000)
+        }
+        XCTAssertTrue(found, "Extraction should produce files in \(extractDir.path)")
+
+        return extractDir
     }
 }
