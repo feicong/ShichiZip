@@ -15,6 +15,7 @@ jobs:
     name: macOS Build (${{ matrix.artifact_prefix }}, ${{ matrix.target_arch }})
     runs-on: macos-26
     timeout-minutes: 45
+    environment: development
     strategy:
       fail-fast: false
       matrix:
@@ -42,7 +43,7 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.0"
       XCODE_PROJECT: ShichiZip.xcodeproj
-      XCODE_CONFIGURATION: Release
+      XCODE_CONFIGURATION: Debug
 
     steps:
       - name: Check out repository
@@ -63,6 +64,31 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Install signing certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_P12_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          rm -f "$CERT_PATH"
+
       - name: Build app bundle
         run: |
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
@@ -78,7 +104,9 @@ jobs:
             VALID_ARCHS="${{ matrix.target_arch }}" \
             build
 
-      - name: Ad hoc sign app bundle
+      - name: Sign app bundle
+        env:
+          SIGNING_IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
         run: |
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
           app_path="${derived_data_path}/Build/Products/${XCODE_CONFIGURATION}/${{ matrix.app_bundle }}"
@@ -88,10 +116,17 @@ jobs:
           test -d "$app_path"
 
           for appex in "$app_path"/Contents/PlugIns/*.appex; do
-            codesign --force --sign - --entitlements "$quick_action_entitlements" "$appex"
+            codesign --force --options runtime --timestamp \
+              --sign "$SIGNING_IDENTITY" \
+              --entitlements "$quick_action_entitlements" \
+              "$appex"
           done
 
-          codesign --force --sign - --entitlements "$app_entitlements" "$app_path"
+          codesign --force --options runtime --timestamp \
+            --sign "$SIGNING_IDENTITY" \
+            --entitlements "$app_entitlements" \
+            "$app_path"
+
           codesign --verify --deep --strict --verbose=2 "$app_path"
 
       - name: Package app artifact
