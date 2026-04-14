@@ -1,4 +1,5 @@
 import Cocoa
+import os
 import UniformTypeIdentifiers
 
 struct FileManagerQuickLookPreparedItem {
@@ -47,8 +48,8 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
         promiseQueue = queue
     }
 
-    func filePromiseProvider(_: NSFilePromiseProvider,
-                             fileNameForType _: String) -> String
+    nonisolated func filePromiseProvider(_: NSFilePromiseProvider,
+                                         fileNameForType _: String) -> String
     {
         item.name
     }
@@ -62,7 +63,7 @@ private final class ArchiveDragPromise: NSObject, NSFilePromiseProviderDelegate 
                           completionHandler: completion)
     }
 
-    func operationQueue(for _: NSFilePromiseProvider) -> OperationQueue {
+    nonisolated func operationQueue(for _: NSFilePromiseProvider) -> OperationQueue {
         promiseQueue
     }
 
@@ -3818,30 +3819,29 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         operationQueue.qualityOfService = .userInitiated
 
         let completionGroup = DispatchGroup()
-        let errorLock = NSLock()
-        var firstError: Error?
+        let state = OSAllocatedUnfairLock(initialState: nil as Error?)
 
         for promiseReceiver in promiseReceivers {
             completionGroup.enter()
             promiseReceiver.receivePromisedFiles(atDestination: destinationDirectory,
                                                  options: [:],
                                                  operationQueue: operationQueue)
-            { _, error in
+            { @Sendable _, error in
                 if let error {
-                    errorLock.lock()
-                    if firstError == nil {
-                        firstError = error
+                    state.withLock { firstError in
+                        if firstError == nil { firstError = error }
                     }
-                    errorLock.unlock()
                 }
                 completionGroup.leave()
             }
         }
 
         completionGroup.notify(queue: .main) { [weak self] in
-            self?.refresh()
-            if let firstError {
-                self?.showErrorAlert(firstError)
+            MainActor.assumeIsolated {
+                self?.refresh()
+                if let error = state.withLock({ $0 }) {
+                    self?.showErrorAlert(error)
+                }
             }
         }
     }
@@ -3862,48 +3862,50 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         operationQueue.qualityOfService = .userInitiated
 
         let completionGroup = DispatchGroup()
-        let resultLock = NSLock()
-        var firstError: Error?
-        var receivedURLs: [URL] = []
+        let state = OSAllocatedUnfairLock(initialState: (urls: [URL](), firstError: nil as Error?))
 
         for promiseReceiver in promiseReceivers {
             completionGroup.enter()
             promiseReceiver.receivePromisedFiles(atDestination: stagingDirectory,
                                                  options: [:],
                                                  operationQueue: operationQueue)
-            { fileURL, error in
-                resultLock.lock()
-                receivedURLs.append(fileURL.standardizedFileURL)
-                if let error, firstError == nil {
-                    firstError = error
+            { @Sendable fileURL, error in
+                state.withLock { s in
+                    s.urls.append(fileURL.standardizedFileURL)
+                    if let error, s.firstError == nil {
+                        s.firstError = error
+                    }
                 }
-                resultLock.unlock()
                 completionGroup.leave()
             }
         }
 
         completionGroup.notify(queue: .main) { [weak self, weak sourcePane] in
-            guard let self else {
-                try? FileManager.default.removeItem(at: stagingDirectory)
-                return
-            }
+            MainActor.assumeIsolated {
+                let (receivedURLs, firstError) = state.withLock { ($0.urls, $0.firstError) }
 
-            if let firstError {
-                try? FileManager.default.removeItem(at: stagingDirectory)
-                showErrorAlert(firstError)
-                return
-            }
+                guard let self else {
+                    try? FileManager.default.removeItem(at: stagingDirectory)
+                    return
+                }
 
-            guard !receivedURLs.isEmpty else {
-                try? FileManager.default.removeItem(at: stagingDirectory)
-                return
-            }
+                if let firstError {
+                    try? FileManager.default.removeItem(at: stagingDirectory)
+                    self.showErrorAlert(firstError)
+                    return
+                }
 
-            beginConfirmedArchiveTransfer(receivedURLs,
-                                          to: target,
-                                          operation: .copy,
-                                          sourcePane: sourcePane,
-                                          cleanupDirectory: stagingDirectory)
+                guard !receivedURLs.isEmpty else {
+                    try? FileManager.default.removeItem(at: stagingDirectory)
+                    return
+                }
+
+                self.beginConfirmedArchiveTransfer(receivedURLs,
+                                                   to: target,
+                                                   operation: .copy,
+                                                   sourcePane: sourcePane,
+                                                   cleanupDirectory: stagingDirectory)
+            }
         }
     }
 

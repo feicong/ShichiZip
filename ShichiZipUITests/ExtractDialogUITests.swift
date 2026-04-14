@@ -2,52 +2,9 @@ import XCTest
 
 /// Tests for the extract dialog workflow — the flow that previously caused a crash.
 final class ExtractDialogUITests: ShichiZipUITestCase {
-    /// Creates a test .7z archive containing a single text file.
-    /// Returns (archiveURL, containingDirectory).
-    private func makeTestArchive(named name: String = "test") throws -> (archive: URL, directory: URL) {
-        let tempDir = try makeTemporaryDirectory(named: name)
-        let sourceDir = tempDir.appendingPathComponent("source", isDirectory: true)
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-
-        let payloadFile = sourceDir.appendingPathComponent("payload.txt")
-        try createTextFile(at: payloadFile, content: "This is test content for extraction.")
-
-        // Use the command-line 7z to create the archive since we can't link the bridge from UI tests
-        let archiveURL = tempDir.appendingPathComponent("\(name).7z")
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/7z")
-        process.arguments = ["a", archiveURL.path, payloadFile.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-
-        // Fall back: create a zip if 7z CLI is not available
-        if !FileManager.default.fileExists(atPath: "/usr/local/bin/7z") {
-            let zipURL = tempDir.appendingPathComponent("\(name).zip")
-            let zipProcess = Process()
-            zipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-            zipProcess.arguments = ["-c", "-k", "--sequesterRsrc", sourceDir.path, zipURL.path]
-            zipProcess.standardOutput = FileHandle.nullDevice
-            zipProcess.standardError = FileHandle.nullDevice
-            try zipProcess.run()
-            zipProcess.waitUntilExit()
-            guard zipProcess.terminationStatus == 0 else {
-                throw NSError(domain: "ShichiZipUITests", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Failed to create test zip archive"])
-            }
-            return (zipURL, tempDir)
-        }
-
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw NSError(domain: "ShichiZipUITests", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Failed to create test 7z archive"])
-        }
-        return (archiveURL, tempDir)
-    }
-
     func testOpenArchiveAndNavigate() throws {
-        let (archiveURL, _) = try makeTestArchive(named: "navigate")
+        let (archiveURL, _) = try makeTestArchive(named: "navigate",
+                                                  payloads: ["payload.txt": "This is test content for extraction."])
 
         // Navigate to the directory containing the archive
         navigateLeftPane(to: archiveURL.deletingLastPathComponent().path)
@@ -71,7 +28,8 @@ final class ExtractDialogUITests: ShichiZipUITestCase {
     }
 
     func testExtractDialogAppears() throws {
-        let (archiveURL, _) = try makeTestArchive(named: "dialog")
+        let (archiveURL, _) = try makeTestArchive(named: "dialog",
+                                                  payloads: ["payload.txt": "This is test content for extraction."])
 
         // Navigate to the directory and open the archive
         navigateLeftPane(to: archiveURL.deletingLastPathComponent().path)
@@ -110,7 +68,8 @@ final class ExtractDialogUITests: ShichiZipUITestCase {
     }
 
     func testExtractDialogCancelDoesNotCrash() throws {
-        let (archiveURL, _) = try makeTestArchive(named: "cancel")
+        let (archiveURL, _) = try makeTestArchive(named: "cancel",
+                                                  payloads: ["payload.txt": "This is test content for extraction."])
 
         navigateLeftPane(to: archiveURL.deletingLastPathComponent().path)
         let table = leftPaneTable
@@ -145,7 +104,8 @@ final class ExtractDialogUITests: ShichiZipUITestCase {
     }
 
     func testExtractPerformsExtraction() throws {
-        let (archiveURL, tempDir) = try makeTestArchive(named: "extract")
+        let (archiveURL, tempDir) = try makeTestArchive(named: "extract",
+                                                        payloads: ["payload.txt": "This is test content for extraction."])
 
         // Navigate to archive directory and open it
         navigateLeftPane(to: archiveURL.deletingLastPathComponent().path)
