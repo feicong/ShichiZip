@@ -12,6 +12,7 @@
 		0C23FCE2AC98E009C562F169 /* ShowInFileManagerAction-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5A18E8BB4528A1AB4DD349EB /* ShowInFileManagerAction-Info.plist */; };
 		0E083C8C01751D167AA800E1 /* DialogPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2FF83FA1080A0CA38F27F5 /* DialogPresenter.swift */; };
 		0FA3CE49F6436AC24B129A15 /* App.strings in Resources */ = {isa = PBXBuildFile; fileRef = 6FE7DC237DFA287D0967FBDD /* App.strings */; };
+		14867C6A1D5F9792BE0FB7E3 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B1571C78C372AC604350122E /* AppIcon.icon */; };
 		1506FF719B49C353449C3276 /* FileSystemItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F199F3D5EFC006C978C935C8 /* FileSystemItem.swift */; };
 		173F25408CB97A47A3F0CB63 /* FileManagerTransferPathValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B16B1E95F01DA36C831528 /* FileManagerTransferPathValidation.swift */; };
 		18FFE0D2BD16EC68A07DDBEA /* FileManagerArchiveItemWorkflowService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E9365E10448902B8CE7660 /* FileManagerArchiveItemWorkflowService.swift */; };
@@ -58,6 +59,7 @@
 		638B19CD6D0F3AD721A43B9A /* SZBridgeCommon.mm in Sources */ = {isa = PBXBuildFile; fileRef = 103224C384A1E7C8FA620287 /* SZBridgeCommon.mm */; };
 		6A69673BA2A347175FDF9A9C /* ArchiveOperationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B46B23B616057C7E76AFC3 /* ArchiveOperationRunner.swift */; };
 		715C1116BE0352E3331DB1B4 /* ExtractDialogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1063FC95805225AC501608 /* ExtractDialogController.swift */; };
+		745A2D3309B19F9E758CAC27 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B1571C78C372AC604350122E /* AppIcon.icon */; };
 		77648FA14E470C55E65CAD70 /* SZCallbacks.mm in Sources */ = {isa = PBXBuildFile; fileRef = 079C800E6F9E105461CEDF6F /* SZCallbacks.mm */; };
 		7D3E8F5D0878C91227F5F441 /* OpenInShichiZipAction-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9912ACD566B45B235D6D1A85 /* OpenInShichiZipAction-Info.plist */; };
 		7EE100FF37A26DA3FA69134C /* FileManagerExternalOpenRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F07428E479FD64D8594CBD8 /* FileManagerExternalOpenRouter.swift */; };
@@ -333,6 +335,7 @@
 		AC9DFFE6B64243ACDBE03A0E /* uz */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uz; path = uz.lproj/Upstream.strings; sourceTree = "<group>"; };
 		AD79E9E1553C8130D91A5C9F /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Upstream.strings; sourceTree = "<group>"; };
 		AF0963F4277AA78BBBCA0510 /* is */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = is; path = is.lproj/Upstream.strings; sourceTree = "<group>"; };
+		B1571C78C372AC604350122E /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		B1719470491685C448AFC007 /* fy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fy; path = fy.lproj/Upstream.strings; sourceTree = "<group>"; };
 		B21583400BD665F9F6295B8B /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Upstream.strings; sourceTree = "<group>"; };
 		B6CC177CA5C51E40E24350EA /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Upstream.strings"; sourceTree = "<group>"; };
@@ -519,6 +522,7 @@
 		A1A2A1E6526CA60B2188B83F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				B1571C78C372AC604350122E /* AppIcon.icon */,
 				937563A1E648A0013C4DD0C3 /* Assets.xcassets */,
 				8D97DFC28A8EEEC9BBDB51EA /* Info.plist */,
 				5D7C6E680A58F944274587F9 /* Localization */,
@@ -917,6 +921,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0FA3CE49F6436AC24B129A15 /* App.strings in Resources */,
+				14867C6A1D5F9792BE0FB7E3 /* AppIcon.icon in Resources */,
 				A21488890672AD8AAD5DA1C0 /* Assets.xcassets in Resources */,
 				7D3E8F5D0878C91227F5F441 /* OpenInShichiZipAction-Info.plist in Resources */,
 				E787FF0A90ECEB3692D568C1 /* ShowInFileManagerAction-Info.plist in Resources */,
@@ -930,6 +935,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5F19AFA18BCFD3AC63F9E5D3 /* App.strings in Resources */,
+				745A2D3309B19F9E758CAC27 /* AppIcon.icon in Resources */,
 				3526B672AB9F2CEAFD0E549B /* Assets.xcassets in Resources */,
 				9D467ED2259C046B6F86ED09 /* OpenInShichiZipAction-Info.plist in Resources */,
 				0C23FCE2AC98E009C562F169 /* ShowInFileManagerAction-Info.plist in Resources */,
@@ -1743,6 +1749,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
