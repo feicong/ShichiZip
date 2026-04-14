@@ -1,12 +1,13 @@
 import XCTest
 
-/// Tests for dragging files out of an opened archive into a filesystem pane.
+/// Tests for archive drag operations in the dual-pane file manager.
 ///
-/// These tests launch the app in dual-pane mode by setting the
-/// `FileManager.IsDualPane` user default via launch arguments.
-/// The left pane opens an archive; the right pane shows a destination
-/// directory.  The test then drags an archive entry from the left table
-/// to the right table and verifies the file is extracted to disk.
+/// Covers drag-from-archive (extract by dragging to filesystem pane),
+/// drag-into-archive (add files by dragging from filesystem pane),
+/// and nested archive operations (open archive inside archive, drag out).
+///
+/// All tests launch in dual-pane mode via the `FileManager.IsDualPane`
+/// launch argument.
 final class DragFromArchiveUITests: ShichiZipUITestCase {
     // MARK: - Launch with dual-pane mode
 
@@ -172,5 +173,166 @@ final class DragFromArchiveUITests: ShichiZipUITestCase {
 
         XCTAssertTrue(waitForFile(at: alphaExtracted), "alpha.txt should be extracted")
         XCTAssertTrue(waitForFile(at: betaExtracted), "beta.txt should be extracted")
+    }
+
+    // MARK: - Drag Into Archive
+
+    /// Drags a filesystem file from the left pane into an open archive
+    /// in the right pane, then verifies the file was added to the archive.
+    func testDragFileIntoArchive() throws {
+        // Create the archive (right pane) with one existing file.
+        let (archiveURL, tempDir) = try makeTestArchive(named: "dragintoarchive",
+                                                        payloads: ["existing.txt": "already here"])
+
+        // Create a loose file in the same temp dir (left pane source).
+        let newFile = tempDir.appendingPathComponent("added.txt")
+        try createTextFile(at: newFile, content: "newly added")
+
+        // Right pane: open the archive.
+        navigatePane(rightPathField, to: tempDir.path)
+        XCTAssertTrue(rightTable.waitForExistence(timeout: 10))
+
+        let archiveCell = rightTable.cells.staticTexts[archiveURL.lastPathComponent]
+        XCTAssertTrue(archiveCell.waitForExistence(timeout: 5),
+                      "Archive should appear in the right pane")
+        archiveCell.doubleClick()
+
+        let openPredicate = NSPredicate(format: "value CONTAINS %@",
+                                        archiveURL.lastPathComponent)
+        let openExpectation = XCTNSPredicateExpectation(predicate: openPredicate,
+                                                        object: rightPathField)
+        wait(for: [openExpectation], timeout: 10)
+
+        // Left pane: navigate to the temp dir (shows added.txt).
+        navigatePane(leftPathField, to: tempDir.path)
+        XCTAssertTrue(leftTable.waitForExistence(timeout: 10))
+
+        let addedCell = leftTable.cells.staticTexts["added.txt"]
+        XCTAssertTrue(addedCell.waitForExistence(timeout: 5),
+                      "added.txt should appear in the left pane")
+
+        // Drag the file from filesystem (left) into the archive (right).
+        addedCell.click(forDuration: 1.0, thenDragTo: rightTable)
+
+        // A confirmation alert appears — press the confirm button.
+        let confirmButton = app.buttons.matching(identifier: "modal.button.1").firstMatch
+        XCTAssertTrue(confirmButton.waitForExistence(timeout: 10),
+                      "Archive transfer confirmation dialog should appear")
+        confirmButton.click()
+
+        // Wait for the archive to be updated — the new file should
+        // appear in the right pane's listing.
+        let addedInArchive = rightTable.cells.staticTexts["added.txt"]
+        XCTAssertTrue(addedInArchive.waitForExistence(timeout: 15),
+                      "added.txt should appear inside the archive after drag-in")
+
+        // Verify the archive on disk actually contains the new file
+        // by listing its contents with the 7z CLI.
+        let listOutput = try listArchiveContents(archiveURL)
+        XCTAssertTrue(listOutput.contains("added.txt"),
+                      "Archive listing should contain added.txt. Got: \(listOutput)")
+        XCTAssertTrue(listOutput.contains("existing.txt"),
+                      "Archive listing should still contain existing.txt. Got: \(listOutput)")
+    }
+
+    // MARK: - Nested Archive
+
+    /// Opens a nested archive (archive inside archive), verifies the
+    /// path field reflects the nesting, and drags a file out.
+    func testOpenAndDragFromNestedArchive() throws {
+        let tempDir = try makeTemporaryDirectory(named: "nested")
+
+        // Create the inner archive containing a payload file.
+        let innerPayload = tempDir.appendingPathComponent("inner_payload.txt")
+        try createTextFile(at: innerPayload, content: "from nested archive")
+        let innerArchiveURL = try createTestArchive(named: "inner",
+                                                    sourceFileNames: ["inner_payload.txt"],
+                                                    in: tempDir)
+        try FileManager.default.removeItem(at: innerPayload)
+
+        // Create the outer archive containing the inner archive.
+        let outerArchiveURL = try createTestArchive(named: "outer",
+                                                    sourceFileNames: [innerArchiveURL.lastPathComponent],
+                                                    in: tempDir)
+        try FileManager.default.removeItem(at: innerArchiveURL)
+
+        let destinationDir = tempDir.appendingPathComponent("dest", isDirectory: true)
+        try FileManager.default.createDirectory(at: destinationDir,
+                                                withIntermediateDirectories: true)
+
+        // Left pane: navigate to the temp dir and open the outer archive.
+        navigatePane(leftPathField, to: tempDir.path)
+        XCTAssertTrue(leftTable.waitForExistence(timeout: 10))
+
+        let outerCell = leftTable.cells.staticTexts[outerArchiveURL.lastPathComponent]
+        XCTAssertTrue(outerCell.waitForExistence(timeout: 5))
+        outerCell.doubleClick()
+
+        let outerPredicate = NSPredicate(format: "value CONTAINS %@",
+                                         outerArchiveURL.lastPathComponent)
+        let outerExpectation = XCTNSPredicateExpectation(predicate: outerPredicate,
+                                                         object: leftPathField)
+        wait(for: [outerExpectation], timeout: 10)
+
+        // The inner archive should appear as an entry.
+        let innerCell = leftTable.cells.staticTexts[innerArchiveURL.lastPathComponent]
+        XCTAssertTrue(innerCell.waitForExistence(timeout: 5),
+                      "Inner archive should be visible inside the outer archive")
+
+        // Double-click to open the nested archive.
+        innerCell.doubleClick()
+
+        // Wait for path field to reflect nesting (contains both names).
+        let nestedPredicate = NSPredicate(format: "value CONTAINS %@",
+                                          innerArchiveURL.lastPathComponent)
+        let nestedExpectation = XCTNSPredicateExpectation(predicate: nestedPredicate,
+                                                          object: leftPathField)
+        wait(for: [nestedExpectation], timeout: 10)
+
+        // Verify the nested payload is visible.
+        let nestedPayloadCell = leftTable.cells.staticTexts["inner_payload.txt"]
+        XCTAssertTrue(nestedPayloadCell.waitForExistence(timeout: 5),
+                      "inner_payload.txt should be visible inside the nested archive")
+
+        // Right pane: navigate to the destination directory.
+        navigatePane(rightPathField, to: destinationDir.path)
+        XCTAssertTrue(rightTable.waitForExistence(timeout: 10))
+
+        // Drag the file out from the nested archive.
+        nestedPayloadCell.click(forDuration: 1.0, thenDragTo: rightTable)
+
+        // Verify extraction on disk.
+        let extractedFile = destinationDir.appendingPathComponent("inner_payload.txt")
+        XCTAssertTrue(waitForFile(at: extractedFile),
+                      "inner_payload.txt should be extracted from nested archive")
+
+        let content = try String(contentsOf: extractedFile, encoding: .utf8)
+        XCTAssertEqual(content, "from nested archive",
+                       "Extracted nested file content should match the original")
+    }
+
+    // MARK: - Archive CLI helpers
+
+    /// Lists archive contents using 7z CLI. Returns the raw output string.
+    private func listArchiveContents(_ archiveURL: URL) throws -> String {
+        let process = Process()
+        let pipe = Pipe()
+
+        if FileManager.default.fileExists(atPath: "/usr/local/bin/7z") {
+            process.executableURL = URL(fileURLWithPath: "/usr/local/bin/7z")
+            process.arguments = ["l", archiveURL.path]
+        } else {
+            // Fallback for zip: use zipinfo
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/zipinfo")
+            process.arguments = ["-1", archiveURL.path]
+        }
+
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }
