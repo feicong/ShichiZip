@@ -115,6 +115,13 @@ jobs:
 
           test -d "$app_path"
 
+          # Sign nested dylibs (e.g. .debug.dylib on x86_64 Debug builds)
+          find "$app_path" -name '*.dylib' -print0 | while IFS= read -r -d '' dylib; do
+            codesign --force --options runtime --timestamp \
+              --sign "$SIGNING_IDENTITY" \
+              "$dylib"
+          done
+
           for appex in "$app_path"/Contents/PlugIns/*.appex; do
             codesign --force --options runtime --timestamp \
               --sign "$SIGNING_IDENTITY" \
