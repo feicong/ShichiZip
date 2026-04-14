@@ -1430,7 +1430,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.dawn.ShichiZipTests;
 				PRODUCT_NAME = ShichiZipTests;
 				SDKROOT = macosx;
@@ -1855,7 +1855,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.dawn.ShichiZipUITests;
 				PRODUCT_NAME = ShichiZipUITests;
 				SDKROOT = macosx;
@@ -2116,7 +2116,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.dawn.ShichiZipTests;
 				PRODUCT_NAME = ShichiZipTests;
 				SDKROOT = macosx;
@@ -2195,7 +2195,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ee.dawn.ShichiZipUITests;
 				PRODUCT_NAME = ShichiZipUITests;
 				SDKROOT = macosx;

@@ -5,18 +5,23 @@ import XCTest
 /// Provides a launched app instance and common helpers for
 /// navigating the file manager, opening archives, and interacting
 /// with dialogs.
+@MainActor
 class ShichiZipUITestCase: XCTestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launch()
+        MainActor.assumeIsolated {
+            continueAfterFailure = false
+            app = XCUIApplication()
+            app.launch()
+        }
     }
 
     override func tearDownWithError() throws {
-        app.terminate()
-        app = nil
+        MainActor.assumeIsolated {
+            app.terminate()
+            app = nil
+        }
     }
 
     // MARK: - Helpers

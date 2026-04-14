@@ -104,8 +104,8 @@ final class ExtractDialogUITests: ShichiZipUITestCase {
     }
 
     func testExtractPerformsExtraction() throws {
-        let (archiveURL, tempDir) = try makeTestArchive(named: "extract",
-                                                        payloads: ["payload.txt": "This is test content for extraction."])
+        let (archiveURL, _) = try makeTestArchive(named: "extract",
+                                                  payloads: ["payload.txt": "This is test content for extraction."])
 
         // Navigate to archive directory and open it
         navigateLeftPane(to: archiveURL.deletingLastPathComponent().path)
