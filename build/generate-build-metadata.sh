@@ -19,6 +19,11 @@ set_plist_value() {
 set_plist_value "${info_plist}" "CFBundleVersion" "${commit_count}"
 set_plist_value "${info_plist}" "ShichiZipGitShortHash" "${short_hash}"
 
+# Convert Info.plist to binary format for Release builds.
+if [ "${CONFIGURATION}" = "Release" ]; then
+  plutil -convert binary1 "${info_plist}"
+fi
+
 if [ -n "${SHICHIZIP_LICENSE_SOURCE_PATH:-}" ]; then
   license_source="${SRCROOT}/${SHICHIZIP_LICENSE_SOURCE_PATH}"
   license_dest="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/7zip-license.txt"
