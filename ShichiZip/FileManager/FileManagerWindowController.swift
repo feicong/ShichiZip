@@ -478,7 +478,6 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     private weak var quickLookPreviewSourcePane: FileManagerPaneController?
     private var quickLookPreviewTask: Task<Void, Never>?
     private var quickLookPreviewGeneration: UInt64 = 0
-    private var quickLookPanelKeyObserver: NSObjectProtocol?
 
     var onWindowWillClose: ((FileManagerWindowController) -> Void)?
 
@@ -513,9 +512,6 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         }
         if let languageObserver {
             NotificationCenter.default.removeObserver(languageObserver)
-        }
-        if let quickLookPanelKeyObserver {
-            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
         }
         autoRefreshTimer?.invalidate()
         quickLookPreviewTask?.cancel()
@@ -810,42 +806,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         guard shouldPresentPanel,
               let panel = QLPreviewPanel.shared() else { return }
 
-        panel.becomesKeyOnlyIfNeeded = true
-        installQuickLookPanelKeyObserver(for: panel,
-                                         sourcePane: sourcePane)
         panel.updateController()
         panel.orderFront(nil)
         if panel.currentController as AnyObject? === self {
             panel.reloadData()
-        }
-
-        DispatchQueue.main.async { [weak self, weak sourcePane] in
-            guard let self, let sourcePane else { return }
-            guard quickLookPreviewSourcePane === sourcePane else { return }
-            window?.makeKey()
-            sourcePane.focusFileList()
-        }
-    }
-
-    private func installQuickLookPanelKeyObserver(for panel: QLPreviewPanel,
-                                                  sourcePane: FileManagerPaneController)
-    {
-        if let quickLookPanelKeyObserver {
-            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
-            self.quickLookPanelKeyObserver = nil
-        }
-
-        quickLookPanelKeyObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didBecomeKeyNotification,
-            object: panel,
-            queue: .main,
-        ) { [weak self, weak sourcePane] _ in
-            MainActor.assumeIsolated {
-                guard let self, let sourcePane else { return }
-                guard self.quickLookPreviewSourcePane === sourcePane else { return }
-                self.window?.makeKeyAndOrderFront(nil)
-                sourcePane.focusFileList()
-            }
         }
     }
 
@@ -866,10 +830,6 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
     }
 
     private func clearQuickLookPreviewResources() {
-        if let quickLookPanelKeyObserver {
-            NotificationCenter.default.removeObserver(quickLookPanelKeyObserver)
-            self.quickLookPanelKeyObserver = nil
-        }
         if let pane = quickLookPreviewSourcePane {
             pane.cleanupQuickLookTemporaryDirectories(quickLookPreviewTemporaryDirectories)
         }
