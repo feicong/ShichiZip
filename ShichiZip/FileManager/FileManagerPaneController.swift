@@ -1187,7 +1187,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         let selectedEntries = selectedQuickLookRowsAndItems()
         guard !selectedEntries.isEmpty else {
-            throw quickLookPreparationError("Select one or more items to preview.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.selectItems"))
         }
 
         let previewItems = selectedEntries.compactMap { entry -> FileManagerQuickLookPreparedItem? in
@@ -1200,7 +1200,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                     transitionContentRect: source.transitionContentRect)
         }
         guard !previewItems.isEmpty else {
-            throw quickLookPreparationError("The current selection cannot be previewed.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.cannotPreview"))
         }
         return FileManagerQuickLookPreparedPreview(items: previewItems,
                                                    temporaryDirectories: [])
@@ -1217,13 +1217,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         let selectedEntries = selectedQuickLookRowsAndItems()
         guard !selectedEntries.isEmpty else {
-            throw quickLookPreparationError("Select one or more items to preview.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.selectItems"))
         }
 
         guard let context = currentArchiveItemWorkflowContext(),
               let level = archiveStack.last
         else {
-            throw quickLookPreparationError("The current archive selection cannot be previewed.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.cannotPreviewArchive"))
         }
 
         let archiveSelection = selectedEntries.compactMap { entry -> (row: Int, item: ArchiveItem)? in
@@ -1232,15 +1232,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         }
         let archiveItems = archiveSelection.map(\.item)
         guard !archiveItems.isEmpty else {
-            throw quickLookPreparationError("Select one or more files in the archive to preview.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.selectArchiveFiles"))
         }
 
         if archiveItems.contains(where: \.isDirectory) {
-            throw quickLookPreparationError("Quick Look can preview files from an archive, but not folders.")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.noFolderPreview"))
         }
 
         if let oversizedItem = archiveItems.first(where: { $0.size > maxArchiveItemSize }) {
-            throw quickLookPreparationError("Quick Look previews from archives are limited to \(formattedByteCount(maxArchiveItemSize)) per file. \"\(oversizedItem.name)\" is \(formattedByteCount(oversizedItem.size)).")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.fileSizeLimit", formattedByteCount(maxArchiveItemSize), oversizedItem.name, formattedByteCount(oversizedItem.size)))
         }
 
         let combinedSize = archiveItems.reduce(into: UInt64.zero) { partial, item in
@@ -1248,13 +1248,13 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
             partial = overflow ? .max : sum
         }
         if combinedSize > maxArchiveCombinedSize {
-            throw quickLookPreparationError("Quick Look previews from archives are limited to \(formattedByteCount(maxArchiveCombinedSize)) for the current selection. The selected files total \(formattedByteCount(combinedSize)).")
+            throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.combinedSizeLimit", formattedByteCount(maxArchiveCombinedSize), formattedByteCount(combinedSize)))
         }
 
         if level.archive.isSolidArchive {
             let archiveSize = archivePhysicalSize(for: level)
             if archiveSize > maxSolidArchiveSize {
-                throw quickLookPreparationError("Quick Look previews from solid archives are limited to archives up to \(formattedByteCount(maxSolidArchiveSize)). This archive is \(formattedByteCount(archiveSize)).")
+                throw quickLookPreparationError(SZL10n.string("app.fileManager.quickLook.solidArchiveSizeLimit", formattedByteCount(maxSolidArchiveSize), formattedByteCount(archiveSize)))
             }
         }
 
@@ -1459,14 +1459,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     func createFolder(named name: String) {
         if isInsideArchive {
             guard let target = currentArchiveMutationTarget() else {
-                showReadOnlyArchiveMutationAlert(action: "Creating folders")
+                showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.creatingFolders"))
                 return
             }
 
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
-                    showReadOnlyArchiveMutationAlert(action: "Creating folders")
+                    showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.creatingFolders"))
                     return
                 }
 
@@ -1501,7 +1501,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     func createFile(named name: String) {
         guard !isInsideArchive else {
-            showUnsupportedArchiveOperationAlert(action: "Creating files")
+            showUnsupportedArchiveOperationAlert(action: SZL10n.string("app.fileManager.action.creatingFiles"))
             return
         }
 
@@ -1511,7 +1511,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                    code: NSFileWriteFileExistsError,
                                    userInfo: [
                                        NSFilePathErrorKey: url.path,
-                                       NSLocalizedDescriptionKey: "A file named \"\(name)\" already exists.",
+                                       NSLocalizedDescriptionKey: SZL10n.string("app.fileManager.error.fileAlreadyExists", name),
                                    ]))
             return
         }
@@ -1525,7 +1525,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                code: NSFileWriteUnknownError,
                                userInfo: [
                                    NSFilePathErrorKey: url.path,
-                                   NSLocalizedDescriptionKey: "Unable to create \"\(name)\".",
+                                   NSLocalizedDescriptionKey: SZL10n.string("app.fileManager.error.unableToCreate", name),
                                ]))
     }
 
@@ -1889,7 +1889,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let selectedItems = selectedArchiveItems()
         guard !selectedItems.isEmpty else {
-            throw paneOperationError("Select one or more archive items first.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.selectArchiveItems"))
         }
         try extractArchiveItems(selectedItems,
                                 to: destinationURL,
@@ -1913,7 +1913,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let itemsToExtract = archiveItemsForSelectionOrDisplayedItems()
         guard !itemsToExtract.isEmpty else {
-            throw paneOperationError("There are no archive items to extract.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveItemsToExtract"))
         }
         try extractArchiveItems(itemsToExtract,
                                 to: destinationURL,
@@ -1945,16 +1945,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let itemsToExtract = archiveItemsForSelectionOrDisplayedItems()
         guard !itemsToExtract.isEmpty else {
-            throw paneOperationError("There are no archive items to extract.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveItemsToExtract"))
         }
 
         guard let level = archiveStack.last else {
-            throw paneOperationError("No archive is open.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveOpen"))
         }
 
         let indices = archiveEntryIndices(for: itemsToExtract)
         guard !indices.isEmpty else {
-            throw paneOperationError("The selected archive items cannot be extracted.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.cannotExtractSelected"))
         }
 
         let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode,
@@ -1985,7 +1985,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
     func testCurrentArchive(session: SZOperationSession? = nil) throws {
         guard let level = archiveStack.last else {
-            throw paneOperationError("No archive is open.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveOpen"))
         }
         try level.archive.test(with: session)
     }
@@ -1993,7 +1993,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     /// Returns the archive handle for the currently open archive, for use off the main actor.
     func currentArchiveForTest() throws -> SZArchive {
         guard let level = archiveStack.last else {
-            throw paneOperationError("No archive is open.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveOpen"))
         }
         return level.archive
     }
@@ -2010,16 +2010,16 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let selectedItems = selectedArchiveItems()
         guard !selectedItems.isEmpty else {
-            throw paneOperationError("Select one or more archive items first.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.selectArchiveItems"))
         }
 
         guard let level = archiveStack.last else {
-            throw paneOperationError("No archive is open.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveOpen"))
         }
 
         let indices = archiveEntryIndices(for: selectedItems)
         guard !indices.isEmpty else {
-            throw paneOperationError("The selected archive items cannot be extracted.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.cannotExtractSelected"))
         }
 
         let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode,
@@ -2287,7 +2287,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
         let temporaryArchiveURL = URL(fileURLWithPath: level.archivePath).standardizedFileURL
         guard let currentFingerprint = FileManagerArchiveFileFingerprint.captureIfPossible(for: temporaryArchiveURL) else {
-            throw paneOperationError("The nested archive could not be synchronized because its temporary file is missing.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.nestedArchiveSyncFailed"))
         }
 
         guard currentFingerprint != writeBackInfo.initialFingerprint else {
@@ -2800,12 +2800,12 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                      inheritDownloadedFileQuarantine: Bool) throws
     {
         guard let level = archiveStack.last else {
-            throw paneOperationError("No archive is open.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.noArchiveOpen"))
         }
 
         let indices = archiveEntryIndices(for: itemsToExtract)
         guard !indices.isEmpty else {
-            throw paneOperationError("The selected archive items cannot be extracted.")
+            throw paneOperationError(SZL10n.string("app.fileManager.error.cannotExtractSelected"))
         }
 
         let settings = makeArchiveExtractionSettings(overwriteMode: overwriteMode,
@@ -2830,7 +2830,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     private func unavailableExternalOpenError(for itemName: String) -> NSError {
-        paneOperationError("No application is available to open \"\(itemName)\".")
+        paneOperationError(SZL10n.string("app.fileManager.error.noAppToOpen", itemName))
     }
 
     private func invalidAddressBarPathError(for path: String) -> NSError {
@@ -2838,7 +2838,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                 code: NSFileNoSuchFileError,
                 userInfo: [
                     NSFilePathErrorKey: path,
-                    NSLocalizedDescriptionKey: "The path \"\(path)\" does not exist.",
+                    NSLocalizedDescriptionKey: SZL10n.string("app.fileManager.error.pathNotFound", path),
                 ])
     }
 
@@ -2872,8 +2872,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     }
 
     private func showUnsupportedArchiveOperationAlert(action: String) {
-        szPresentMessage(title: "\(action) is not available here",
-                         message: "This file-manager view can browse archives and extract or copy items out of them, but in-place archive modification is not implemented yet.",
+        szPresentMessage(title: SZL10n.string("app.fileManager.alert.actionNotAvailableTitle", action),
+                         message: SZL10n.string("app.fileManager.alert.archiveModificationNotSupported"),
                          for: view.window)
     }
 
@@ -2882,8 +2882,8 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
            let nestedIdentity = level.nestedIdentity,
            hasConflictingNestedArchiveInstance(for: nestedIdentity)
         {
-            szPresentMessage(title: "\(action) is not available here",
-                             message: "This inner archive is open in more than one pane or window. Close the other instance before modifying it to avoid conflicting write-back state.",
+            szPresentMessage(title: SZL10n.string("app.fileManager.alert.actionNotAvailableTitle", action),
+                             message: SZL10n.string("app.fileManager.alert.nestedArchiveConflict"),
                              for: view.window)
             return
         }
@@ -2891,15 +2891,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         if let level = archiveStack.last,
            !level.archive.canWrite
         {
-            let archiveFormat = level.archive.formatName ?? "This archive format"
-            szPresentMessage(title: "\(action) is not available here",
-                             message: "\(archiveFormat) archives do not support this in-place update operation.",
+            let archiveFormat = level.archive.formatName ?? SZL10n.string("app.fileManager.alert.thisArchiveFormat")
+            szPresentMessage(title: SZL10n.string("app.fileManager.alert.actionNotAvailableTitle", action),
+                             message: SZL10n.string("app.fileManager.alert.formatNoInPlaceUpdate", archiveFormat),
                              for: view.window)
             return
         }
 
-        szPresentMessage(title: "\(action) is not available here",
-                         message: "This archive view is backed by a temporary extracted copy, so modifying it in place is not supported yet. Open the archive directly to rename, delete, or create folders inside it.",
+        szPresentMessage(title: SZL10n.string("app.fileManager.alert.actionNotAvailableTitle", action),
+                         message: SZL10n.string("app.fileManager.alert.temporaryCopyNoModification"),
                          for: view.window)
     }
 
@@ -3721,7 +3721,7 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
 
             guard let self else { return }
             guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
-                showReadOnlyArchiveMutationAlert(action: operation == .move ? "Moving files into archive" : "Adding files to archive")
+                showReadOnlyArchiveMutationAlert(action: operation == .move ? SZL10n.string("app.fileManager.action.movingFilesIntoArchive") : SZL10n.string("app.fileManager.action.addingFilesToArchive"))
                 return
             }
 
@@ -3758,11 +3758,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     private func archiveTransferConfirmationTitle(for urls: [URL],
                                                   operation: NSDragOperation) -> String
     {
-        let verb = operation == .move ? "Move" : "Add"
         if urls.count == 1 {
-            return "\(verb) \"\(urls[0].lastPathComponent)\" to archive?"
+            return operation == .move
+                ? SZL10n.string("app.fileManager.archiveTransfer.moveSingle", urls[0].lastPathComponent)
+                : SZL10n.string("app.fileManager.archiveTransfer.addSingle", urls[0].lastPathComponent)
         }
-        return "\(verb) \(urls.count) item(s) to archive?"
+        return operation == .move
+            ? SZL10n.string("app.fileManager.archiveTransfer.moveMultiple", urls.count)
+            : SZL10n.string("app.fileManager.archiveTransfer.addMultiple", urls.count)
     }
 
     private func archiveTransferConfirmationMessage(forSubdir subdir: String,
@@ -3770,15 +3773,15 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let archiveName = archiveStack.last.map { URL(fileURLWithPath: $0.archivePath).lastPathComponent } ?? "archive"
         let normalizedSubdir = normalizeArchivePath(subdir)
-        var lines = ["Archive: \(archiveName)"]
+        var lines = [SZL10n.string("app.fileManager.archiveTransfer.archive", archiveName)]
         if !normalizedSubdir.isEmpty {
-            lines.append("Folder: \(normalizedSubdir)")
+            lines.append(SZL10n.string("app.fileManager.archiveTransfer.folder", normalizedSubdir))
         }
         lines.append("")
-        lines.append("Existing entries with the same name in that location will be replaced without another prompt.")
+        lines.append(SZL10n.string("app.fileManager.archiveTransfer.replaceWarning"))
         if operation == .move {
             lines.append("")
-            lines.append("The source items will be removed after the archive is updated.")
+            lines.append(SZL10n.string("app.fileManager.archiveTransfer.sourceRemovalWarning"))
         }
         return lines.joined(separator: "\n")
     }
@@ -4082,7 +4085,7 @@ extension FileManagerPaneController {
             {
                 prepared.archive.close()
                 archiveItemWorkflowService.cleanup(prepared.temporaryDirectory)
-                result = .failed(paneOperationError("This inner archive already has unsaved changes in another pane or window. Close that modified instance before opening it again."))
+                result = .failed(paneOperationError(SZL10n.string("app.fileManager.error.nestedArchiveDirty")))
                 break
             }
 
@@ -4281,7 +4284,7 @@ extension FileManagerPaneController {
 
     @objc private func compressSelected(_: Any?) {
         if isInsideArchive, !supportsInPlaceArchiveMutation {
-            showReadOnlyArchiveMutationAlert(action: "Adding files to archive")
+            showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.addingFilesToArchive"))
             return
         }
 
@@ -4347,7 +4350,7 @@ extension FileManagerPaneController {
     @objc private func renameSelected(_: Any?) {
         if isInsideArchive {
             guard let target = currentArchiveMutationTarget() else {
-                showReadOnlyArchiveMutationAlert(action: "Renaming archive items")
+                showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.renamingArchiveItems"))
                 return
             }
 
@@ -4369,7 +4372,7 @@ extension FileManagerPaneController {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
-                        showReadOnlyArchiveMutationAlert(action: "Renaming archive items")
+                        showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.renamingArchiveItems"))
                         return
                     }
 
@@ -4418,7 +4421,7 @@ extension FileManagerPaneController {
     @objc private func deleteSelected(_: Any?) {
         if isInsideArchive {
             guard let target = currentArchiveMutationTarget() else {
-                showReadOnlyArchiveMutationAlert(action: "Deleting archive items")
+                showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.deletingArchiveItems"))
                 return
             }
 
@@ -4437,7 +4440,7 @@ extension FileManagerPaneController {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     guard let currentTarget = revalidatedArchiveMutationTarget(for: target) else {
-                        showReadOnlyArchiveMutationAlert(action: "Deleting archive items")
+                        showReadOnlyArchiveMutationAlert(action: SZL10n.string("app.fileManager.action.deletingArchiveItems"))
                         return
                     }
 
