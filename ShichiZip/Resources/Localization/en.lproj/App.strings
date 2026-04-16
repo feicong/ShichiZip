@@ -56,6 +56,8 @@
 "app.fileManager.statusFolders" = "folders";
 "app.fileManager.statusSelected" = "selected";
 "app.fileManager.statusTotal" = "total";
+"app.fileManager.reactivatePane" = "Open Folder";
+"app.fileManager.suspendedDescription" = "This pane has been closed. Click the button below or type a path in the address bar to reopen it.";
 "app.fileManager.testOK" = "Test OK";
 "app.menu.about" = "About %@";
 "app.menu.bringAllToFront" = "Bring All to Front";
@@ -71,6 +73,7 @@
 "app.menu.showAll" = "Show All";
 "app.menu.window" = "Window";
 "app.menu.zoom" = "Zoom";
+"app.menu.closeDirectory" = "Close Directory";
 "app.optional" = "Optional";
 "app.options" = "Options";
 "app.panel.chooseArchives" = "Choose archive files to open in %@";

@@ -55,6 +55,8 @@
 "app.fileManager.statusFolders" = "个文件夹";
 "app.fileManager.statusSelected" = "已选择";
 "app.fileManager.statusTotal" = "共计";
+"app.fileManager.reactivatePane" = "打开文件夹";
+"app.fileManager.suspendedDescription" = "此窗格已关闭，点击下方按钮或在地址栏中输入路径以重新打开。";
 "app.fileManager.deleteFromArchiveTitle" = "从压缩包中删除 %d 个项目？";
 "app.fileManager.deleteFromArchiveMessage" = "这些项目将从压缩包中永久移除。";
 "app.fileManager.deleteItemsTitle" = "删除 %d 个项目？";
@@ -75,6 +77,7 @@
 "app.menu.showAll" = "显示全部";
 "app.menu.window" = "窗口";
 "app.menu.zoom" = "缩放";
+"app.menu.closeDirectory" = "关闭文件夹";
 "app.optional" = "可选";
 "app.options" = "选项";
 "app.panel.chooseArchives" = "选择要在 %@ 中打开的压缩包";

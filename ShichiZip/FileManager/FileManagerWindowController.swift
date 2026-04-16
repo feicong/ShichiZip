@@ -1228,6 +1228,10 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
         activePane.refresh()
     }
 
+    @objc func closeDirectory(_: Any?) {
+        activePane.closeDirectory()
+    }
+
     @objc func showCRC32Hash(_: Any?) {
         presentSelectionHash(.crc32)
     }
@@ -1706,6 +1710,8 @@ class FileManagerWindowController: NSWindowController, NSWindowDelegate, NSUserI
              #selector(sortByModifiedDate(_:)),
              #selector(sortByCreatedDate(_:)):
             return true
+        case #selector(closeDirectory(_:)):
+            return !activePane.isSuspended
         case #selector(showTimestampDay(_:)),
              #selector(showTimestampMinute(_:)),
              #selector(showTimestampSecond(_:)),

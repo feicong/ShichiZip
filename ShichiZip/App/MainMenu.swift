@@ -582,6 +582,8 @@ enum FileManagerMenuFactory {
             .item(title: SZL10n.string("menu.createFile"),
                   action: #selector(FileManagerWindowController.createFile(_:))),
             .separator,
+            .item(title: SZL10n.string("app.menu.closeDirectory"),
+                  action: #selector(FileManagerWindowController.closeDirectory(_:))),
             .item(title: SZL10n.string("common.close"),
                   action: #selector(NSWindow.performClose(_:)),
                   shortcut: Shortcut("w")),

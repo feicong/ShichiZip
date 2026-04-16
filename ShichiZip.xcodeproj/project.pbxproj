@@ -49,6 +49,7 @@
 		4716B9BE68CB589E3C4D61C4 /* DragFromArchiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EF191DBF7478F38AF4DCC9 /* DragFromArchiveUITests.swift */; };
 		4747789EA60F4B81B574BFC9 /* ShichiZipZSOpenInShichiZipAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2D52490C7FF5294CC6DEBEEE /* ShichiZipZSOpenInShichiZipAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47A974D49EB2F91F92DD6456 /* SZSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D6A1A6EF0AE7CB104B909C /* SZSettings.swift */; };
+		491C4B3C00A8FB5465807AC9 /* SuspendedPaneUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C347583E9DD5EDD0AFB9FAA1 /* SuspendedPaneUITests.swift */; };
 		4A3147B030026487D9A8E1FF /* SZOperationSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 0DEB3F8BBDBD6F9E07CBC6B4 /* SZOperationSession.m */; };
 		4B1F27C9147FFF198485FD01 /* exe.icns in Resources */ = {isa = PBXBuildFile; fileRef = A32430ACDC59D3EC5376C3AB /* exe.icns */; };
 		4F372B7D7336BBA8A2F1B894 /* FoldersHistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5287B22A45EB2C1D5DDAF5B /* FoldersHistoryWindowController.swift */; };
@@ -394,6 +395,7 @@
 		BFC0BBA503F15D8B56126A1C /* hy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hy; path = hy.lproj/Upstream.strings; sourceTree = "<group>"; };
 		BFD176FA18442E86320EB37C /* zip.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = zip.icns; sourceTree = "<group>"; };
 		C0BB225F7D361F2CB559B19B /* az */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = az; path = az.lproj/Upstream.strings; sourceTree = "<group>"; };
+		C347583E9DD5EDD0AFB9FAA1 /* SuspendedPaneUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuspendedPaneUITests.swift; sourceTree = "<group>"; };
 		C4B2D1040171A178E5575D88 /* ArchiveItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveItem.swift; sourceTree = "<group>"; };
 		C527154030132E62B6B780C5 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Upstream.strings; sourceTree = "<group>"; };
 		C9B56FD3FC3C784F51DF4115 /* af */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = af; path = af.lproj/Upstream.strings; sourceTree = "<group>"; };
@@ -540,6 +542,7 @@
 				9BF6E2673782AB1DDF945AD1 /* MenuRefreshUITests.swift */,
 				044F3455FA44DAE7A4A1B7BA /* QuickLookUITests.swift */,
 				315B52C1EE52256B4919F2E8 /* ShichiZipUITestCase.swift */,
+				C347583E9DD5EDD0AFB9FAA1 /* SuspendedPaneUITests.swift */,
 			);
 			path = ShichiZipUITests;
 			sourceTree = "<group>";
@@ -1259,6 +1262,7 @@
 				DDA90F5AA2CEB108EA05CE2F /* MenuRefreshUITests.swift in Sources */,
 				8EEC742BF9CB92614EC63A62 /* QuickLookUITests.swift in Sources */,
 				B643A1B77EE766AEE7955566 /* ShichiZipUITestCase.swift in Sources */,
+				491C4B3C00A8FB5465807AC9 /* SuspendedPaneUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1856,7 +1860,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.0.3;
+				MARKETING_VERSION = 0.0.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PLIST_FILE_OUTPUT_FORMAT = binary;
@@ -2076,7 +2080,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.0.3;
+				MARKETING_VERSION = 0.0.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
