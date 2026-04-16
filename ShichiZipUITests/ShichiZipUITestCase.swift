@@ -37,12 +37,13 @@ class ShichiZipUITestCase: XCTestCase {
         app.textFields.matching(identifier: "fileManager.pathField").firstMatch
     }
 
-    /// Navigates the left pane to the given directory path by typing into the path field.
+    /// Navigates the left pane to the given directory path by pasting into the path field.
     func navigateLeftPane(to path: String) {
         let pathField = leftPanePathField
         pathField.click()
         pathField.selectAll()
-        pathField.typeText(path + "\r")
+        pathField.pasteText(path)
+        pathField.typeText("\r")
     }
 
     /// Creates a temporary directory for test fixtures and returns its path.
@@ -172,5 +173,19 @@ extension XCUIElement {
     /// Select all text in a text field (Cmd-A).
     func selectAll() {
         typeKey("a", modifierFlags: .command)
+    }
+
+    /// Pastes text via the pasteboard (much faster than `typeText` for long strings).
+    func pasteText(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        let previous = pasteboard.string(forType: .string)
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        typeKey("v", modifierFlags: .command)
+        // Restore previous pasteboard content.
+        pasteboard.clearContents()
+        if let previous {
+            pasteboard.setString(previous, forType: .string)
+        }
     }
 }

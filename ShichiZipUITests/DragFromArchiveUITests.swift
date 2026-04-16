@@ -54,7 +54,8 @@ final class DragFromArchiveUITests: ShichiZipUITestCase {
                       "Path field should exist before navigating")
         pathField.click()
         pathField.selectAll()
-        pathField.typeText(path + "\r")
+        pathField.pasteText(path)
+        pathField.typeText("\r")
     }
 
     // MARK: - Workflow helpers
