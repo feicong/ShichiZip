@@ -57,11 +57,12 @@ final class ArchiveOperationCoordinator {
     }
 
     func start() {
-        let timer = Timer(timeInterval: Self.updateInterval,
-                          target: self,
-                          selector: #selector(updateFromSession),
-                          userInfo: nil,
-                          repeats: true)
+        // Use the block API so the timer does not retain the coordinator.
+        let timer = Timer(timeInterval: Self.updateInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.updateFromSession()
+            }
+        }
         self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
 

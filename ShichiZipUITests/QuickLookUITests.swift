@@ -4,11 +4,8 @@ import XCTest
 ///
 /// Launches with the Finder-like shortcut preset so Space triggers Quick Look.
 final class QuickLookUITests: ShichiZipUITestCase {
-    override func setUp() async throws {
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments += ["-FileManagerShortcutPreset", "0"]
-        app.launch()
+    override var additionalLaunchArguments: [String] {
+        ["-FileManagerShortcutPreset", "0"]
     }
 
     func testQuickLookOpensForFilesystemFile() throws {
@@ -34,11 +31,13 @@ final class QuickLookUITests: ShichiZipUITestCase {
                                                            object: app.windows)
         let panelAppeared = XCTWaiter().wait(for: [windowsExpectation], timeout: 5) == .completed
 
-        if panelAppeared {
-            // Dismiss with Space again
-            app.typeKey(" ", modifierFlags: [])
-            usleep(500_000)
-        }
+        // Require the preview panel to appear; app.runningForeground alone is not enough.
+        XCTAssertTrue(panelAppeared,
+                      "Quick Look panel did not appear after Space on preview.txt")
+
+        // Dismiss with Space again
+        app.typeKey(" ", modifierFlags: [])
+        usleep(500_000)
 
         // App should still be running regardless
         XCTAssertTrue(app.state == .runningForeground,

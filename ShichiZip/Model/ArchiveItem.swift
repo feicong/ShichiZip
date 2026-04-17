@@ -93,22 +93,32 @@ struct ArchiveItem {
                                     pathPrefixToStrip: String?) -> [URL]
     {
         let prefixComponents = pathPrefixToStrip.map(Self.derivePathParts(from:)) ?? []
+        let standardizedDestination = destinationURL.standardizedFileURL
         var seenPaths = Set<String>()
         var outputURLs: [URL] = []
 
         for item in items {
             let itemOutputURLs = extractedOutputURLs(for: item,
-                                                     destinationURL: destinationURL,
+                                                     destinationURL: standardizedDestination,
                                                      pathMode: pathMode,
                                                      prefixComponents: prefixComponents)
             for outputURL in itemOutputURLs {
                 let standardizedURL = outputURL.standardizedFileURL
+                // Never return paths that escape the destination directory.
+                guard isURL(standardizedURL, containedIn: standardizedDestination) else { continue }
                 guard seenPaths.insert(standardizedURL.path).inserted else { continue }
                 outputURLs.append(standardizedURL)
             }
         }
 
         return outputURLs
+    }
+
+    private static func isURL(_ candidate: URL, containedIn parent: URL) -> Bool {
+        let parentComponents = parent.pathComponents
+        let candidateComponents = candidate.pathComponents
+        guard candidateComponents.count >= parentComponents.count else { return false }
+        return Array(candidateComponents.prefix(parentComponents.count)) == parentComponents
     }
 
     private static func extractedOutputURLs(for item: ArchiveItem,
@@ -128,9 +138,12 @@ struct ArchiveItem {
 
         case .absolutePaths:
             if NSString(string: item.path).isAbsolutePath {
+                // Re-anchor absolute archive paths under the destination.
                 let trimmedPath = item.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 guard !trimmedPath.isEmpty else { return [] }
-                return [URL(fileURLWithPath: item.path)]
+                let anchored = destinationURL.appendingPathComponent(trimmedPath,
+                                                                     isDirectory: item.isDirectory)
+                return [anchored]
             }
 
             return relativeOutputURLs(from: relativeComponents,

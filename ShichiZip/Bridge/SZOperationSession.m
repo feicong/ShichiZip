@@ -1,5 +1,7 @@
 #import "SZOperationSession.h"
 
+#import <QuartzCore/QuartzCore.h>
+
 #import "SZArchive.h"
 
 static inline void SZDispatchAsyncOnMain(dispatch_block_t block) {
@@ -27,6 +29,9 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
     BOOL _hasReportedProgress;
     BOOL _waitingForUserInteraction;
     BOOL _cancellationRequested;
+    // Last time progress/byte updates were forwarded to the delegate.
+    CFAbsoluteTime _lastProgressDispatchTime;
+    CFAbsoluteTime _lastBytesDispatchTime;
 }
 
 @end
@@ -169,13 +174,24 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 
 - (void)reportProgressFraction:(double)fraction {
     const double clamped = MIN(MAX(fraction, 0.0), 1.0);
+    BOOL shouldDispatch;
     @synchronized(self) {
         _progressFraction = clamped;
         _hasReportedProgress = YES;
+        // Coalesce frequent updates to ~50 ms, but always send the first and terminal values.
+        // Use a monotonic clock so wall-clock changes do not break throttling.
+        const CFTimeInterval now = CACurrentMediaTime();
+        const CFTimeInterval kMinInterval = 0.05;
+        shouldDispatch = (clamped >= 1.0)
+            || (_lastProgressDispatchTime == 0)
+            || (now - _lastProgressDispatchTime >= kMinInterval);
+        if (shouldDispatch) {
+            _lastProgressDispatchTime = now;
+        }
     }
 
     id<SZProgressDelegate> delegate = self.progressDelegate;
-    if (!delegate) {
+    if (!delegate || !shouldDispatch) {
         return;
     }
 
@@ -201,13 +217,22 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (void)reportBytesCompleted:(uint64_t)completed total:(uint64_t)total {
+    BOOL shouldDispatch;
     @synchronized(self) {
         _bytesCompleted = completed;
         _bytesTotal = total;
+        const CFTimeInterval now = CACurrentMediaTime();
+        const CFTimeInterval kMinInterval = 0.05;
+        shouldDispatch = (total > 0 && completed >= total)
+            || (_lastBytesDispatchTime == 0)
+            || (now - _lastBytesDispatchTime >= kMinInterval);
+        if (shouldDispatch) {
+            _lastBytesDispatchTime = now;
+        }
     }
 
     id<SZProgressDelegate> delegate = self.progressDelegate;
-    if (!delegate) {
+    if (!delegate || !shouldDispatch) {
         return;
     }
 
@@ -223,20 +248,8 @@ static inline void SZDispatchSyncOnMain(dispatch_block_t block) {
 }
 
 - (BOOL)shouldCancel {
-    if (self.cancellationRequested) {
-        return YES;
-    }
-
-    id<SZProgressDelegate> delegate = self.progressDelegate;
-    if (!delegate) {
-        return NO;
-    }
-
-    __block BOOL shouldCancel = NO;
-    SZDispatchSyncOnMain(^{
-        shouldCancel = [delegate progressShouldCancel];
-    });
-    return shouldCancel;
+    // Worker threads poll this frequently, so avoid main-thread hops here.
+    return self.cancellationRequested;
 }
 
 - (void)requestCancel {

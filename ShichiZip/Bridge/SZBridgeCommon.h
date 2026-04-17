@@ -113,21 +113,26 @@ static inline NSString* SZLocalizedString(NSString* key) {
         NSString* lpath = [bundle pathForResource:override ofType:@"lproj"];
         if (lpath) {
             NSBundle* overrideBundle = [NSBundle bundleWithPath:lpath];
-            if (overrideBundle) bundle = overrideBundle;
+            if (overrideBundle)
+                bundle = overrideBundle;
         }
     }
     // App table first
     NSString* appValue = [bundle localizedStringForKey:key value:nil table:@"App"];
-    if (![appValue isEqualToString:key]) return appValue;
+    if (![appValue isEqualToString:key])
+        return appValue;
     // Upstream table
     NSString* upstreamValue = [bundle localizedStringForKey:key value:nil table:@"Upstream"];
-    if (![upstreamValue isEqualToString:key]) return upstreamValue;
+    if (![upstreamValue isEqualToString:key])
+        return upstreamValue;
     // Fallback to main bundle if override was active
     if (bundle != [NSBundle mainBundle]) {
         appValue = [[NSBundle mainBundle] localizedStringForKey:key value:nil table:@"App"];
-        if (![appValue isEqualToString:key]) return appValue;
+        if (![appValue isEqualToString:key])
+            return appValue;
         upstreamValue = [[NSBundle mainBundle] localizedStringForKey:key value:nil table:@"Upstream"];
-        if (![upstreamValue isEqualToString:key]) return upstreamValue;
+        if (![upstreamValue isEqualToString:key])
+            return upstreamValue;
     }
     return key;
 }
@@ -184,26 +189,37 @@ CCodecs* _Nullable SZGetCodecs(void);
 // ============================================================
 // String conversion: UString <-> NSString
 // ============================================================
-
 static inline UString ToU(NSString* _Nullable s) {
     if (!s)
         return UString();
-    NSUInteger len = [s length];
+    const NSUInteger len = s.length;
     UString u;
     u.Empty();
-    for (NSUInteger i = 0; i < len; i++) {
+    for (NSUInteger i = 0; i < len; i++)
         u += (wchar_t)[s characterAtIndex:i];
-    }
     return u;
 }
 
 static inline NSString* ToNS(const UString& u) {
     NSMutableString* s = [NSMutableString stringWithCapacity:u.Len()];
     for (unsigned i = 0; i < u.Len(); i++) {
-        unichar ch = (unichar)u[i];
+        const unichar ch = (unichar)u[i];
         [s appendString:[NSString stringWithCharacters:&ch length:1]];
     }
     return s;
+}
+
+// Convert a C string to NSString without returning nil; invalid UTF-8
+// falls back to Mac Roman.
+static inline NSString* NSFromCString(const char* _Nullable cstr) {
+    if (!cstr)
+        return @"";
+    NSString* utf8 = [[NSString alloc] initWithUTF8String:cstr];
+    if (utf8)
+        return utf8;
+    NSString* fallback = [[NSString alloc] initWithCString:cstr
+                                                  encoding:NSMacOSRomanStringEncoding];
+    return fallback ?: @"";
 }
 
 // ============================================================

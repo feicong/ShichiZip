@@ -1,14 +1,20 @@
 import CoreServices
 import Foundation
 
-/// Monitors a filesystem directory for changes using FSEvents.
-///
-/// Mirrors the upstream Windows 7-Zip pattern where `CFSFolder::Init()` registers
-/// a `FindFirstChangeNotification` handle, and `WasChanged()` returns whether the
-/// handle has been signaled since the last check.  Here, FSEvents sets a flag and
-/// the caller polls via ``wasChanged()`` on a timer tick.
+/// Monitors a directory with FSEvents and exposes a pollable change flag.
+/// Runs on the main actor because callbacks are delivered on the main queue.
+@MainActor
 final class DirectoryWatcher {
+    /// Stream-owned context that weakly references the watcher.
+    private final class CallbackContext {
+        weak var owner: DirectoryWatcher?
+        init(owner: DirectoryWatcher) {
+            self.owner = owner
+        }
+    }
+
     private var stream: FSEventStreamRef?
+    private var callbackContext: CallbackContext?
     private var changed = false
     var onChange: (() -> Void)?
 
@@ -16,18 +22,34 @@ final class DirectoryWatcher {
         let pathString = directory.path as CFString
         let paths = [pathString] as CFArray
 
-        var context = FSEventStreamContext()
-        context.info = Unmanaged.passUnretained(self).toOpaque()
+        let context = CallbackContext(owner: self)
+        callbackContext = context
+
+        var streamContext = FSEventStreamContext()
+        // Let the stream manage the context lifetime via its retain/release callbacks.
+        streamContext.info = Unmanaged.passUnretained(context).toOpaque()
+        streamContext.retain = { info in
+            guard let info else { return nil }
+            _ = Unmanaged<CallbackContext>.fromOpaque(info).retain()
+            return UnsafeRawPointer(info)
+        }
+        streamContext.release = { info in
+            guard let info else { return }
+            Unmanaged<CallbackContext>.fromOpaque(info).release()
+        }
 
         stream = FSEventStreamCreate(
             nil,
             { _, info, _, _, _, _ in
                 guard let info else { return }
-                let watcher = Unmanaged<DirectoryWatcher>.fromOpaque(info).takeUnretainedValue()
-                watcher.changed = true
-                watcher.onChange?()
+                let context = Unmanaged<CallbackContext>.fromOpaque(info).takeUnretainedValue()
+                MainActor.assumeIsolated {
+                    guard let watcher = context.owner else { return }
+                    watcher.changed = true
+                    watcher.onChange?()
+                }
             },
-            &context,
+            &streamContext,
             paths,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             0.3,
@@ -40,12 +62,11 @@ final class DirectoryWatcher {
         }
     }
 
-    deinit {
+    isolated deinit {
         stop()
     }
 
-    /// Drains all pending change events and returns whether any occurred since
-    /// the last call — analogous to upstream `CFSFolder::WasChanged()`.
+    /// Returns whether any events arrived since the last poll.
     func wasChanged() -> Bool {
         guard changed else { return false }
         changed = false
@@ -58,5 +79,6 @@ final class DirectoryWatcher {
         FSEventStreamInvalidate(stream)
         FSEventStreamRelease(stream)
         self.stream = nil
+        callbackContext = nil
     }
 }

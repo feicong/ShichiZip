@@ -425,7 +425,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         tableView.delegate = self
         tableView.target = self
         tableView.menu = buildContextMenu()
-        NSLog("[ShichiZip] File manager pane context menu set with %ld items", tableView.menu?.items.count ?? 0)
+        #if DEBUG
+            NSLog("[ShichiZip] File manager pane context menu set with %ld items", tableView.menu?.items.count ?? 0)
+        #endif
 
         // Register for drag and drop
         let promisedFileTypes = NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
@@ -616,6 +618,27 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         .sorted { $0.path < $1.path }
     }
 
+    /// Builds the fingerprint and `FileSystemItem`s in one pass.
+    private func makeFingerprintAndItems(from contents: [URL])
+        -> (fingerprint: [DirectoryEntryFingerprint], items: [FileSystemItem])
+    {
+        let keys = Set(FileSystemItem.resourceKeys)
+        let pairs: [(DirectoryEntryFingerprint, FileSystemItem)] = contents.map { url in
+            let values = try? url.resourceValues(forKeys: keys)
+            let fingerprint = DirectoryEntryFingerprint(
+                path: url.standardizedFileURL.path,
+                isDirectory: values?.isDirectory ?? false,
+                size: values?.fileSize ?? 0,
+                modifiedDate: values?.contentModificationDate,
+                createdDate: values?.creationDate,
+            )
+            let item = FileSystemItem(url: url, resourceValues: values)
+            return (fingerprint, item)
+        }
+        let fingerprint = pairs.map(\.0).sorted { $0.path < $1.path }
+        return (fingerprint, pairs.map(\.1))
+    }
+
     private func captureFileSystemSelectionState() -> FileSystemSelectionState {
         guard isViewLoaded, !isInsideArchive else {
             return .empty
@@ -691,8 +714,14 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         currentDirectory = url
         recordDirectoryVisit(url)
         updatePathField()
-        currentDirectoryFingerprint = fingerprint ?? makeDirectoryFingerprint(from: contents)
-        items = contents.map { FileSystemItem(url: $0) }
+        if let fingerprint {
+            currentDirectoryFingerprint = fingerprint
+            items = contents.map { FileSystemItem(url: $0) }
+        } else {
+            let combined = makeFingerprintAndItems(from: contents)
+            currentDirectoryFingerprint = combined.fingerprint
+            items = combined.items
+        }
         sortCurrentItems(by: tableView.sortDescriptors)
         tableView.reloadData()
         updateStatusBar()
@@ -3855,8 +3884,9 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
     {
         let sourceAttributes = try? fileManager.attributesOfItem(atPath: sourceURL.path)
         let destinationAttributes = try? fileManager.attributesOfItem(atPath: destinationURL.path)
-        let sourceSize = (sourceAttributes?[.size] as? UInt64) ?? 0
-        let destinationSize = (destinationAttributes?[.size] as? UInt64) ?? 0
+        // FileAttributeKey.size is stored as NSNumber.
+        let sourceSize = (sourceAttributes?[.size] as? NSNumber)?.uint64Value ?? 0
+        let destinationSize = (destinationAttributes?[.size] as? NSNumber)?.uint64Value ?? 0
         let sourceDate = sourceAttributes?[.modificationDate] as? Date
         let destinationDate = destinationAttributes?[.modificationDate] as? Date
         let dateFormatter = FileManagerViewPreferences.makeDateFormatter(dateStyle: .medium,

@@ -83,11 +83,11 @@ MACOSX_DEPLOYMENT_TARGET ?= 13.0
 TARGET_ARCH ?= arm64
 ARCH = -arch $(TARGET_ARCH)
 CFLAGS_COMMON = $(ARCH) -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET) -O2 -DNDEBUG -D_REENTRANT -D_FILE_OFFSET_BITS=64 \
-	-D_LARGEFILE_SOURCE -fPIC -Wall -Wextra
+	-D_LARGEFILE_SOURCE -fPIC -Wall -Wextra -MMD -MP
 SEVENZ_INCLUDE_FLAGS = -I$(SEVENZ_ROOT)
 CFLAGS = $(CFLAGS_COMMON) -std=c11 $(EXTRA_CODEC_INCLUDE_FLAGS)
-CXXFLAGS = $(CFLAGS_COMMON) -std=c++11 -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
-OBJCXXFLAGS = $(CFLAGS_COMMON) -std=c++11 -fobjc-arc -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
+CXXFLAGS = $(CFLAGS_COMMON) -std=c++23 -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
+OBJCXXFLAGS = $(CFLAGS_COMMON) -std=c++23 -fobjc-arc -DSHICHIZIP_APPLE_DETECTOR $(SEVENZ_INCLUDE_FLAGS) $(EXTRA_CODEC_INCLUDE_FLAGS)
 
 define require_existing_files
 $(if $(strip $(filter-out $(wildcard $(1)),$(1))),$(error Missing required source file(s): $(filter-out $(wildcard $(1)),$(1))),$(1))
@@ -502,21 +502,34 @@ lib: $(LIB)
 
 lib-mainline:
 	@$(MAKE) SEVENZ_VARIANT=mainline lib
-	@$(MAKE) -f Makefile.sfx SFX_VARIANT=mainline -j8
+	+@$(MAKE) -f Makefile.sfx SFX_VARIANT=mainline
 
 lib-zs:
 	@$(MAKE) SEVENZ_VARIANT=zs lib
-	@$(MAKE) -f Makefile.sfx SFX_VARIANT=zs -j8
+	+@$(MAKE) -f Makefile.sfx SFX_VARIANT=zs
 
-prepare-7zip:
+# Patch stamp for the current submodule checkout.
+# Keeps patching idempotent and reruns when the submodule revision changes.
+SEVENZ_HEAD := $(shell git -C $(SEVENZ_ROOT) rev-parse --verify HEAD 2>/dev/null || echo unknown-head)
+PATCH_STAMP = build/.shichizip-patched-$(notdir $(SEVENZ_ROOT))-$(SEVENZ_HEAD)
+PATCH_SRC_FILES = $(wildcard vendor/$(notdir $(SEVENZ_ROOT))-*.patch) vendor/apply_7zip_patches.sh
+
+$(PATCH_STAMP): $(PATCH_SRC_FILES)
+	@mkdir -p $(dir $@)
 	@sh vendor/apply_7zip_patches.sh $(SEVENZ_ROOT)
+	@touch $@
 
-$(ALL_OBJS): | prepare-7zip
+prepare-7zip: $(PATCH_STAMP)
+
+$(ALL_OBJS): | $(PATCH_STAMP)
 
 $(LIB): $(ALL_OBJS)
 	@mkdir -p $(LIB_OUT)
 	$(AR) rcs $@ $^
 	@echo "=== Built $@ ($(words $(ALL_OBJS)) objects) ==="
+
+# Pull in generated header dependencies.
+-include $(ALL_OBJS:.o=.d)
 
 # Fast LZMA2 needs extra compatibility defines from the fork build.
 $(O)/C/fast-lzma2/%.o: $(SEVENZ_ROOT)/C/fast-lzma2/%.c
@@ -557,16 +570,17 @@ $(O)/%.o: %.mm
 	$(CXX) $(OBJCXXFLAGS) -c -o $@ $<
 
 clean:
-	rm -rf build
+	rm -rf build/obj build/sfx-obj build/lib build/sfx
+	rm -f build/.shichizip-patched-*
 
 # === Cross-compile SFX modules for Windows using zig ===
 .PHONY: sfx sfx-mainline sfx-zs sfx-clean
 
 sfx-mainline:
-	@$(MAKE) -f Makefile.sfx SFX_VARIANT=mainline -j8
+	+@$(MAKE) -f Makefile.sfx SFX_VARIANT=mainline
 
 sfx-zs:
-	@$(MAKE) -f Makefile.sfx SFX_VARIANT=zs -j8
+	+@$(MAKE) -f Makefile.sfx SFX_VARIANT=zs
 
 sfx: sfx-mainline sfx-zs
 

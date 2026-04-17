@@ -2,6 +2,11 @@ import Foundation
 
 /// Represents a file system item for the file manager view
 class FileSystemItem {
+    static let resourceKeys: [URLResourceKey] = [
+        .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey,
+        .contentModificationDateKey, .creationDateKey,
+    ]
+
     let url: URL
     let name: String
     let isDirectory: Bool
@@ -9,14 +14,15 @@ class FileSystemItem {
     let modifiedDate: Date?
     let createdDate: Date?
 
-    init(url: URL) {
+    convenience init(url: URL) {
+        let values = try? url.resourceValues(forKeys: Set(Self.resourceKeys))
+        self.init(url: url, resourceValues: values)
+    }
+
+    /// Reuses pre-fetched resource values when available.
+    init(url: URL, resourceValues: URLResourceValues?) {
         self.url = url
         name = url.lastPathComponent
-
-        let resourceValues = try? url.resourceValues(forKeys: [
-            .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey,
-            .contentModificationDateKey, .creationDateKey,
-        ])
 
         let resolvedDirectoryValue: Bool?
         if resourceValues?.isSymbolicLink == true {

@@ -3,8 +3,11 @@
 #include "SZBridgeCommon.h"
 #include "SZCallbacks.h"
 
+#include <memory>
 #include <string>
 #include <vector>
+
+#import <os/log.h>
 
 #ifdef __APPLE__
 #include <sys/xattr.h>
@@ -81,34 +84,44 @@ static NSData* SZQuarantineDataForArchivePath(NSString* archivePath) {
         return nil;
     }
 
+    const char* fsPath = archivePath.fileSystemRepresentation;
+    if (!fsPath) {
+        return nil;
+    }
+
     static NSString* const quarantineAttributeName = @"com.apple.quarantine";
-    const ssize_t size = archivePath.fileSystemRepresentation
-        ? quarantineAttributeName.fileSystemRepresentation
-            ? getxattr(archivePath.fileSystemRepresentation,
-                  quarantineAttributeName.fileSystemRepresentation,
-                  nil,
-                  0,
-                  0,
-                  XATTR_NOFOLLOW)
-            : -1
-        : -1;
-
-    if (size < 0) {
+    const char* attrName = quarantineAttributeName.fileSystemRepresentation;
+    if (!attrName) {
         return nil;
     }
 
-    NSMutableData* data = [NSMutableData dataWithLength:(NSUInteger)size];
-    const ssize_t result = getxattr(archivePath.fileSystemRepresentation,
-        quarantineAttributeName.fileSystemRepresentation,
-        data.mutableBytes,
-        data.length,
-        0,
-        XATTR_NOFOLLOW);
-    if (result < 0) {
+    // Avoid a size-probe/read race by trying a fixed buffer first.
+    char stackBuffer[1024];
+    ssize_t read = getxattr(fsPath, attrName, stackBuffer, sizeof(stackBuffer), 0, XATTR_NOFOLLOW);
+    if (read >= 0) {
+        return [NSData dataWithBytes:stackBuffer length:(NSUInteger)read];
+    }
+    if (errno != ERANGE) {
         return nil;
     }
 
-    return data;
+    // Rare fallback for larger xattrs.
+    for (int attempt = 0; attempt < 4; attempt++) {
+        const ssize_t probed = getxattr(fsPath, attrName, NULL, 0, 0, XATTR_NOFOLLOW);
+        if (probed < 0) {
+            return nil;
+        }
+        NSMutableData* data = [NSMutableData dataWithLength:(NSUInteger)probed];
+        read = getxattr(fsPath, attrName, data.mutableBytes, data.length, 0, XATTR_NOFOLLOW);
+        if (read >= 0) {
+            data.length = (NSUInteger)read;
+            return data;
+        }
+        if (errno != ERANGE) {
+            return nil;
+        }
+    }
+    return nil;
 }
 
 @implementation SZArchiveEntry
@@ -1030,7 +1043,7 @@ static UInt32 SZCompressionEstimateAutoThreads(SZCompressionSettings* settings,
 // ============================================================
 
 @interface SZArchive () {
-    CArchiveLink* _arcLink;
+    std::unique_ptr<CArchiveLink> _arcLink;
     BOOL _isOpen;
     NSString* _archivePath;
     NSString* _openType;
@@ -1383,6 +1396,19 @@ static NSError* SZArchiveUpdateErrorFromResult(HRESULT result,
     }
 }
 
+// Keep the cached password in sync after an in-place mutation.
+- (void)syncCachedPasswordFromUpdateCallback:(SZAgentUpdateCallback*)callback
+                                      result:(HRESULT)result {
+    if (result != S_OK && !callback->ArchiveWasReplaced) {
+        return;
+    }
+    if (callback->PasswordIsDefined) {
+        [self storeCachedPassword:callback->Password defined:true];
+    } else {
+        [self clearCachedPassword];
+    }
+}
+
 - (void)configureExtractPasswordForCallback:(SZFolderExtractCallback*)callback
                            explicitPassword:(NSString*)password {
     if (password) {
@@ -1432,7 +1458,7 @@ static NSError* SZArchiveUpdateErrorFromResult(HRESULT result,
 
 - (instancetype)init {
     if ((self = [super init])) {
-        _arcLink = new CArchiveLink;
+        _arcLink = std::make_unique<CArchiveLink>();
         _isOpen = NO;
         _cachedPasswordIsDefined = NO;
     }
@@ -1440,9 +1466,26 @@ static NSError* SZArchiveUpdateErrorFromResult(HRESULT result,
 }
 
 - (void)dealloc {
-    [self close];
-    delete _arcLink;
-    _arcLink = nullptr;
+    // Close early so upstream objects release before unique_ptr teardown.
+    @try {
+        [self close];
+    } @catch (NSException* exception) {
+#if DEBUG
+        NSLog(@"[ShichiZip] SZArchive dealloc caught ObjC exception during close: %@", exception);
+#else
+        // Keep user paths private in Release logs.
+        os_log_error(OS_LOG_DEFAULT,
+            "[ShichiZip] SZArchive dealloc caught ObjC exception during close: %{private}s",
+            exception.description.UTF8String ?: "");
+#endif
+    }
+    try {
+        if (_arcLink) {
+            _arcLink->Close();
+        }
+    } catch (...) {
+        NSLog(@"[ShichiZip] SZArchive dealloc caught C++ exception during CArchiveLink::Close");
+    }
 }
 
 + (NSString*)sevenZipVersionString {
@@ -1919,6 +1962,13 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
     ia.reserve(indices.count);
     for (NSNumber* n in indices)
         ia.push_back([n unsignedIntValue]);
+    // UINT32_MAX is 7-Zip's "extract all" sentinel.
+    if (ia.size() >= (size_t)UINT32_MAX) {
+        if (error)
+            *error = SZMakeError(E_INVALIDARG,
+                @"Too many entries selected for extraction (limit 4294967294).");
+        return NO;
+    }
     HRESULT r = archive->Extract(ia.data(), (UInt32)ia.size(), 0, ec);
     [self updateCachedPasswordFromExtractCallback:faeSpec result:r];
     return CheckExtractResult(faeSpec, r, error);
@@ -2008,9 +2058,7 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
 
     result = folderOperations->CreateFolder(ToU(folderName), updateCallback);
 
-    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
-        [self storeCachedPassword:updateSpec->Password defined:true];
-    }
+    [self syncCachedPasswordFromUpdateCallback:updateSpec result:result];
 
     if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
                                                                                                       error:error]) {
@@ -2087,9 +2135,7 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
 
     result = folderOperations->Rename(indices[0], ToU(newName), updateCallback);
 
-    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
-        [self storeCachedPassword:updateSpec->Password defined:true];
-    }
+    [self syncCachedPasswordFromUpdateCallback:updateSpec result:result];
 
     if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
                                                                                                       error:error]) {
@@ -2163,12 +2209,17 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
         return NO;
     }
 
+    if (indices.size() > (size_t)UINT32_MAX) {
+        if (error) {
+            *error = SZMakeError(E_INVALIDARG,
+                @"Too many items selected for deletion (limit 4294967295).");
+        }
+        return NO;
+    }
     result = folderOperations->Delete(indices.data(), (UInt32)indices.size(),
         updateCallback);
 
-    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
-        [self storeCachedPassword:updateSpec->Password defined:true];
-    }
+    [self syncCachedPasswordFromUpdateCallback:updateSpec result:result];
 
     if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
                                                                                                       error:error]) {
@@ -2275,13 +2326,19 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
         return NO;
     }
 
+    if (pathPointers.size() > (size_t)UINT32_MAX) {
+        if (error) {
+            *error = SZMakeError(E_INVALIDARG,
+                @"Too many items to add to the archive in a single operation "
+                @"(limit 4294967295).");
+        }
+        return NO;
+    }
     result = folderOperations->CopyFrom(
         moveMode ? 1 : 0, ToU(folderPrefix ?: @"").Ptr(), pathPointers.data(),
         (UInt32)pathPointers.size(), updateCallback);
 
-    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
-        [self storeCachedPassword:updateSpec->Password defined:true];
-    }
+    [self syncCachedPasswordFromUpdateCallback:updateSpec result:result];
 
     if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
                                                                                                       error:error]) {
@@ -2371,9 +2428,7 @@ static BOOL EnsureExtractionDirectoryExists(NSString* dest, NSError** error) {
     result = folderOperations->CopyFromFile(
         indices[0], ToU(standardizedSourcePath).Ptr(), updateCallback);
 
-    if (updateSpec->PasswordIsDefined && (result == S_OK || updateSpec->ArchiveWasReplaced)) {
-        [self storeCachedPassword:updateSpec->Password defined:true];
-    }
+    [self syncCachedPasswordFromUpdateCallback:updateSpec result:result];
 
     if ((result == S_OK || updateSpec->ArchiveWasReplaced) && ![self reopenAfterExternalMutationWithSession:resolvedSession
                                                                                                       error:error]) {
@@ -2425,8 +2480,17 @@ SZCompressionEncryptionProperty(SZCompressionSettings* settings) {
         return UString();
     }
 
-    if (settings.format == SZArchiveFormatZip && settings.encryption == SZEncryptionMethodAES256) {
-        return UString(L"AES256");
+    if (settings.format == SZArchiveFormatZip) {
+        // Zip should only use an explicit encryption mode when a password is set.
+        switch (settings.encryption) {
+        case SZEncryptionMethodAES256:
+            return UString(L"AES256");
+        case SZEncryptionMethodZipCrypto:
+            return UString(L"ZipCrypto");
+        case SZEncryptionMethodNone:
+            // Let createAtPath: reject password + no explicit zip mode.
+            return UString();
+        }
     }
 
     return UString();
@@ -2689,6 +2753,19 @@ static bool SZParseVolumeSizes(const UString& text,
         return NO;
     }
 
+    // Reject zip passwords without an explicit encryption mode.
+    if (s.format == SZArchiveFormatZip
+        && s.password.length > 0
+        && s.encryption == SZEncryptionMethodNone) {
+        if (error) {
+            *error = SZMakeError(E_INVALIDARG,
+                @"A password was supplied but no zip encryption method was "
+                @"selected. Choose AES-256 (recommended) or ZipCrypto "
+                @"explicitly before creating the archive.");
+        }
+        return NO;
+    }
+
     CUpdateOptions options;
     options.Commands.Clear();
     CUpdateArchiveCommand command;
@@ -2862,6 +2939,11 @@ static bool SZParseVolumeSizes(const UString& text,
 
     SZOpenCallbackUI openCallbackUI;
     openCallbackUI.Session = resolvedSession;
+    // Reopen encrypted archives with the write password to avoid a second prompt.
+    if (callbackUI.PasswordIsDefined) {
+        openCallbackUI.PasswordIsDefined = true;
+        openCallbackUI.Password = callbackUI.Password;
+    }
     CUpdateErrorInfo errorInfo;
     CObjectVector<COpenType> types;
 
@@ -2873,7 +2955,7 @@ static bool SZParseVolumeSizes(const UString& text,
         if (r == E_ABORT)
             desc = @"Compression was cancelled";
         else if (errorInfo.Message.Len() > 0)
-            desc = [NSString stringWithUTF8String:errorInfo.Message.Ptr()];
+            desc = NSFromCString(errorInfo.Message.Ptr());
         else
             desc = [NSString
                 stringWithFormat:@"Compression failed (0x%08X)", (unsigned)r];
@@ -2971,7 +3053,7 @@ static bool SZParseVolumeSizes(const UString& text,
 
     class HashCB : public IHashCallbackUI {
     public:
-        __unsafe_unretained SZOperationSession* session;
+        __weak SZOperationSession* session;
         NSMutableDictionary* results;
         UString failureDescription;
         UString failureReason;
@@ -3032,8 +3114,7 @@ static bool SZParseVolumeSizes(const UString& text,
                 const CHasherState& h = hb.Hashers[i];
                 char hex[256];
                 HashHexToString(hex, h.Digests[0], h.DigestSize);
-                results[[NSString stringWithUTF8String:h.Name.Ptr()]] =
-                    [NSString stringWithUTF8String:hex];
+                results[NSFromCString(h.Name.Ptr())] = NSFromCString(hex);
             }
             return S_OK;
         }
@@ -3093,7 +3174,7 @@ static bool SZParseVolumeSizes(const UString& text,
     if (r != S_OK) {
         NSString* reason = errorInfo.IsEmpty()
             ? nil
-            : [NSString stringWithUTF8String:errorInfo.Ptr()];
+            : NSFromCString(errorInfo.Ptr());
         if (error)
             *error = SZMakeDetailedError(r, @"Hash calculation failed", reason);
         return nil;

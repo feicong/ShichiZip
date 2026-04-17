@@ -13,6 +13,15 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
 
     private var cancelled = false
     private var startTime: Date?
+
+    /// Tracks whether `speedLabel` is showing throughput or file counts.
+    private enum SpeedLabelMode {
+        case empty
+        case speed
+        case filesProcessed
+    }
+
+    private var speedLabelMode: SpeedLabelMode = .empty
     private var speedLabel: NSTextField!
     private var elapsedLabel: NSTextField!
     private var isWaitingForProgress = false
@@ -140,6 +149,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         }
         bytesLabel.stringValue = ""
         speedLabel.stringValue = ""
+        speedLabelMode = .empty
         elapsedLabel.stringValue = ""
     }
 
@@ -152,12 +162,8 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     }
 
     func showNowIfNeeded() {
-        if !Thread.isMainThread {
-            DispatchQueue.main.sync {
-                self.showNowIfNeeded()
-            }
-            return
-        }
+        // SZOperationSession delivers delegate callbacks on the main queue.
+        dispatchPrecondition(condition: .onQueue(.main))
 
         if let showRequestHandler {
             showRequestHandler()
@@ -168,12 +174,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     }
 
     func showWindowNowIfNeeded() {
-        if !Thread.isMainThread {
-            DispatchQueue.main.sync {
-                self.showWindowNowIfNeeded()
-            }
-            return
-        }
+        dispatchPrecondition(condition: .onQueue(.main))
 
         guard let window else { return }
         if !window.isVisible {
@@ -229,6 +230,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
                 let speed = Double(completed) / elapsed
                 let speedStr = ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file)
                 speedLabel.stringValue = SZL10n.string("progress.speed") + " \(speedStr)/s"
+                speedLabelMode = .speed
 
                 let elapsedStr = formatDuration(elapsed)
                 if total > 0, completed > 0 {
@@ -254,9 +256,14 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     }
 
     func progressDidUpdateFilesCompleted(_ count: UInt64) {
-        if speedLabel.stringValue.isEmpty || speedLabel.stringValue.hasSuffix("processed") {
+        // Do not overwrite a live speed/ETA string with file counts.
+        switch speedLabelMode {
+        case .empty, .filesProcessed:
             let suffix = count == 1 ? "file" : "files"
             speedLabel.stringValue = "\(count) \(suffix) processed"
+            speedLabelMode = .filesProcessed
+        case .speed:
+            break
         }
     }
 

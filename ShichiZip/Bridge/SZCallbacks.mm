@@ -3,6 +3,7 @@
 #include "SZCallbacks.h"
 
 #import "../Dialogs/SZDialogPresenter.h"
+#import <os/log.h>
 
 static inline void SZDispatchSyncOnMainThread(dispatch_block_t block) {
     if ([NSThread isMainThread]) {
@@ -382,7 +383,13 @@ Z7_COM7F_IMF(SZFolderExtractCallback::MessageError(const wchar_t* message)) {
     if (message) {
         UString extractedMessage(message);
         SZAppendErrorMessage(LastErrorMessage, extractedMessage);
+#if DEBUG
         NSLog(@"[ShichiZip] Extract error: %@", ToNS(extractedMessage));
+#else
+        // Keep user paths private in Release logs.
+        os_log_error(OS_LOG_DEFAULT, "[ShichiZip] Extract error: %{private}s",
+            [ToNS(extractedMessage) UTF8String] ?: "");
+#endif
     }
     return S_OK;
 }
@@ -423,6 +430,10 @@ Z7_COM7F_IMF(SZFolderExtractCallback::ReportExtractResult(Int32 opRes, Int32 enc
 }
 
 Z7_COM7F_IMF(SZFolderExtractCallback::CryptoGetTextPassword(BSTR* pw)) {
+    // Some callers free the out BSTR even on failure, so initialize it first.
+    if (pw) {
+        *pw = NULL;
+    }
     PasswordWasAsked = true;
     if (!PasswordIsDefined) {
         HRESULT hr = SZRequestOperationPassword(Session, Password, PasswordIsDefined);
@@ -541,7 +552,12 @@ Z7_COM7F_IMF(SZFolderExtractCallback::RequestMemoryUse(
             archiveSkipped);
         SZAppendErrorMessage(LastErrorMessage, failureReason);
         NumErrors++;
+#if DEBUG
         NSLog(@"[ShichiZip] %@", failureReason);
+#else
+        os_log_error(OS_LOG_DEFAULT, "[ShichiZip] %{private}s",
+            [failureReason UTF8String] ?: "");
+#endif
     }
 
     return S_OK;
@@ -616,11 +632,23 @@ HRESULT SZUpdateCallbackUI::GetStream(const wchar_t* name, bool, bool, UInt32) {
 }
 
 HRESULT SZUpdateCallbackUI::CryptoGetTextPassword2(Int32* passwordIsDefined, BSTR* password) {
-    *passwordIsDefined = PasswordIsDefined ? 1 : 0;
+    // Initialize the out BSTR before any early return.
+    if (password) {
+        *password = NULL;
+    }
+    if (passwordIsDefined) {
+        *passwordIsDefined = PasswordIsDefined ? 1 : 0;
+    }
+    if (!PasswordIsDefined) {
+        return S_OK;
+    }
     return StringToBstr(Password, password);
 }
 
 HRESULT SZUpdateCallbackUI::CryptoGetTextPassword(BSTR* password) {
+    if (password) {
+        *password = NULL;
+    }
     if (!PasswordIsDefined)
         return E_ABORT;
     return StringToBstr(Password, password);

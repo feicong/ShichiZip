@@ -48,9 +48,13 @@ public:
     UInt64 TotalValue;
     bool HasTotalValue;
     bool UsesBytesProgress;
-    __unsafe_unretained SZOperationSession* Session;
+    __weak SZOperationSession* Session;
 
     SZOpenCallbackUI();
+    virtual ~SZOpenCallbackUI() {
+        // Clear plaintext password on destruction.
+        Password.Wipe_and_Empty();
+    }
 
     HRESULT Open_CheckBreak() override;
     HRESULT Open_SetTotal(const UInt64*, const UInt64*) override;
@@ -83,7 +87,7 @@ public:
     bool PasswordWasAsked;
     UInt64 TotalSize;
     SZOverwriteMode OverwriteMode;
-    __unsafe_unretained SZOperationSession* Session;
+    __weak SZOperationSession* Session;
     UInt32 NumErrors;
     UInt32 NumFilesCompleted;
     bool PasswordWasWrong;
@@ -108,6 +112,10 @@ public:
         , IsFolder(false)
         , RememberMemoryDecision(false)
         , SkipMemoryArchive(false) {
+    }
+
+    virtual ~SZFolderExtractCallback() {
+        Password.Wipe_and_Empty();
     }
 
     Z7_COM_UNKNOWN_IMP_4(IFolderArchiveExtractCallback, IFolderArchiveExtractCallback2, ICryptoGetTextPassword, IArchiveRequestMemoryUseCallback)
@@ -135,12 +143,16 @@ public:
     UString Password;
     bool PasswordIsDefined;
     UInt64 TotalSize;
-    __unsafe_unretained SZOperationSession* Session;
+    __weak SZOperationSession* Session;
 
     SZUpdateCallbackUI()
         : PasswordIsDefined(false)
         , TotalSize(0)
         , Session(nil) {
+    }
+
+    virtual ~SZUpdateCallbackUI() {
+        Password.Wipe_and_Empty();
     }
 
     // IUpdateCallbackUI
@@ -200,7 +212,7 @@ public:
     bool UsesBytesProgress;
     UInt64 NumFilesCompleted;
     bool ArchiveWasReplaced;
-    __unsafe_unretained SZOperationSession* Session;
+    __weak SZOperationSession* Session;
     UString ArchivePath;
     UString LastErrorMessage;
 
@@ -214,6 +226,10 @@ public:
         , NumFilesCompleted(0)
         , ArchiveWasReplaced(false)
         , Session(nil) {
+    }
+
+    virtual ~SZAgentUpdateCallback() {
+        Password.Wipe_and_Empty();
     }
 
     Z7_COM_UNKNOWN_IMP_8(IFolderArchiveUpdateCallback,

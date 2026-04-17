@@ -44,18 +44,18 @@ static UString SZToUString(NSString* string) {
     if (!string) {
         return UString();
     }
-
+    const NSUInteger len = string.length;
     UString converted;
-    for (NSUInteger index = 0; index < string.length; index++) {
+    converted.Empty();
+    for (NSUInteger index = 0; index < len; index++)
         converted += (wchar_t)[string characterAtIndex:index];
-    }
     return converted;
 }
 
 static NSString* SZToNSString(const UString& string) {
     NSMutableString* converted = [NSMutableString stringWithCapacity:string.Len()];
     for (unsigned index = 0; index < string.Len(); index++) {
-        unichar character = (unichar)string[index];
+        const unichar character = (unichar)string[index];
         [converted appendString:[NSString stringWithCharacters:&character length:1]];
     }
     return converted;

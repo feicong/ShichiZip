@@ -2,14 +2,17 @@ import Foundation
 @testable import ShichiZip
 import XCTest
 
+/// AppDelegate is @MainActor; keep the test class there too.
+@MainActor
 final class QuickActionTransportTests: XCTestCase {
     override func setUp() {
         super.setUp()
-        setenv("SHICHIZIP_DISABLE_SMART_QUICK_EXTRACT_REVEAL", "1", 1)
+        // Use the test override instead of mutating process-wide environment state.
+        AppDelegate.testingShouldRevealSmartQuickExtractDestinationOverride = false
     }
 
     override func tearDown() {
-        unsetenv("SHICHIZIP_DISABLE_SMART_QUICK_EXTRACT_REVEAL")
+        AppDelegate.testingShouldRevealSmartQuickExtractDestinationOverride = nil
         super.tearDown()
     }
 
