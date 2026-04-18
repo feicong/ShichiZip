@@ -43,7 +43,7 @@ targets:
           - "**/*.entitlements"
           - "QuickActions/Extensions/**"
     dependencies:
-      - target: ShichiZipShowInFileManagerAction
+      - target: ShichiZipRevealInFileManagerAction
         embed: true
       - target: ShichiZipOpenInShichiZipAction
         embed: true
@@ -134,7 +134,7 @@ targets:
           - "**/*.entitlements"
           - "QuickActions/Extensions/**"
     dependencies:
-      - target: ShichiZipZSShowInFileManagerAction
+      - target: ShichiZipZSRevealInFileManagerAction
         embed: true
       - target: ShichiZipZSOpenInShichiZipAction
         embed: true
@@ -180,7 +180,7 @@ targets:
           - "SHICHIZIP_ZS_VARIANT"
         CLANG_WARN_DOCUMENTATION_COMMENTS: false
 
-  ShichiZipShowInFileManagerAction:
+  ShichiZipRevealInFileManagerAction:
     type: app-extension
     platform: macOS
     postBuildScripts:
@@ -194,14 +194,14 @@ targets:
           - "Resources/**"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZip.ShowInFileManagerAction
-        PRODUCT_NAME: ShichiZipShowInFileManagerAction
+        PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZip.RevealInFileManagerAction
+        PRODUCT_NAME: ShichiZipRevealInFileManagerAction
         SHICHIZIP_HOST_APP_DISPLAY_NAME: ShichiZip
         SHICHIZIP_QUICK_ACTION_DISPLAY_NAME: "SZ: Reveal in File Manager"
         SHICHIZIP_QUICK_ACTION_LABEL: "SZ: Reveal in File Manager"
         SHICHIZIP_QUICK_ACTION_PASTEBOARD_TYPE: ee.dawn.ShichiZip.quick-action-request
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizip
-        INFOPLIST_FILE: ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist
+        INFOPLIST_FILE: ShichiZip/QuickActions/Resources/RevealInFileManagerAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
@@ -261,7 +261,7 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         APPLICATION_EXTENSION_API_ONLY: true
 
-  ShichiZipZSShowInFileManagerAction:
+  ShichiZipZSRevealInFileManagerAction:
     type: app-extension
     platform: macOS
     postBuildScripts:
@@ -275,14 +275,14 @@ targets:
           - "Resources/**"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZipZS.ShowInFileManagerAction
-        PRODUCT_NAME: ShichiZipZSShowInFileManagerAction
+        PRODUCT_BUNDLE_IDENTIFIER: ee.dawn.ShichiZipZS.RevealInFileManagerAction
+        PRODUCT_NAME: ShichiZipZSRevealInFileManagerAction
         SHICHIZIP_HOST_APP_DISPLAY_NAME: "ShichiZip ZS"
         SHICHIZIP_QUICK_ACTION_DISPLAY_NAME: "SZ ZS: Reveal in File Manager"
         SHICHIZIP_QUICK_ACTION_LABEL: "SZ ZS: Reveal in File Manager"
         SHICHIZIP_QUICK_ACTION_PASTEBOARD_TYPE: ee.dawn.ShichiZipZS.quick-action-request
         SHICHIZIP_QUICK_ACTION_URL_SCHEME: shichizipzs
-        INFOPLIST_FILE: ShichiZip/QuickActions/Resources/ShowInFileManagerAction-Info.plist
+        INFOPLIST_FILE: ShichiZip/QuickActions/Resources/RevealInFileManagerAction-Info.plist
         CODE_SIGN_ENTITLEMENTS: ShichiZip/QuickActions/Resources/QuickAction.entitlements
         MACOSX_DEPLOYMENT_TARGET: "13.0"
         GENERATE_INFOPLIST_FILE: false
