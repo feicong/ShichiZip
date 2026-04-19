@@ -88,7 +88,9 @@ jobs:
 
           rm -f "$CERT_PATH"
 
-      - name: Build app bundle
+      - name: Build and sign app bundle
+        env:
+          SIGNING_IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
         run: |
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
 
@@ -97,41 +99,18 @@ jobs:
             -scheme "${{ matrix.scheme }}" \
             -configuration "$XCODE_CONFIGURATION" \
             -derivedDataPath "$derived_data_path" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             ARCHS="${{ matrix.target_arch }}" \
             VALID_ARCHS="${{ matrix.target_arch }}" \
             build
 
-      - name: Sign app bundle
-        env:
-          SIGNING_IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
+      - name: Verify app bundle signature
         run: |
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
           app_path="${derived_data_path}/Build/Products/${XCODE_CONFIGURATION}/${{ matrix.app_bundle }}"
-          quick_action_entitlements="ShichiZip/QuickActions/Resources/QuickAction.entitlements"
-          app_entitlements="ShichiZip/Resources/ShichiZip.entitlements"
 
           test -d "$app_path"
-
-          # Sign nested dylibs (e.g. .debug.dylib on x86_64 Debug builds)
-          find "$app_path" -name '*.dylib' -print0 | while IFS= read -r -d '' dylib; do
-            codesign --force --options runtime --timestamp \
-              --sign "$SIGNING_IDENTITY" \
-              "$dylib"
-          done
-
-          for appex in "$app_path"/Contents/PlugIns/*.appex; do
-            codesign --force --options runtime --timestamp \
-              --sign "$SIGNING_IDENTITY" \
-              --entitlements "$quick_action_entitlements" \
-              "$appex"
-          done
-
-          codesign --force --options runtime --timestamp \
-            --sign "$SIGNING_IDENTITY" \
-            --entitlements "$app_entitlements" \
-            "$app_path"
 
           codesign --verify --deep --strict --verbose=2 "$app_path"
 

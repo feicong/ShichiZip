@@ -1,10 +1,12 @@
 import Foundation
+import Security
 
 enum ShichiZipQuickActionTransport {
     private static let launchHost = "quick-action"
     private static let launchPath = "/finder"
     private static let requestQueryItemName = "request"
     private static let defaultURLScheme = "shichizip"
+    private static let applicationGroupsEntitlementKey = "com.apple.security.application-groups"
     private static let appGroupIdentifierInfoKey = "ShichiZipQuickActionAppGroupIdentifier"
     private static let urlSchemeInfoKey = "ShichiZipQuickActionURLScheme"
     private static let requestDirectoryName = "QuickActionRequests"
@@ -51,6 +53,11 @@ enum ShichiZipQuickActionTransport {
         do {
             data = try Data(contentsOf: requestFileURL)
         } catch {
+            if isTransportAccessDenied(error) {
+                log("transport unavailable denied request read bundle=\(bundleIdentifier) appGroupIdentifier=\(appGroupIdentifier ?? "<missing>") requestFile=\(requestFileURL.path) error=\(String(describing: error))")
+                throw ShichiZipQuickActionError.transportUnavailable
+            }
+
             throw ShichiZipQuickActionError.missingPayload
         }
 
@@ -175,6 +182,11 @@ enum ShichiZipQuickActionTransport {
             throw ShichiZipQuickActionError.transportUnavailable
         }
 
+        guard hasRuntimeAppGroupEntitlement(appGroupIdentifier) else {
+            log("transport unavailable missing runtime app group entitlement bundle=\(bundleIdentifier) appGroupIdentifier=\(appGroupIdentifier)")
+            throw ShichiZipQuickActionError.transportUnavailable
+        }
+
         guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
             log("transport unavailable unresolved app group container bundle=\(bundleIdentifier) appGroupIdentifier=\(appGroupIdentifier)")
             throw ShichiZipQuickActionError.transportUnavailable
@@ -211,6 +223,52 @@ enum ShichiZipQuickActionTransport {
     private static func infoString(forKey key: String) -> String? {
         (Bundle.main.object(forInfoDictionaryKey: key) as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func hasRuntimeAppGroupEntitlement(_ appGroupIdentifier: String) -> Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let entitlementsValue = SecTaskCopyValueForEntitlement(task,
+                                                                     applicationGroupsEntitlementKey as CFString,
+                                                                     nil) as? [Any]
+        else {
+            return false
+        }
+
+        return entitlementsValue
+            .compactMap { $0 as? String }
+            .contains(appGroupIdentifier)
+    }
+
+    private static func isTransportAccessDenied(_ error: Error) -> Bool {
+        let nsError = error as NSError
+
+        if nsError.domain == NSPOSIXErrorDomain,
+           nsError.code == EACCES || nsError.code == EPERM
+        {
+            return true
+        }
+
+        if nsError.domain == NSCocoaErrorDomain {
+            if nsError.code == CocoaError.fileReadNoPermission.rawValue ||
+                nsError.code == CocoaError.fileWriteNoPermission.rawValue
+            {
+                return true
+            }
+
+            if nsError.code == CocoaError.fileReadNoSuchFile.rawValue,
+               let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError,
+               underlyingError.domain == NSPOSIXErrorDomain,
+               underlyingError.code == EACCES || underlyingError.code == EPERM
+            {
+                return true
+            }
+        }
+
+        if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            return isTransportAccessDenied(underlyingError)
+        }
+
+        return false
     }
 
     private static func log(_ message: String) {
