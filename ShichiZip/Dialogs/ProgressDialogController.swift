@@ -47,6 +47,10 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
         window.isMovableByWindowBackground = true
         self.init(window: window)
         setupUI()
+        if let fittingSize = window.contentView?.fittingSize {
+            window.setContentSize(NSSize(width: 480, height: fittingSize.height))
+            window.center()
+        }
     }
 
     private func setupUI() {
@@ -124,6 +128,7 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
 
             speedLabel.topAnchor.constraint(equalTo: bytesLabel.bottomAnchor, constant: 2),
             speedLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            speedLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
 
             elapsedLabel.topAnchor.constraint(equalTo: progressBar.bottomAnchor, constant: 4),
             elapsedLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -100),
@@ -188,7 +193,6 @@ class ProgressDialogController: NSWindowController, SZProgressDelegate {
     @objc private func cancelClicked(_: Any?) {
         cancelled = true
         cancelButton.isEnabled = false
-        cancelButton.title = SZL10n.string("app.progress.cancelling")
     }
 
     // MARK: - SZProgressDelegate (matches ProgressDialog2.cpp)
