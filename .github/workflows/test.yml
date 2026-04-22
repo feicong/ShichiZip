@@ -31,8 +31,18 @@ jobs:
       - name: Select Xcode 26.4
         run: sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
 
-      - name: Build lib7zip
-        run: make -j"$(sysctl -n hw.ncpu)" TARGET_ARCH=arm64 lib-mainline
+      - name: Build archive core artifacts
+        run: |
+          zig build lib \
+            -Dvariant=mainline \
+            -Dtarget=aarch64-macos \
+            -Doptimize=ReleaseFast \
+            -p build
+
+          zig build sfx \
+            -Dvariant=mainline \
+            -Doptimize=ReleaseSmall \
+            -p build
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -70,8 +80,18 @@ jobs:
       - name: Select Xcode 26.4
         run: sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
 
-      - name: Build lib7zip
-        run: make -j"$(sysctl -n hw.ncpu)" TARGET_ARCH=arm64 lib-mainline
+      - name: Build archive core artifacts
+        run: |
+          zig build lib \
+            -Dvariant=mainline \
+            -Dtarget=aarch64-macos \
+            -Doptimize=ReleaseFast \
+            -p build
+
+          zig build sfx \
+            -Dvariant=mainline \
+            -Doptimize=ReleaseSmall \
+            -p build
 
       - name: Generate Xcode project
         run: xcodegen generate
