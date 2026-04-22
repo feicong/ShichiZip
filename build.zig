@@ -271,8 +271,8 @@ fn buildLib(
 
     // ZS variant: wildcard C source directories
     if (variant == .zs) {
-        const zs_std_dirs = [_][]const u8{ "C/brotli", "C/hashes", "C/lizard", "C/lz4", "C/lz5", "C/zstdmt" };
-        for (zs_std_dirs) |sub| {
+        const zs_common_dirs = [_][]const u8{ "C/brotli", "C/lizard", "C/lz4", "C/lz5", "C/zstdmt" };
+        for (zs_common_dirs) |sub| {
             const files = collectCFilesRelative(b, sevenz_root, sub);
             if (files.len > 0) {
                 root_module.addCSourceFiles(.{
@@ -282,6 +282,38 @@ fn buildLib(
                     .language = .c,
                 });
             }
+        }
+
+        {
+            const hash_files = collectCFilesRelative(b, sevenz_root, "C/hashes");
+            var common_hash_files = std.ArrayList([]const u8).empty;
+            for (hash_files) |file| {
+                if (std.mem.eql(u8, file, "C/hashes/xxh_x86dispatch.c")) continue;
+                common_hash_files.append(b.allocator, file) catch @panic("OOM");
+            }
+            if (common_hash_files.items.len > 0) {
+                root_module.addCSourceFiles(.{
+                    .root = b.path(sevenz_root),
+                    .files = common_hash_files.items,
+                    .flags = c_flags_zs,
+                    .language = .c,
+                });
+            }
+
+            // Zig's bundled Clang 21 keeps `evex512` disabled on its generic x86
+            // baseline, but xxHash's AVX512 dispatcher only needs that register-state
+            // feature on the one translation unit that already runtime-gates AVX512.
+            // LLVM 22 removed the separate gate, so keep the compatibility shim local.
+            const x86_dispatch_flags = if (target.result.cpu.arch == .x86_64 or target.result.cpu.arch == .x86)
+                concatFlags(b, c_flags_zs, &.{ "-Xclang", "-target-feature", "-Xclang", "+evex512" })
+            else
+                c_flags_zs;
+            root_module.addCSourceFiles(.{
+                .root = b.path(sevenz_root),
+                .files = &.{"C/hashes/xxh_x86dispatch.c"},
+                .flags = x86_dispatch_flags,
+                .language = .c,
+            });
         }
 
         // fast-lzma2: extra -DNO_XXHASH -DFL2_7ZIP_BUILD
