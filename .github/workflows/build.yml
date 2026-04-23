@@ -144,7 +144,10 @@ jobs:
           derived_data_path="build/DerivedData/${{ matrix.scheme }}"
           app_path="${derived_data_path}/Build/Products/${XCODE_CONFIGURATION}/${{ matrix.app_bundle }}"
           artifact_dir="build/artifacts/${{ matrix.scheme }}"
-          artifact_path="${artifact_dir}/${{ matrix.artifact_prefix }}-${XCODE_CONFIGURATION}-${{ matrix.target_arch }}.zip"
+          commit_hash="${{ github.sha }}"
+          short_commit_hash="${commit_hash:0:7}"
+          artifact_name="${{ matrix.artifact_prefix }}-${short_commit_hash}-${{ matrix.target_arch }}"
+          artifact_path="${artifact_dir}/${artifact_name}.zip"
 
           test -d "$app_path"
           mkdir -p "$artifact_dir"
@@ -155,7 +158,6 @@ jobs:
       - name: Upload app artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_prefix }}-${{ env.XCODE_CONFIGURATION }}-macOS-${{ matrix.target_arch }}
           path: ${{ steps.package_artifact.outputs.path }}
           if-no-files-found: error
           archive: false

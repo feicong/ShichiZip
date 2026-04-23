@@ -187,12 +187,10 @@ jobs:
           rm -f "$artifact_path"
           ditto -c -k --sequesterRsrc --keepParent "$app_path" "$artifact_path"
           echo "path=$artifact_path" >> "$GITHUB_OUTPUT"
-          echo "name=$artifact_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_prefix }}-${{ github.ref_name }}-macOS-${{ matrix.target_arch }}
           path: ${{ steps.release_artifact.outputs.path }}
           if-no-files-found: error
           archive: false
