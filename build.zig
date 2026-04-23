@@ -1,5 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
+const builtin = @import("builtin");
 
 const Variant = enum {
     mainline,
@@ -32,7 +33,7 @@ const SfxArch = enum { x86, x86_64, all };
 pub fn build(b: *std.Build) void {
     const variant = b.option(Variant, "variant", "Variant to build for lib and sfx steps; use all to fan out both variants") orelse .mainline;
     var target_query = b.standardTargetOptionsQueryOnly(.{});
-    if ((target_query.os_tag == null or target_query.os_tag == .macos) and target_query.os_version_min == null) {
+    if (((target_query.os_tag == null and builtin.os.tag == .macos) or target_query.os_tag == .macos) and target_query.os_version_min == null) {
         target_query.os_version_min = .{ .semver = .{ .major = 13, .minor = 0, .patch = 0 } };
     }
     const target = b.resolveTargetQuery(target_query);
@@ -112,6 +113,7 @@ fn collectCFilesRelative(b: *std.Build, root_path: []const u8, sub_dir: []const 
     const full_path = std.fmt.allocPrint(b.allocator, "{s}/{s}", .{ root_path, sub_dir }) catch @panic("OOM");
     const cwd = Io.Dir.cwd();
     const dir = cwd.openDir(io, full_path, .{ .iterate = true }) catch return &.{};
+    defer dir.close(io);
     var walker = dir.walk(b.allocator) catch return &.{};
     defer walker.deinit();
 
