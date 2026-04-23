@@ -16,6 +16,12 @@ struct FileManagerArchiveQuickLookPreview {
     let fileURLs: [URL]
 }
 
+struct FileManagerPreparedArchiveItemInternalOpen {
+    let stagedArchiveURL: URL
+    let temporaryDirectory: URL
+    let preparedResult: FileManagerPreparedArchiveOpenResult
+}
+
 enum FileManagerArchiveItemOpenStrategy {
     case automatic
     case forceInternal(FileManagerArchiveOpenMode)
@@ -119,13 +125,15 @@ final class FileManagerArchiveItemWorkflowService {
     func open(_ item: ArchiveItem,
               context: FileManagerArchiveItemWorkflowContext,
               strategy: FileManagerArchiveItemOpenStrategy = .automatic,
+              session: SZOperationSession? = nil,
               openArchiveInline: (URL, URL, String, URL, FileManagerNestedArchiveWriteBackInfo?, FileManagerArchiveOpenMode) -> FileManagerArchiveOpenResult,
               openExternally: (URL, URL, URL) -> Bool,
               openExternallyIfPossible: (URL, URL) -> Bool) throws
     {
         let stagedItem = try stage(item: item,
                                    context: context,
-                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.openArchivePrefix)
+                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.openArchivePrefix,
+                                   session: session)
         let preferredApplicationURL = FileManagerExternalOpenRouter.preferredExternalApplicationURL(forArchiveItemPath: item.path)
 
         switch strategy {
@@ -359,6 +367,36 @@ final class FileManagerArchiveItemWorkflowService {
         }
 
         return indices.sorted().map { NSNumber(value: $0) }
+    }
+
+    func prepareInternalArchiveOpen(for item: ArchiveItem,
+                                    context: FileManagerArchiveItemWorkflowContext,
+                                    openMode: FileManagerArchiveOpenMode,
+                                    session: SZOperationSession) throws -> FileManagerPreparedArchiveItemInternalOpen
+    {
+        let stagedItem = try stage(item: item,
+                                   context: context,
+                                   temporaryDirectoryPrefix: FileManagerTemporaryDirectorySupport.openArchivePrefix,
+                                   session: session)
+        do {
+            let nestedWriteBackInfo = try makeNestedArchiveWriteBackInfo(for: item,
+                                                                         context: context,
+                                                                         stagedArchiveURL: stagedItem.fileURL)
+            let preparedResult = FileManagerArchiveOpenService.prepareArchiveOpen(url: stagedItem.fileURL,
+                                                                                  hostDirectory: context.hostDirectory,
+                                                                                  temporaryDirectory: stagedItem.temporaryDirectory,
+                                                                                  displayPathPrefix: nestedDisplayPath(for: item,
+                                                                                                                       displayPathPrefix: context.displayPathPrefix),
+                                                                                  nestedWriteBackInfo: nestedWriteBackInfo,
+                                                                                  openMode: openMode,
+                                                                                  session: session)
+            return FileManagerPreparedArchiveItemInternalOpen(stagedArchiveURL: stagedItem.fileURL,
+                                                              temporaryDirectory: stagedItem.temporaryDirectory,
+                                                              preparedResult: preparedResult)
+        } catch {
+            cleanup(stagedItem.temporaryDirectory)
+            throw error
+        }
     }
 
     private func makeNestedArchiveWriteBackInfo(for item: ArchiveItem,

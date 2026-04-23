@@ -3152,13 +3152,48 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
         guard item.index >= 0,
               let context = currentArchiveItemWorkflowContext() else { return }
 
-        let preserveTemporaryDirectoryOnUnsupported = switch strategy {
-        case .automatic:
-            true
-        case .forceInternal, .forceExternal:
-            false
+        if case .forceExternal = strategy {
+            openArchiveItemViaWorkflowService(item,
+                                              context: context,
+                                              strategy: strategy,
+                                              preserveTemporaryDirectoryOnUnsupported: false)
+            return
         }
 
+        if case .automatic = strategy,
+           FileManagerExternalOpenRouter.shouldOpenExternallyBeforeArchiveAttempt(archiveItemPath: item.path)
+        {
+            openArchiveItemViaWorkflowService(item,
+                                              context: context,
+                                              strategy: strategy,
+                                              preserveTemporaryDirectoryOnUnsupported: true)
+            return
+        }
+
+        let openMode: FileManagerArchiveOpenMode
+        let preserveTemporaryDirectoryOnUnsupported: Bool
+        switch strategy {
+        case .automatic:
+            openMode = .defaultBehavior
+            preserveTemporaryDirectoryOnUnsupported = true
+        case let .forceInternal(mode):
+            openMode = mode
+            preserveTemporaryDirectoryOnUnsupported = false
+        case .forceExternal:
+            return
+        }
+
+        openArchiveItemInternally(item,
+                                  context: context,
+                                  openMode: openMode,
+                                  preserveTemporaryDirectoryOnUnsupported: preserveTemporaryDirectoryOnUnsupported)
+    }
+
+    private func openArchiveItemViaWorkflowService(_ item: ArchiveItem,
+                                                   context: FileManagerArchiveItemWorkflowContext,
+                                                   strategy: FileManagerArchiveItemOpenStrategy,
+                                                   preserveTemporaryDirectoryOnUnsupported: Bool)
+    {
         do {
             try archiveItemWorkflowService.open(item,
                                                 context: context,
@@ -3182,6 +3217,65 @@ class FileManagerPaneController: NSViewController, NSTableViewDataSource, NSTabl
                                                     openExternallyIfPossible(url,
                                                                              preservingTemporaryDirectory: temporaryDirectory)
                                                 })
+        } catch {
+            showErrorAlert(error)
+        }
+    }
+
+    private func openArchiveItemInternally(_ item: ArchiveItem,
+                                           context: FileManagerArchiveItemWorkflowContext,
+                                           openMode: FileManagerArchiveOpenMode,
+                                           preserveTemporaryDirectoryOnUnsupported: Bool)
+    {
+        let displayPath = context.displayPathPrefix + "/" + item.pathParts.joined(separator: "/")
+
+        do {
+            let preparedOpen = try ArchiveOperationRunner.runSynchronously(operationTitle: "Opening archive...",
+                                                                           initialFileName: displayPath,
+                                                                           deferredDisplay: true)
+            { [archiveItemWorkflowService] session in
+                try archiveItemWorkflowService.prepareInternalArchiveOpen(for: item,
+                                                                          context: context,
+                                                                          openMode: openMode,
+                                                                          session: session)
+            }
+
+            let result = finishArchiveOpen(preparedOpen.preparedResult,
+                                           temporaryDirectory: preparedOpen.temporaryDirectory,
+                                           preserveTemporaryDirectoryOnUnsupported: preserveTemporaryDirectoryOnUnsupported,
+                                           replaceCurrentState: false,
+                                           showError: false)
+
+            switch result {
+            case .opened, .cancelled:
+                return
+
+            case let .unsupportedArchive(error):
+                guard preserveTemporaryDirectoryOnUnsupported else {
+                    showErrorAlert(error)
+                    return
+                }
+
+                let shouldFallbackExternally = FileManagerExternalOpenRouter.shouldFallbackUnsupportedArchiveExternally(for: preparedOpen.stagedArchiveURL)
+                if shouldFallbackExternally {
+                    if let applicationURL = FileManagerExternalOpenRouter.preferredExternalApplicationURL(forArchiveItemPath: item.path) {
+                        _ = openExternally(preparedOpen.stagedArchiveURL,
+                                           withApplicationAt: applicationURL,
+                                           preservingTemporaryDirectory: preparedOpen.temporaryDirectory)
+                    } else if !openExternallyIfPossible(preparedOpen.stagedArchiveURL,
+                                                        preservingTemporaryDirectory: preparedOpen.temporaryDirectory)
+                    {
+                        archiveItemWorkflowService.cleanup(preparedOpen.temporaryDirectory)
+                        showErrorAlert(error)
+                    }
+                } else {
+                    archiveItemWorkflowService.cleanup(preparedOpen.temporaryDirectory)
+                    showErrorAlert(error)
+                }
+
+            case let .failed(error):
+                showErrorAlert(error)
+            }
         } catch {
             showErrorAlert(error)
         }
